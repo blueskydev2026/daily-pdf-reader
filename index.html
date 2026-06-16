@@ -173,7 +173,7 @@
           <span class="action-icon"><svg><use href="#icon-history"></use></svg></span>
           <span>חזור למיקום האחרון</span>
         </button>
-        <button class="side-action" id="installHelp">
+        <button class="side-action" id="installHelp" aria-haspopup="dialog" aria-controls="helpDialog">
           <span class="action-icon"><svg><use href="#icon-monitor-down"></use></svg></span>
           <span>ברירת מחדל והתקנה</span>
         </button>
@@ -224,12 +224,14 @@
     </main>
   </div>
 
-  <dialog id="helpDialog">
-    <button class="dialog-close" id="closeHelp">×</button>
-    <h2>התקנה כאפליקציית ווב</h2>
+  <dialog id="helpDialog" role="dialog" aria-modal="true" aria-labelledby="helpDialogTitle">
+    <button class="dialog-close" id="closeHelp" aria-label="סגור חלון עזרה">×</button>
+    <h2 id="helpDialogTitle">התקנה כאפליקציית ווב</h2>
     <p>ב-Chrome או Edge אפשר להתקין את קורא ה-PDF כאפליקציה דרך כפתור ההתקנה, או דרך תפריט הדפדפן: התקן אפליקציה.</p>
     <p>לאחר ההתקנה היא תיפתח בחלון עצמאי עם אייקון. פתיחת קבצי PDF כברירת מחדל תלויה בתמיכת הדפדפן והמערכת ב-File Handling, ולכן בדרך כלל עדיין פותחים קובץ דרך גרירה או כפתור פתיחה.</p>
+    <p>אם הדפדפן תומך ב-File Handling, ניתן לפתוח קובץ PDF ישירות מהמערכת אחרי התקנת האפליקציה.</p>
     <p>לאחר פתיחה ראשונה, קבצי האפליקציה נשמרים במטמון מקומי. ספריות חיצוניות נשמרות לאחר שהדפדפן טוען אותן פעם אחת.</p>
   </dialog>
+  <div id="statusMessage" class="status-message" aria-live="polite" aria-atomic="true"></div>
 </body>
 </html>

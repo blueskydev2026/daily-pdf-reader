@@ -79,7 +79,8 @@ const ui = {
   zoomLabel: $("zoomLabel"),
   sidebar: $("sidebar"),
   helpDialog: $("helpDialog"),
-  savedSignatureList: $("savedSignatureList")
+  savedSignatureList: $("savedSignatureList"),
+  statusMessage: $("statusMessage")
 };
 
 const saveScrollMeta = debounce(() => saveMeta(false), 200);
@@ -218,6 +219,11 @@ function wireEvents() {
       event.preventDefault();
       return;
     }
+    if (event.key === "Escape" && ui.helpDialog.open) {
+      ui.helpDialog.close();
+      announce("חלון ההתקנה נסגר.");
+      return;
+    }
     if (handleSinglePageKey(event)) return;
     if (event.code === "Space" && !isTypingTarget(event.target)) {
       state.spacePressed = true;
@@ -240,6 +246,7 @@ function registerPwa() {
     window.addEventListener("load", () => {
       navigator.serviceWorker.register("./service-worker.js").catch((error) => {
         console.warn("Service worker registration failed:", error);
+        announce("התקנת השירות האופי לא הצליחה. האפליקציה עדיין תעבוד, אך ללא מטמון מלא.");
       });
     });
   }
@@ -251,6 +258,7 @@ function registerPwa() {
     installButton?.classList.add("install-ready");
     const label = installButton?.querySelector("span:last-child");
     if (label) label.textContent = "התקן כאפליקציה";
+    announce("האפליקציה מוכנה להתקנה. לחץ על התקן כאפליקציה.");
   });
 
   window.addEventListener("appinstalled", () => {
@@ -259,19 +267,26 @@ function registerPwa() {
     installButton?.classList.remove("install-ready");
     const label = installButton?.querySelector("span:last-child");
     if (label) label.textContent = "האפליקציה מותקנת";
+    announce("האפליקציה הותקנה בהצלחה. ניתן לפתוח קבצי PDF ישירות ממערכת הקבצים.");
   });
 }
 
 async function installOrShowHelp() {
   if (!state.installPrompt) {
     ui.helpDialog.showModal();
+    announce("אין כרגע אפשרות התקנה אוטומטית. ראה הסבר נוסף.");
     return;
   }
 
   const promptEvent = state.installPrompt;
   state.installPrompt = null;
   promptEvent.prompt();
-  await promptEvent.userChoice;
+  const choice = await promptEvent.userChoice;
+  if (choice.outcome === "accepted") {
+    announce("התקנת האפליקציה החלה. המתן לאישור בדפדפן.");
+  } else {
+    announce("המשתמש ביטל את ההתקנה. ניתן לנסות שוב דרך הכפתור.");
+  }
 }
 
 function initFileHandling() {
@@ -2122,6 +2137,15 @@ function downloadBlob(blob, name) {
   link.download = name;
   link.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function announce(message) {
+  if (!ui.statusMessage) return;
+  ui.statusMessage.textContent = message;
+  ui.statusMessage.classList.add("visible");
+  setTimeout(() => {
+    ui.statusMessage.classList.remove("visible");
+  }, 4200);
 }
 
 function canvasToBlob(canvas) {
