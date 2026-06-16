@@ -801,18 +801,31 @@ summary.panel-title::-webkit-details-marker {
 }
 
 .pages {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 18px;
+  align-items: center;
   justify-content: center;
   min-width: max-content;
+  padding: 0;
 }
 
 .spread {
   display: flex;
-  direction: ltr;
   gap: 14px;
   align-items: flex-start;
   justify-content: center;
+  width: auto;
+  margin: 0 auto;
+  flex-wrap: nowrap;
+}
+
+.spread-ltr {
+  direction: ltr;
+}
+
+.spread-rtl {
+  direction: rtl;
 }
 
 .page-shell {
@@ -821,6 +834,7 @@ summary.panel-title::-webkit-details-marker {
   box-shadow: var(--shadow);
   border-radius: 3px;
   overflow: visible;
+  flex-shrink: 0;
 }
 
 .page-shell canvas {
@@ -1227,6 +1241,7 @@ dialog {
   .toolbar { justify-content: flex-start; }
   .reader { padding: 12px; }
   .spread { gap: 8px; }
+  .pages { gap: 12px; }
 }
 
   </style>
@@ -1574,7 +1589,7 @@ async function render() {
   } else {
     for (const spreadPages of getBookSpreads()) {
       const spread = document.createElement("div");
-      spread.className = "spread";
+      spread.className = state.mode === "book-rtl" ? "spread spread-rtl" : "spread spread-ltr";
       for (const pageNo of spreadPages) {
         if (renderId !== state.renderId) return;
         const pageElement = await createPage(pageNo);
@@ -3161,13 +3176,54 @@ async function fitTo(kind) {
   if (!state.pdf) return;
   const page = await state.pdf.getPage(state.currentPage);
   const viewport = page.getViewport({ scale: 1 });
-  const gap = state.mode.startsWith("book") ? 34 : 0;
-  const widthFactor = state.mode.startsWith("book") ? 2 : 1;
-  const availableWidth = Math.max(320, ui.reader.clientWidth - 44 - gap);
-  const availableHeight = Math.max(320, ui.reader.clientHeight - 44);
-  const scaleW = availableWidth / (viewport.width * widthFactor);
-  const scaleH = availableHeight / viewport.height;
-  state.scale = clamp(kind === "page" ? Math.min(scaleW, scaleH) : scaleW, 0.35, 3.5);
+  const isBookMode = state.mode.startsWith("book");
+  
+  if (isBookMode) {
+    // Get the actual reader padding from CSS computed style
+    const readerStyle = getComputedStyle(ui.reader);
+    const paddingTop = parseFloat(readerStyle.paddingTop);
+    const paddingRight = parseFloat(readerStyle.paddingRight);
+    const readerPadding = paddingTop * 2 + paddingRight * 2;
+    
+    // Get the spread gap from CSS computed style
+    const tempSpread = document.createElement("div");
+    tempSpread.className = "spread";
+    document.body.appendChild(tempSpread);
+    const spreadStyle = getComputedStyle(tempSpread);
+    const spreadGap = parseFloat(spreadStyle.gap) || 14;
+    document.body.removeChild(tempSpread);
+    
+    const availableWidth = Math.max(320, ui.reader.clientWidth - readerPadding);
+    const availableHeight = Math.max(320, ui.reader.clientHeight - readerPadding);
+    
+    // For book mode, fit two pages side-by-side
+    // Equation: availableWidth >= scale * (2 * viewport.width) + spreadGap
+    // Solving for scale: scale = (availableWidth - spreadGap) / (2 * viewport.width)
+    
+    let scaleW = (availableWidth - spreadGap) / (2 * viewport.width);
+    
+    // Verify the scale doesn't cause overflow
+    const pageWidth = viewport.width * scaleW;
+    const totalNeededWidth = pageWidth * 2 + spreadGap;
+    if (totalNeededWidth > availableWidth) {
+      scaleW = (availableWidth - spreadGap) / (2 * viewport.width) * 0.98; // 98% to ensure no overflow
+    }
+    
+    const scaleH = availableHeight / viewport.height;
+    state.scale = clamp(kind === "page" ? Math.min(scaleW, scaleH) : scaleW, 0.35, 3.5);
+  } else {
+    const readerStyle = getComputedStyle(ui.reader);
+    const paddingTop = parseFloat(readerStyle.paddingTop);
+    const paddingRight = parseFloat(readerStyle.paddingRight);
+    const readerPadding = paddingTop * 2 + paddingRight * 2;
+    
+    const availableWidth = Math.max(320, ui.reader.clientWidth - readerPadding);
+    const availableHeight = Math.max(320, ui.reader.clientHeight - readerPadding);
+    const scaleW = availableWidth / viewport.width;
+    const scaleH = availableHeight / viewport.height;
+    state.scale = clamp(kind === "page" ? Math.min(scaleW, scaleH) : scaleW, 0.35, 3.5);
+  }
+  
   await render();
 }
 

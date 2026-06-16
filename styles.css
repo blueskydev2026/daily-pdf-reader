@@ -810,18 +810,31 @@ summary.panel-title::-webkit-details-marker {
 }
 
 .pages {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 18px;
+  align-items: center;
   justify-content: center;
   min-width: max-content;
+  padding: 0;
 }
 
 .spread {
   display: flex;
-  direction: ltr;
   gap: 14px;
   align-items: flex-start;
   justify-content: center;
+  width: auto;
+  margin: 0 auto;
+  flex-wrap: nowrap;
+}
+
+.spread-ltr {
+  direction: ltr;
+}
+
+.spread-rtl {
+  direction: rtl;
 }
 
 .page-shell {
@@ -830,6 +843,7 @@ summary.panel-title::-webkit-details-marker {
   box-shadow: var(--shadow);
   border-radius: 3px;
   overflow: visible;
+  flex-shrink: 0;
 }
 
 .page-shell canvas {
@@ -1236,4 +1250,5 @@ dialog {
   .toolbar { justify-content: flex-start; }
   .reader { padding: 12px; }
   .spread { gap: 8px; }
+  .pages { gap: 12px; }
 }
