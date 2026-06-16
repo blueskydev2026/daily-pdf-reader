@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Modern PDF reader icon">
+  <defs>
+    <linearGradient id="page" x1="116" y1="62" x2="396" y2="448" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#1d4ed8"/>
+      <stop offset=".52" stop-color="#0f766e"/>
+      <stop offset="1" stop-color="#134e4a"/>
+    </linearGradient>
+    <linearGradient id="fold" x1="304" y1="66" x2="384" y2="162" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#93c5fd"/>
+      <stop offset="1" stop-color="#5eead4"/>
+    </linearGradient>
+    <linearGradient id="badge" x1="310" y1="338" x2="394" y2="406" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#f59e0b"/>
+      <stop offset="1" stop-color="#f97316"/>
+    </linearGradient>
+    <filter id="shadow" x="82" y="42" width="354" height="436" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#0f172a" flood-opacity=".28"/>
+    </filter>
+  </defs>
+  <path d="M144 66h164l76 76v271c0 24-18 42-42 42H144c-24 0-42-18-42-42V108c0-24 18-42 42-42z" fill="url(#page)" filter="url(#shadow)"/>
+  <path d="M308 66v74c0 13 10 23 23 23h53z" fill="url(#fold)" opacity=".96"/>
+  <path d="M138 184h184" stroke="#ecfeff" stroke-width="28" stroke-linecap="round"/>
+  <path d="M138 243h142" stroke="#bfdbfe" stroke-width="22" stroke-linecap="round" opacity=".94"/>
+  <path d="M138 294h169" stroke="#99f6e4" stroke-width="22" stroke-linecap="round" opacity=".86"/>
+  <path d="M140 374c45-44 75-46 101-8 22 34 57 28 112-25" fill="none" stroke="#fef3c7" stroke-width="23" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="356" cy="356" r="40" fill="url(#badge)"/>
+  <path d="M338 356h36m-18-18v36" stroke="#fff7ed" stroke-width="13" stroke-linecap="round"/>
+</svg>

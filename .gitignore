@@ -1,0 +1,35 @@
+# Node / frontend
+node_modules/
+.DS_Store
+dist/
+build/
+
+# Editor
+.vscode/
+*.code-workspace
+
+# OS
+Thumbs.db
+ehthumbs.db
+
+# Logs
+*.log
+
+# Python server cache
+__pycache__/
+*.pyc
+
+# local environment files
+.env
+
+# Windows batch file artifacts
+$RECYCLE.BIN/
+
+# Temporary files
+*.tmp
+
+# service worker cache
+sw-cache/
+
+# Ignore server logs if any
+server.err.log

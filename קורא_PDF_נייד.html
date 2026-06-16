@@ -1,0 +1,3689 @@
+﻿<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#111827">
+  <title>קורא PDF יומי - קובץ נייד</title>
+  <script>
+    (() => {
+      const manifest = "{\"name\":\"קורא PDF יומי\",\"short_name\":\"PDF יומי\",\"id\":\"./קורא_PDF_נייד.html\",\"start_url\":\"./קורא_PDF_נייד.html\",\"scope\":\"./\",\"display\":\"standalone\",\"display_override\":[\"window-controls-overlay\",\"standalone\",\"minimal-ui\"],\"background_color\":\"#f5f7fb\",\"theme_color\":\"#111827\",\"dir\":\"rtl\",\"lang\":\"he\",\"description\":\"קורא PDF יומי בעברית עם סימניות, מילוי טפסים, חתימה, גלילה רציפה ומצב ספר.\",\"orientation\":\"any\",\"categories\":[\"productivity\",\"utilities\"],\"icons\":[{\"src\":\"data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIiByb2xlPSJpbWciIGFyaWEtbGFiZWw9Ik1vZGVybiBQREYgcmVhZGVyIGljb24iPgogIDxkZWZzPgogICAgPGxpbmVhckdyYWRpZW50IGlkPSJwYWdlIiB4MT0iMTEyIiB5MT0iNTQiIHgyPSI0MDIiIHkyPSI0NTYiIGdyYWRpZW50VW5pdHM9InVzZXJTcGFjZU9uVXNlIj4KICAgICAgPHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjMWQ0ZWQ4Ii8+CiAgICAgIDxzdG9wIG9mZnNldD0iLjUyIiBzdG9wLWNvbG9yPSIjMGY3NjZlIi8+CiAgICAgIDxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzEzNGU0YSIvPgogICAgPC9saW5lYXJHcmFkaWVudD4KICAgIDxsaW5lYXJHcmFkaWVudCBpZD0iZm9sZCIgeDE9IjMwMiIgeTE9IjU4IiB4Mj0iMzkyIiB5Mj0iMTY2IiBncmFkaWVudFVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+CiAgICAgIDxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iIzkzYzVmZCIvPgogICAgICA8c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiM1ZWVhZDQiLz4KICAgIDwvbGluZWFyR3JhZGllbnQ+CiAgICA8bGluZWFyR3JhZGllbnQgaWQ9ImJhZGdlIiB4MT0iMzA5IiB5MT0iMzM3IiB4Mj0iMzk3IiB5Mj0iNDA5IiBncmFkaWVudFVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+CiAgICAgIDxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iI2Y1OWUwYiIvPgogICAgICA8c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiNmOTczMTYiLz4KICAgIDwvbGluZWFyR3JhZGllbnQ+CiAgICA8ZmlsdGVyIGlkPSJzaGFkb3ciIHg9Ijc2IiB5PSIzMiIgd2lkdGg9IjM2OCIgaGVpZ2h0PSI0NTYiIGNvbG9yLWludGVycG9sYXRpb24tZmlsdGVycz0ic1JHQiIgZmlsdGVyVW5pdHM9InVzZXJTcGFjZU9uVXNlIj4KICAgICAgPGZlRHJvcFNoYWRvdyBkeD0iMCIgZHk9IjE4IiBzdGREZXZpYXRpb249IjE4IiBmbG9vZC1jb2xvcj0iIzBmMTcyYSIgZmxvb2Qtb3BhY2l0eT0iLjI4Ii8+CiAgICA8L2ZpbHRlcj4KICA8L2RlZnM+CiAgPHBhdGggZD0iTTEzOSA1OGgxNjlsODAgODB2Mjc2YzAgMjUtMTkgNDQtNDQgNDRIMTM5Yy0yNSAwLTQ0LTE5LTQ0LTQ0VjEwMmMwLTI1IDE5LTQ0IDQ0LTQ0eiIgZmlsbD0idXJsKCNwYWdlKSIgZmlsdGVyPSJ1cmwoI3NoYWRvdykiLz4KICA8cGF0aCBkPSJNMzA4IDU4djc3YzAgMTQgMTAgMjQgMjQgMjRoNTZ6IiBmaWxsPSJ1cmwoI2ZvbGQpIiBvcGFjaXR5PSIuOTYiLz4KICA8cGF0aCBkPSJNMTM1IDE4NGgxOTAiIHN0cm9rZT0iI2VjZmVmZiIgc3Ryb2tlLXdpZHRoPSIyOCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+CiAgPHBhdGggZD0iTTEzNSAyNDRoMTQ4IiBzdHJva2U9IiNiZmRiZmUiIHN0cm9rZS13aWR0aD0iMjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgb3BhY2l0eT0iLjk0Ii8+CiAgPHBhdGggZD0iTTEzNSAyOTZoMTc0IiBzdHJva2U9IiM5OWY2ZTQiIHN0cm9rZS13aWR0aD0iMjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgb3BhY2l0eT0iLjg2Ii8+CiAgPHBhdGggZD0iTTEzOCAzNzdjNDctNDcgNzgtNDkgMTA1LTggMjMgMzUgNTkgMjkgMTE2LTI3IiBmaWxsPSJub25lIiBzdHJva2U9IiNmZWYzYzciIHN0cm9rZS13aWR0aD0iMjMiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPgogIDxjaXJjbGUgY3g9IjM1OSIgY3k9IjM1NyIgcj0iNDIiIGZpbGw9InVybCgjYmFkZ2UpIi8+CiAgPHBhdGggZD0iTTM0MCAzNTdoMzhtLTE5LTE5djM4IiBzdHJva2U9IiNmZmY3ZWQiIHN0cm9rZS13aWR0aD0iMTMiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPgo8L3N2Zz4K\",\"sizes\":\"any\",\"type\":\"image/svg+xml\",\"purpose\":\"any\"},{\"src\":\"data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIiByb2xlPSJpbWciIGFyaWEtbGFiZWw9Ik1vZGVybiBQREYgcmVhZGVyIGljb24iPgogIDxkZWZzPgogICAgPGxpbmVhckdyYWRpZW50IGlkPSJwYWdlIiB4MT0iMTE2IiB5MT0iNjIiIHgyPSIzOTYiIHkyPSI0NDgiIGdyYWRpZW50VW5pdHM9InVzZXJTcGFjZU9uVXNlIj4KICAgICAgPHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjMWQ0ZWQ4Ii8+CiAgICAgIDxzdG9wIG9mZnNldD0iLjUyIiBzdG9wLWNvbG9yPSIjMGY3NjZlIi8+CiAgICAgIDxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzEzNGU0YSIvPgogICAgPC9saW5lYXJHcmFkaWVudD4KICAgIDxsaW5lYXJHcmFkaWVudCBpZD0iZm9sZCIgeDE9IjMwNCIgeTE9IjY2IiB4Mj0iMzg0IiB5Mj0iMTYyIiBncmFkaWVudFVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+CiAgICAgIDxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iIzkzYzVmZCIvPgogICAgICA8c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiM1ZWVhZDQiLz4KICAgIDwvbGluZWFyR3JhZGllbnQ+CiAgICA8bGluZWFyR3JhZGllbnQgaWQ9ImJhZGdlIiB4MT0iMzEwIiB5MT0iMzM4IiB4Mj0iMzk0IiB5Mj0iNDA2IiBncmFkaWVudFVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+CiAgICAgIDxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iI2Y1OWUwYiIvPgogICAgICA8c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiNmOTczMTYiLz4KICAgIDwvbGluZWFyR3JhZGllbnQ+CiAgICA8ZmlsdGVyIGlkPSJzaGFkb3ciIHg9IjgyIiB5PSI0MiIgd2lkdGg9IjM1NCIgaGVpZ2h0PSI0MzYiIGNvbG9yLWludGVycG9sYXRpb24tZmlsdGVycz0ic1JHQiIgZmlsdGVyVW5pdHM9InVzZXJTcGFjZU9uVXNlIj4KICAgICAgPGZlRHJvcFNoYWRvdyBkeD0iMCIgZHk9IjE4IiBzdGREZXZpYXRpb249IjE4IiBmbG9vZC1jb2xvcj0iIzBmMTcyYSIgZmxvb2Qtb3BhY2l0eT0iLjI4Ii8+CiAgICA8L2ZpbHRlcj4KICA8L2RlZnM+CiAgPHBhdGggZD0iTTE0NCA2NmgxNjRsNzYgNzZ2MjcxYzAgMjQtMTggNDItNDIgNDJIMTQ0Yy0yNCAwLTQyLTE4LTQyLTQyVjEwOGMwLTI0IDE4LTQyIDQyLTQyeiIgZmlsbD0idXJsKCNwYWdlKSIgZmlsdGVyPSJ1cmwoI3NoYWRvdykiLz4KICA8cGF0aCBkPSJNMzA4IDY2djc0YzAgMTMgMTAgMjMgMjMgMjNoNTN6IiBmaWxsPSJ1cmwoI2ZvbGQpIiBvcGFjaXR5PSIuOTYiLz4KICA8cGF0aCBkPSJNMTM4IDE4NGgxODQiIHN0cm9rZT0iI2VjZmVmZiIgc3Ryb2tlLXdpZHRoPSIyOCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+CiAgPHBhdGggZD0iTTEzOCAyNDNoMTQyIiBzdHJva2U9IiNiZmRiZmUiIHN0cm9rZS13aWR0aD0iMjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgb3BhY2l0eT0iLjk0Ii8+CiAgPHBhdGggZD0iTTEzOCAyOTRoMTY5IiBzdHJva2U9IiM5OWY2ZTQiIHN0cm9rZS13aWR0aD0iMjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgb3BhY2l0eT0iLjg2Ii8+CiAgPHBhdGggZD0iTTE0MCAzNzRjNDUtNDQgNzUtNDYgMTAxLTggMjIgMzQgNTcgMjggMTEyLTI1IiBmaWxsPSJub25lIiBzdHJva2U9IiNmZWYzYzciIHN0cm9rZS13aWR0aD0iMjMiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPgogIDxjaXJjbGUgY3g9IjM1NiIgY3k9IjM1NiIgcj0iNDAiIGZpbGw9InVybCgjYmFkZ2UpIi8+CiAgPHBhdGggZD0iTTMzOCAzNTZoMzZtLTE4LTE4djM2IiBzdHJva2U9IiNmZmY3ZWQiIHN0cm9rZS13aWR0aD0iMTMiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPgo8L3N2Zz4K\",\"sizes\":\"any\",\"type\":\"image/svg+xml\",\"purpose\":\"maskable\"}]}";
+      if (!["http:", "https:"].includes(window.location.protocol)) return;
+      const blob = new Blob([manifest], { type: "application/manifest+json" });
+      const link = document.createElement("link");
+      link.rel = "manifest";
+      link.href = URL.createObjectURL(blob);
+      document.head.appendChild(link);
+    })();
+  </script>
+  <link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIiByb2xlPSJpbWciIGFyaWEtbGFiZWw9Ik1vZGVybiBQREYgcmVhZGVyIGljb24iPgogIDxkZWZzPgogICAgPGxpbmVhckdyYWRpZW50IGlkPSJwYWdlIiB4MT0iMTEyIiB5MT0iNTQiIHgyPSI0MDIiIHkyPSI0NTYiIGdyYWRpZW50VW5pdHM9InVzZXJTcGFjZU9uVXNlIj4KICAgICAgPHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjMWQ0ZWQ4Ii8+CiAgICAgIDxzdG9wIG9mZnNldD0iLjUyIiBzdG9wLWNvbG9yPSIjMGY3NjZlIi8+CiAgICAgIDxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzEzNGU0YSIvPgogICAgPC9saW5lYXJHcmFkaWVudD4KICAgIDxsaW5lYXJHcmFkaWVudCBpZD0iZm9sZCIgeDE9IjMwMiIgeTE9IjU4IiB4Mj0iMzkyIiB5Mj0iMTY2IiBncmFkaWVudFVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+CiAgICAgIDxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iIzkzYzVmZCIvPgogICAgICA8c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiM1ZWVhZDQiLz4KICAgIDwvbGluZWFyR3JhZGllbnQ+CiAgICA8bGluZWFyR3JhZGllbnQgaWQ9ImJhZGdlIiB4MT0iMzA5IiB5MT0iMzM3IiB4Mj0iMzk3IiB5Mj0iNDA5IiBncmFkaWVudFVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+CiAgICAgIDxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iI2Y1OWUwYiIvPgogICAgICA8c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiNmOTczMTYiLz4KICAgIDwvbGluZWFyR3JhZGllbnQ+CiAgICA8ZmlsdGVyIGlkPSJzaGFkb3ciIHg9Ijc2IiB5PSIzMiIgd2lkdGg9IjM2OCIgaGVpZ2h0PSI0NTYiIGNvbG9yLWludGVycG9sYXRpb24tZmlsdGVycz0ic1JHQiIgZmlsdGVyVW5pdHM9InVzZXJTcGFjZU9uVXNlIj4KICAgICAgPGZlRHJvcFNoYWRvdyBkeD0iMCIgZHk9IjE4IiBzdGREZXZpYXRpb249IjE4IiBmbG9vZC1jb2xvcj0iIzBmMTcyYSIgZmxvb2Qtb3BhY2l0eT0iLjI4Ii8+CiAgICA8L2ZpbHRlcj4KICA8L2RlZnM+CiAgPHBhdGggZD0iTTEzOSA1OGgxNjlsODAgODB2Mjc2YzAgMjUtMTkgNDQtNDQgNDRIMTM5Yy0yNSAwLTQ0LTE5LTQ0LTQ0VjEwMmMwLTI1IDE5LTQ0IDQ0LTQ0eiIgZmlsbD0idXJsKCNwYWdlKSIgZmlsdGVyPSJ1cmwoI3NoYWRvdykiLz4KICA8cGF0aCBkPSJNMzA4IDU4djc3YzAgMTQgMTAgMjQgMjQgMjRoNTZ6IiBmaWxsPSJ1cmwoI2ZvbGQpIiBvcGFjaXR5PSIuOTYiLz4KICA8cGF0aCBkPSJNMTM1IDE4NGgxOTAiIHN0cm9rZT0iI2VjZmVmZiIgc3Ryb2tlLXdpZHRoPSIyOCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+CiAgPHBhdGggZD0iTTEzNSAyNDRoMTQ4IiBzdHJva2U9IiNiZmRiZmUiIHN0cm9rZS13aWR0aD0iMjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgb3BhY2l0eT0iLjk0Ii8+CiAgPHBhdGggZD0iTTEzNSAyOTZoMTc0IiBzdHJva2U9IiM5OWY2ZTQiIHN0cm9rZS13aWR0aD0iMjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgb3BhY2l0eT0iLjg2Ii8+CiAgPHBhdGggZD0iTTEzOCAzNzdjNDctNDcgNzgtNDkgMTA1LTggMjMgMzUgNTkgMjkgMTE2LTI3IiBmaWxsPSJub25lIiBzdHJva2U9IiNmZWYzYzciIHN0cm9rZS13aWR0aD0iMjMiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPgogIDxjaXJjbGUgY3g9IjM1OSIgY3k9IjM1NyIgcj0iNDIiIGZpbGw9InVybCgjYmFkZ2UpIi8+CiAgPHBhdGggZD0iTTM0MCAzNTdoMzhtLTE5LTE5djM4IiBzdHJva2U9IiNmZmY3ZWQiIHN0cm9rZS13aWR0aD0iMTMiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPgo8L3N2Zz4K" type="image/svg+xml">
+  <style>
+:root {
+  --bg: #f4f6f9;
+  --surface: #ffffff;
+  --surface-soft: #f8fafc;
+  --ink: #121826;
+  --muted: #657084;
+  --line: #dfe5ee;
+  --line-strong: #cbd5e1;
+  --accent: #0d9488;
+  --accent-strong: #0f766e;
+  --accent-soft: #e6fffb;
+  --blue: #2563eb;
+  --warn: #d97706;
+  --shadow: 0 18px 55px rgba(20, 28, 45, .13);
+  --side-shadow: 0 24px 60px rgba(15, 23, 42, .12);
+  --focus-ring: 0 0 0 3px rgba(13, 148, 136, .16);
+  --ui-font: "Segoe UI Variable Text", "Segoe UI Variable", "Assistant", "Heebo", "Noto Sans Hebrew", "Rubik", "Segoe UI", Arial, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  color: var(--ink);
+  background: var(--bg);
+  font-family: var(--ui-font);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+button, input {
+  font: inherit;
+}
+
+button {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  border-radius: 8px;
+  min-height: 36px;
+  padding: 0 12px;
+  cursor: pointer;
+  transition: background .16s ease, border-color .16s ease, color .16s ease, box-shadow .16s ease, transform .16s ease;
+}
+
+button:hover { border-color: #aab8cb; }
+button:disabled,
+input:disabled {
+  cursor: not-allowed;
+  opacity: .48;
+}
+
+button:disabled:hover {
+  border-color: var(--line);
+}
+
+button:focus-visible,
+input:focus-visible,
+summary:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+button.active, .segmented button.active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+.icon-sprite {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+
+.sidebar svg,
+.icon-btn svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.85;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+input {
+  width: 100%;
+  min-height: 36px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0 10px;
+  color: var(--ink);
+  background: #fff;
+  transition: border-color .16s ease, box-shadow .16s ease, background .16s ease;
+}
+
+.app-shell {
+  display: grid;
+  grid-template-columns: 326px minmax(0, 1fr);
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.app-shell.sidebar-closed {
+  grid-template-columns: 1fr;
+}
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  overflow: auto;
+  min-height: 0;
+  padding: 18px 16px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.96) 0%, rgba(248,250,252,.96) 100%),
+    radial-gradient(circle at 30% 0%, rgba(13,148,136,.12), transparent 34%);
+  border-left: 1px solid rgba(203, 213, 225, .86);
+  box-shadow: inset 1px 0 0 rgba(255,255,255,.72);
+  scrollbar-gutter: stable;
+  font-family: var(--ui-font);
+}
+
+.sidebar::-webkit-scrollbar,
+.bookmark-list::-webkit-scrollbar {
+  width: 10px;
+}
+
+.sidebar::-webkit-scrollbar-track,
+.bookmark-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidebar::-webkit-scrollbar-thumb,
+.bookmark-list::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background: #cbd5e1;
+  background-clip: content-box;
+}
+
+.sidebar::-webkit-scrollbar-thumb:hover,
+.bookmark-list::-webkit-scrollbar-thumb:hover {
+  background-color: #94a3b8;
+}
+
+.sidebar.collapsed {
+  display: none;
+}
+
+.brand {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 4px 2px 2px;
+}
+
+.brand-mark {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  color: #fff;
+  background: linear-gradient(135deg, #0f766e, #2563eb 82%);
+  box-shadow: 0 12px 28px rgba(13, 148, 136, .22);
+  font-weight: 800;
+  letter-spacing: .02em;
+}
+
+.brand h1 {
+  margin: 0;
+  font-size: 19px;
+  line-height: 1.15;
+}
+
+.brand p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.open-drop {
+  display: grid;
+  gap: 7px;
+  padding: 14px;
+  border: 1px dashed #94a3b8;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #ffffff 0%, #f9fbfd 100%);
+  cursor: pointer;
+  box-shadow: 0 10px 26px rgba(15, 23, 42, .06);
+  transition: background .16s ease, border-color .16s ease, box-shadow .16s ease, transform .16s ease;
+}
+
+.open-drop:hover {
+  border-color: var(--accent);
+  box-shadow: 0 14px 34px rgba(15, 23, 42, .09);
+  transform: translateY(-1px);
+}
+
+.open-drop.dragover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.open-drop span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+}
+
+.drop-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  color: #fff;
+  background: var(--accent);
+  font-size: 19px;
+}
+
+.drop-icon svg {
+  width: 18px;
+  height: 18px;
+  stroke-width: 1.75;
+}
+.open-drop small, .panel-title, .result-row, #pageTotal { color: var(--muted); }
+#fileInput { display: none; }
+
+.panel {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  background: rgba(255,255,255,.9);
+  border: 1px solid rgba(223, 229, 238, .92);
+  border-radius: 12px;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, .055);
+  backdrop-filter: blur(10px);
+}
+
+.panel-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+summary.panel-title {
+  cursor: pointer;
+  list-style: none;
+}
+
+summary.panel-title::-webkit-details-marker {
+  display: none;
+}
+
+.panel-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 8px;
+  color: #0f766e;
+  background: rgba(13, 148, 136, .1);
+}
+
+.jump-row, .search-row, .result-row, .tool-group {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.result-row {
+  justify-content: space-between;
+  padding-inline: 2px;
+}
+
+.search-row input {
+  min-width: 0;
+  background: var(--surface-soft);
+}
+
+.search-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.search-options label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  padding: 0 9px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface-soft);
+}
+
+.side-action {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  min-height: 42px;
+  padding: 5px 9px;
+  text-align: right;
+  background: #fff;
+  border-color: transparent;
+  box-shadow: inset 0 0 0 1px rgba(223, 229, 238, .86);
+}
+
+.side-action:hover {
+  background: var(--surface-soft);
+  border-color: var(--line-strong);
+  box-shadow: inset 0 0 0 1px var(--line-strong), 0 8px 18px rgba(15, 23, 42, .06);
+  transform: translateY(-1px);
+}
+
+.side-action.install-ready {
+  border-color: #a7d9d1;
+  background: var(--accent-soft);
+}
+
+.action-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  color: #0f766e;
+  background: rgba(13, 148, 136, .1);
+  font-size: 15px;
+}
+
+.action-icon svg {
+  width: 17px;
+  height: 17px;
+}
+
+.autofill-panel {
+  gap: 10px;
+}
+
+.autofill-panel > .panel-title {
+  justify-content: space-between;
+}
+
+.autofill-panel > .panel-title > span:first-child,
+.search-panel > .panel-title > span:first-child {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.search-panel > .panel-title {
+  justify-content: space-between;
+}
+
+.panel-caret {
+  font-size: 12px;
+  transition: transform .18s ease;
+}
+
+.autofill-panel:not([open]) .panel-caret,
+.search-panel:not([open]) .panel-caret {
+  transform: rotate(90deg);
+}
+
+.autofill-body {
+  display: grid;
+  gap: 10px;
+}
+
+.search-body {
+  display: grid;
+  gap: 9px;
+}
+
+.autofill-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.autofill-grid input {
+  min-height: 38px;
+  font-size: 13px;
+  background: var(--surface-soft);
+}
+
+.quick-fill-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.quick-fill-grid button {
+  min-height: 36px;
+  padding: 0 6px;
+  border-radius: 8px;
+  background: var(--surface-soft);
+  font-size: 13px;
+}
+
+.quick-fill-grid button:hover {
+  background: var(--accent-soft);
+  border-color: #a7d9d1;
+}
+
+.saved-signatures {
+  display: grid;
+  gap: 7px;
+}
+
+.saved-signature-empty {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.saved-signature-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 32px;
+  gap: 6px;
+}
+
+.saved-signature-row button {
+  min-height: 34px;
+  border-radius: 8px;
+  background: var(--surface-soft);
+  font-size: 12px;
+}
+
+.saved-signature-row button:hover {
+  background: var(--accent-soft);
+  border-color: #a7d9d1;
+}
+
+.saved-signature-row .danger {
+  color: #b91c1c;
+}
+
+.save-signature-action {
+  width: 100%;
+  min-height: 36px;
+  border-radius: 8px;
+  background: #e7f7f4;
+  color: var(--accent-strong);
+  font-size: 13px;
+}
+
+.save-signature-action:disabled {
+  cursor: not-allowed;
+  color: var(--muted);
+  background: var(--surface-soft);
+  opacity: .72;
+}
+
+.jump-row input {
+  text-align: center;
+}
+
+.nav-panel {
+  gap: 12px;
+  padding: 13px;
+  background: linear-gradient(180deg, #ffffff 0%, #f7fbff 100%);
+  border-color: rgba(191, 219, 254, .78);
+}
+
+.nav-panel .panel-title {
+  justify-content: space-between;
+  color: var(--ink);
+}
+
+.nav-panel .panel-icon {
+  order: -1;
+}
+
+.jump-row {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) 38px;
+  gap: 8px;
+  align-items: center;
+}
+
+.nav-arrow {
+  display: inline-grid;
+  place-items: center;
+  width: 38px;
+  min-height: 40px;
+  padding: 0;
+  border-radius: 9px;
+  color: #0f172a;
+  background: #fff;
+  border-color: #d7e1ed;
+  line-height: 1;
+  direction: ltr;
+  font-variant-numeric: tabular-nums;
+}
+
+.nav-arrow svg {
+  width: 18px;
+  height: 18px;
+  stroke-width: 1.8;
+}
+
+.nav-arrow:hover {
+  background: #f1f7fb;
+  border-color: #b9c8d8;
+}
+
+.page-pill {
+  display: grid;
+  grid-template-columns: auto minmax(42px, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 4px 10px;
+  border: 1px solid #d7e1ed;
+  border-radius: 10px;
+  background: #fff;
+  color: var(--muted);
+}
+
+.page-pill input {
+  min-height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink);
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
+}
+
+.page-pill input:focus {
+  outline: none;
+}
+
+.page-pill:focus-within {
+  border-color: var(--accent);
+  box-shadow: var(--focus-ring);
+}
+
+.page-slider-row {
+  display: grid;
+  gap: 6px;
+}
+
+.page-slider {
+  --slider-progress: 0%;
+  width: 100%;
+  min-height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  accent-color: var(--accent);
+  cursor: pointer;
+  direction: rtl;
+}
+
+.page-slider:focus-visible {
+  box-shadow: none;
+}
+
+.page-slider::-webkit-slider-runnable-track {
+  height: 8px;
+  border-radius: 999px;
+  background: linear-gradient(270deg, var(--accent) 0 var(--slider-progress), #dbe4ef var(--slider-progress) 100%);
+}
+
+.page-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  margin-top: -5px;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  background: var(--accent-strong);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, .22);
+}
+
+.page-slider::-moz-range-track {
+  height: 8px;
+  border-radius: 999px;
+  background: #dbe4ef;
+}
+
+.page-slider::-moz-range-progress {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--accent);
+}
+
+.page-slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  background: var(--accent-strong);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, .22);
+}
+
+.icon-btn {
+  width: 38px;
+  padding: 0;
+  font-size: 24px;
+  line-height: 1;
+  border-radius: 10px;
+}
+
+.icon-btn.small {
+  width: 36px;
+  min-height: 36px;
+  font-size: 18px;
+  background: var(--surface-soft);
+}
+
+.icon-btn.small:hover {
+  background: var(--accent-soft);
+  border-color: #a7d9d1;
+}
+
+.bookmark-list {
+  display: grid;
+  gap: 7px;
+  max-height: 230px;
+  overflow: auto;
+  padding-inline-end: 2px;
+}
+
+.bookmark-item {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 7px;
+  align-items: center;
+  padding: 6px;
+  background: #fff;
+  border: 1px solid rgba(223, 229, 238, .9);
+  border-radius: 10px;
+}
+
+.bookmark-item span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bookmark-open {
+  min-width: 0;
+  justify-content: start;
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border-color: transparent;
+  background: transparent;
+  padding-inline: 4px;
+  color: var(--ink);
+}
+
+.bookmark-open:hover {
+  background: var(--surface-soft);
+  border-color: transparent;
+}
+
+.bookmark-item input {
+  min-width: 0;
+}
+
+.icon-action {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  min-height: 30px;
+  padding: 0;
+  border-radius: 999px;
+  color: var(--muted);
+  background: transparent;
+  border-color: transparent;
+  font-size: 17px;
+  line-height: 1;
+}
+
+.icon-action:hover {
+  color: var(--ink);
+  background: #edf3fb;
+  border-color: #cbd7e6;
+}
+
+.icon-action.danger:hover {
+  color: #b91c1c;
+  background: #fff1f2;
+  border-color: #fecdd3;
+}
+
+.icon-action.success:hover {
+  color: var(--accent-strong);
+  background: #e7f7f4;
+  border-color: #a7d9d1;
+}
+
+.workspace {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  flex: 0 0 auto;
+  padding: 10px 12px;
+  background: rgba(255,255,255,.97);
+  border-bottom: 1px solid var(--line);
+  box-shadow: 0 8px 24px rgba(20, 28, 45, .08);
+  font-family: var(--ui-font);
+}
+
+.segmented {
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #eef2f7;
+}
+
+.segmented button {
+  border-color: transparent;
+  background: transparent;
+}
+
+#zoomLabel {
+  min-width: 48px;
+  text-align: center;
+  color: var(--muted);
+}
+
+.reader {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  padding: 22px;
+  scroll-behavior: smooth;
+  overscroll-behavior: contain;
+}
+
+.reader.panning {
+  cursor: grabbing;
+  user-select: none;
+}
+
+.reader.can-pan {
+  cursor: grab;
+}
+
+.reader.can-pan.panning {
+  cursor: grabbing;
+}
+
+.pages {
+  display: grid;
+  gap: 18px;
+  justify-content: center;
+  min-width: max-content;
+}
+
+.spread {
+  display: flex;
+  direction: ltr;
+  gap: 14px;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+.page-shell {
+  position: relative;
+  background: #fff;
+  box-shadow: var(--shadow);
+  border-radius: 3px;
+  overflow: visible;
+}
+
+.page-shell canvas {
+  position: relative;
+  z-index: 1;
+  display: block;
+}
+
+.text-layer, .annotation-layer, .search-layer, .object-layer {
+  position: absolute;
+  inset: 0;
+}
+
+.search-layer {
+  pointer-events: none;
+  z-index: 3;
+}
+
+.text-layer {
+  color: transparent;
+  user-select: text;
+  direction: ltr;
+  z-index: 2;
+  overflow: hidden;
+  transform-origin: 0 0;
+}
+
+.text-layer span {
+  position: absolute;
+  transform-origin: 0 0;
+  white-space: pre;
+  cursor: text;
+  color: transparent;
+}
+
+.text-layer br,
+.text-layer .endOfContent {
+  display: none;
+}
+
+.annotation-layer {
+  pointer-events: none;
+  z-index: 4;
+  touch-action: none;
+}
+.annotation-layer.active { pointer-events: auto; cursor: crosshair; }
+
+.object-layer {
+  pointer-events: none;
+  z-index: 8;
+}
+
+.highlight-box {
+  position: absolute;
+  background: rgba(255, 214, 10, .36);
+  border: 1px solid rgba(217, 119, 6, .7);
+}
+
+.movable-annotation {
+  pointer-events: auto;
+  cursor: move;
+  touch-action: none;
+}
+
+.signature-move-box {
+  position: absolute;
+  border: 1px dashed rgba(37, 99, 235, .55);
+  background: rgba(255,255,255,.02);
+}
+
+.signature-move-box.signing-pad {
+  border-style: solid;
+  border-color: rgba(37, 99, 235, .34);
+  background: rgba(37, 99, 235, .035);
+  pointer-events: none;
+}
+
+.signature-move-box.signing-pad .annotation-controls {
+  top: -34px;
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.signature-move-box.signing-pad .annotation-drag-hint {
+  display: none;
+}
+
+.annotation-controls {
+  position: absolute;
+  top: -26px;
+  right: -1px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  min-height: 24px;
+  padding: 2px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255,255,255,.98);
+  box-shadow: 0 8px 18px rgba(20, 28, 45, .16);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity .12s ease;
+  pointer-events: auto;
+  z-index: 20;
+}
+
+.movable-annotation:hover .annotation-controls,
+.movable-annotation:focus-within .annotation-controls {
+  opacity: 1;
+  visibility: visible;
+}
+
+.annotation-drag-hint,
+.annotation-commit,
+.annotation-save,
+.annotation-delete {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  min-height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1;
+}
+
+.annotation-drag-hint {
+  color: var(--muted);
+  cursor: move;
+}
+
+.annotation-delete {
+  color: #b91c1c;
+}
+
+.annotation-commit {
+  color: #047857;
+}
+
+.annotation-commit:hover {
+  background: #dcfce7;
+}
+
+.annotation-save {
+  color: var(--accent-strong);
+}
+
+.annotation-save:hover {
+  background: #e7f7f4;
+}
+
+.annotation-delete:hover {
+  background: #fff1f2;
+}
+
+.field-box {
+  position: absolute;
+  min-width: 32px;
+  min-height: 24px;
+  color: #111827;
+  border: 1px solid transparent;
+  background: transparent;
+  box-shadow: none;
+  overflow: visible;
+  pointer-events: auto;
+  z-index: 7;
+}
+
+.field-box:focus-within {
+  border-color: rgba(37, 99, 235, .42);
+  background: rgba(255,255,255,.18);
+}
+
+.field-box.selected {
+  border-color: rgba(37, 99, 235, .5);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, .12);
+}
+
+.field-content {
+  width: 100%;
+  height: 100%;
+  min-height: 24px;
+  padding: 2px 4px;
+  outline: none;
+  overflow: hidden;
+  white-space: pre;
+  cursor: text;
+}
+
+.field-content:empty::before {
+  content: "הקלד כאן";
+  color: #7c8799;
+}
+
+.field-menu-button {
+  position: absolute;
+  top: -25px;
+  right: 0;
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  min-height: 24px;
+  padding: 0;
+  border-radius: 999px;
+  background: #fff;
+  border: 1px solid var(--line);
+  box-shadow: 0 6px 16px rgba(20, 28, 45, .12);
+  font-size: 15px;
+  line-height: 1;
+  pointer-events: auto;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity .12s ease;
+}
+
+.field-box:hover .field-menu-button,
+.field-box:focus-within .field-menu-button,
+.field-box.selected .field-menu-button {
+  opacity: 1;
+  visibility: visible;
+}
+
+.field-menu {
+  position: absolute;
+  top: -42px;
+  right: 30px;
+  display: none;
+  grid-template-columns: repeat(5, auto);
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255,255,255,.98);
+  box-shadow: 0 10px 26px rgba(20, 28, 45, .16);
+  pointer-events: auto;
+  z-index: 12;
+}
+
+.field-box.menu-open .field-menu,
+.field-menu:hover {
+  display: grid;
+}
+
+.field-menu-action {
+  display: inline-grid;
+  grid-template-rows: 18px 12px;
+  place-items: center;
+  min-width: 40px;
+  min-height: 34px;
+  padding: 2px 7px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.field-menu-action small {
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1;
+}
+
+.field-menu-action:hover {
+  background: #edf3fb;
+}
+
+.field-menu-action.danger {
+  color: #b91c1c;
+}
+
+.field-menu-action.danger:hover {
+  background: #fff1f2;
+}
+
+.field-fill-menu {
+  position: relative;
+}
+
+.field-fill-list {
+  position: absolute;
+  top: 39px;
+  right: 0;
+  display: none;
+  min-width: 112px;
+  padding: 5px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 12px 30px rgba(20, 28, 45, .18);
+  z-index: 15;
+}
+
+.field-fill-menu.open .field-fill-list,
+.field-fill-menu:hover .field-fill-list {
+  display: grid;
+  gap: 3px;
+}
+
+.field-fill-list button {
+  min-height: 30px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  text-align: right;
+  font-size: 12px;
+}
+
+.field-fill-list button:hover {
+  background: #e7f7f4;
+}
+
+.field-drag-action {
+  cursor: grab;
+}
+
+.field-drag-action:active {
+  cursor: grabbing;
+}
+
+.text-measure {
+  position: fixed;
+  top: -10000px;
+  left: -10000px;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.ink-box {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  touch-action: none;
+}
+
+.search-hit {
+  position: absolute;
+  background: rgba(37, 99, 235, .18);
+  border: 1px solid rgba(37, 99, 235, .8);
+}
+
+.search-hit.current {
+  background: rgba(217, 119, 6, .24);
+  border-color: var(--warn);
+}
+
+.empty-state {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  gap: 10px;
+  padding: 24px;
+  text-align: center;
+  color: var(--muted);
+}
+
+.empty-state[hidden] {
+  display: none;
+}
+
+.empty-state strong {
+  color: var(--ink);
+  font-size: clamp(24px, 4vw, 44px);
+}
+
+dialog {
+  width: min(560px, calc(100vw - 32px));
+  border: 0;
+  border-radius: 8px;
+  padding: 24px;
+  box-shadow: var(--shadow);
+  direction: rtl;
+}
+
+.dialog-close {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  width: 34px;
+  padding: 0;
+}
+
+@media (max-width: 900px) {
+  .app-shell { grid-template-columns: 1fr; }
+  .sidebar {
+    position: fixed;
+    inset: 0 0 0 auto;
+    width: min(340px, 92vw);
+    z-index: 5;
+    box-shadow: var(--side-shadow);
+    border-left: 1px solid rgba(203, 213, 225, .9);
+  }
+  .toolbar { justify-content: flex-start; }
+  .reader { padding: 12px; }
+  .spread { gap: 8px; }
+}
+
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs" type="module"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script type="module">
+import * as pdfjsLib from "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs";
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs";
+
+const $ = (id) => document.getElementById(id);
+const PAGE_RENDER_NEIGHBORS = 2;
+const PAGE_OBSERVER_MARGIN = "900px 0px";
+const PDF_LOAD_OPTIONS = {
+  disableFontFace: true,
+  useSystemFonts: false
+};
+
+const state = {
+  pdf: null,
+  file: null,
+  fileBytes: null,
+  fingerprint: "",
+  pageCount: 0,
+  currentPage: 1,
+  scale: 1.25,
+  mode: "continuous",
+  fit: "width",
+  tool: "select",
+  meta: emptyMeta(),
+  renderedPages: new Map(),
+  pageShells: [],
+  pageObserver: null,
+  pageRenderQueue: [],
+  isProcessingPageQueue: false,
+  activePageRenderTask: null,
+  activePageNo: null,
+  search: { term: "", hits: [], index: -1 },
+  drawing: null,
+  panning: null,
+  renderId: 0,
+  isRendering: false,
+  isAdjustingScroll: false,
+  scrollLockId: 0,
+  pageWheelDelta: 0,
+  pageWheelLockedUntil: 0,
+  isSinglePageWheelActive: false,
+  selectedFieldId: null,
+  signatureSessionId: null,
+  profile: loadProfile(),
+  installPrompt: null,
+  spacePressed: false,
+  suppressContextMenu: false
+};
+
+function emptyMeta() {
+  return {
+    bookmarks: [],
+    highlights: [],
+    fields: [],
+    signatures: [],
+    readingPosition: 1,
+    readingOffset: 0,
+    savedReadingPosition: null,
+    savedReadingOffset: 0,
+    updatedAt: Date.now()
+  };
+}
+
+const ui = {
+  fileInput: $("fileInput"),
+  fileName: $("fileName"),
+  dropZone: $("dropZone"),
+  pages: $("pages"),
+  reader: $("reader"),
+  emptyState: $("emptyState"),
+  pageInput: $("pageInput"),
+  pageTotal: $("pageTotal"),
+  pageSlider: $("pageSlider"),
+  bookmarkList: $("bookmarkList"),
+  searchInput: $("searchInput"),
+  searchCase: $("searchCase"),
+  searchWhole: $("searchWhole"),
+  searchCount: $("searchCount"),
+  zoomLabel: $("zoomLabel"),
+  sidebar: $("sidebar"),
+  helpDialog: $("helpDialog"),
+  savedSignatureList: $("savedSignatureList")
+};
+
+const saveScrollMeta = debounce(() => saveMeta(false), 200);
+
+wireEvents();
+initProfileControls();
+registerPwa();
+initFileHandling();
+updateStatus();
+
+function wireEvents() {
+  ui.fileInput.addEventListener("change", (event) => {
+    const [file] = event.target.files;
+    if (file && isPdfFile(file)) openFile(file);
+  });
+
+  ["dragenter", "dragover"].forEach((name) => {
+    ui.dropZone.addEventListener(name, (event) => {
+      event.preventDefault();
+      ui.dropZone.classList.add("dragover");
+    });
+  });
+
+  ["dragleave", "drop"].forEach((name) => {
+    ui.dropZone.addEventListener(name, () => ui.dropZone.classList.remove("dragover"));
+  });
+
+  ui.dropZone.addEventListener("drop", (event) => {
+    event.preventDefault();
+    const [file] = event.dataTransfer.files;
+    if (file && isPdfFile(file)) openFile(file);
+  });
+
+  $("firstPage").addEventListener("click", () => goToPage(1));
+  $("lastPage").addEventListener("click", () => goToPage(state.pageCount));
+  ui.pageInput.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") goToPage(Number(ui.pageInput.value));
+  });
+  ui.pageSlider.addEventListener("input", () => {
+    ui.pageInput.value = ui.pageSlider.value;
+  });
+  ui.pageSlider.addEventListener("change", () => {
+    goToPage(Number(ui.pageSlider.value));
+  });
+
+  $("zoomIn").addEventListener("click", () => setScale(state.scale + 0.15));
+  $("zoomOut").addEventListener("click", () => setScale(state.scale - 0.15));
+  $("fitWidth").addEventListener("click", () => fitTo("width"));
+  $("fitPage").addEventListener("click", () => fitTo("page"));
+  $("fullscreenBtn").addEventListener("click", () => document.documentElement.requestFullscreen?.());
+  $("toggleSidebar").addEventListener("click", () => {
+    ui.sidebar.classList.toggle("collapsed");
+    document.querySelector(".app-shell").classList.toggle("sidebar-closed", ui.sidebar.classList.contains("collapsed"));
+  });
+
+  document.querySelectorAll("[data-mode]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      document.querySelectorAll("[data-mode]").forEach((btn) => btn.classList.remove("active"));
+      button.classList.add("active");
+      state.mode = button.dataset.mode;
+      syncSinglePageWheel();
+      normalizeBookStart();
+      if (state.mode.startsWith("book")) {
+        await fitTo("width");
+      } else {
+        render();
+      }
+    });
+  });
+
+  document.querySelectorAll("[data-tool]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const nextTool = button.dataset.tool;
+      const wasSignatureTool = state.tool === "signature";
+      document.querySelectorAll("[data-tool]").forEach((btn) => btn.classList.remove("active"));
+      button.classList.add("active");
+      state.tool = nextTool;
+      if (state.tool === "signature" && !wasSignatureTool) {
+        state.signatureSessionId = crypto.randomUUID();
+      } else if (state.tool !== "signature") {
+        state.signatureSessionId = null;
+      }
+      updateToolLayers();
+      renderVisibleAnnotations();
+      renderSavedSignatures();
+    });
+  });
+
+  $("addBookmark").addEventListener("click", addBookmark);
+  $("savePosition").addEventListener("click", savePosition);
+  $("restorePosition").addEventListener("click", restorePosition);
+  $("installHelp").addEventListener("click", installOrShowHelp);
+  $("closeHelp").addEventListener("click", () => ui.helpDialog.close());
+
+  $("searchBtn").addEventListener("click", search);
+  ui.searchInput.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      if (state.search.term === ui.searchInput.value.trim() && state.search.hits.length) {
+        moveSearch(event.shiftKey ? -1 : 1);
+      } else {
+        search();
+      }
+    }
+  });
+  ui.searchCase.addEventListener("change", search);
+  ui.searchWhole.addEventListener("change", search);
+  $("nextResult").addEventListener("click", () => moveSearch(1));
+  $("prevResult").addEventListener("click", () => moveSearch(-1));
+
+  $("screenshotBtn").addEventListener("click", takeScreenshot);
+  $("downloadBtn").addEventListener("click", exportPdf);
+  $("clearAnnotationsBtn").addEventListener("click", clearAllAnnotations);
+
+  document.querySelectorAll("[data-fill]").forEach((button) => {
+    button.addEventListener("pointerdown", (event) => {
+      event.preventDefault();
+    });
+    button.addEventListener("click", () => applyQuickFill(button.dataset.fill));
+  });
+
+  ui.reader.addEventListener("scroll", onScroll, { passive: true });
+  syncSinglePageWheel();
+  ui.reader.addEventListener("pointerdown", startReaderPan);
+  ui.reader.addEventListener("pointermove", moveReaderPan);
+  ui.reader.addEventListener("pointerup", stopReaderPan);
+  ui.reader.addEventListener("pointercancel", stopReaderPan);
+  ui.reader.addEventListener("contextmenu", (event) => {
+    if (state.suppressContextMenu) {
+      event.preventDefault();
+      state.suppressContextMenu = false;
+    }
+  });
+  window.addEventListener("keydown", (event) => {
+    if ((event.key === "Delete" || event.key === "Backspace") && state.selectedFieldId && !isTypingTarget(event.target)) {
+      deleteSelectedField();
+      event.preventDefault();
+      return;
+    }
+    if (handleSinglePageKey(event)) return;
+    if (event.code === "Space" && !isTypingTarget(event.target)) {
+      state.spacePressed = true;
+      event.preventDefault();
+    }
+  });
+  window.addEventListener("keyup", (event) => {
+    if (event.code === "Space") state.spacePressed = false;
+  });
+  document.addEventListener("pointerdown", (event) => {
+    if (!event.target.closest(".field-box")) closeFieldMenus();
+  });
+  window.addEventListener("resize", debounce(() => fitTo(state.fit), 150));
+}
+
+function registerPwa() {
+  const canUsePwaFeatures = ["http:", "https:"].includes(window.location.protocol);
+
+  if (canUsePwaFeatures && "serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("./service-worker.js").catch((error) => {
+        console.warn("Service worker registration failed:", error);
+      });
+    });
+  }
+
+  window.addEventListener("beforeinstallprompt", (event) => {
+    event.preventDefault();
+    state.installPrompt = event;
+    const installButton = $("installHelp");
+    installButton?.classList.add("install-ready");
+    const label = installButton?.querySelector("span:last-child");
+    if (label) label.textContent = "התקן כאפליקציה";
+  });
+
+  window.addEventListener("appinstalled", () => {
+    state.installPrompt = null;
+    const installButton = $("installHelp");
+    installButton?.classList.remove("install-ready");
+    const label = installButton?.querySelector("span:last-child");
+    if (label) label.textContent = "האפליקציה מותקנת";
+  });
+}
+
+async function installOrShowHelp() {
+  if (!state.installPrompt) {
+    ui.helpDialog.showModal();
+    return;
+  }
+
+  const promptEvent = state.installPrompt;
+  state.installPrompt = null;
+  promptEvent.prompt();
+  await promptEvent.userChoice;
+}
+
+function initFileHandling() {
+  if (!("launchQueue" in window)) return;
+
+  window.launchQueue.setConsumer((launchParams) => {
+    const [fileHandle] = launchParams.files || [];
+    if (fileHandle) openFileFromHandle(fileHandle);
+  });
+}
+
+async function openFileFromHandle(fileHandle) {
+  try {
+    const file = await fileHandle.getFile();
+    if (isPdfFile(file)) await openFile(file);
+  } catch (error) {
+    console.warn("Could not open launched file:", error);
+  }
+}
+
+function isPdfFile(file) {
+  return file?.type === "application/pdf" || /\.pdf$/i.test(file?.name || "");
+}
+
+async function openFile(file) {
+  state.file = file;
+  state.fileBytes = await file.arrayBuffer();
+  state.pdf = await pdfjsLib.getDocument({
+    data: state.fileBytes.slice(0),
+    ...PDF_LOAD_OPTIONS
+  }).promise;
+  state.pageCount = state.pdf.numPages;
+  state.fingerprint = `${file.name}:${file.size}:${file.lastModified}`;
+  state.meta = loadMeta();
+  state.currentPage = clamp(state.meta.readingPosition || 1, 1, state.pageCount);
+  state.search = { term: "", hits: [], index: -1 };
+  state.renderedPages.clear();
+  ui.fileName.textContent = file.name;
+  ui.emptyState.hidden = true;
+  await fitTo("width");
+  renderBookmarks();
+}
+
+async function render() {
+  if (!state.pdf) return;
+  const renderId = ++state.renderId;
+  const scrollLockId = lockScrollTracking();
+  state.isRendering = true;
+  state.pageRenderQueue = [];
+  state.renderedPages.clear();
+  state.pageShells = [];
+  disconnectPageObserver();
+  ui.pages.innerHTML = "";
+  updateStatus();
+
+  const fragment = document.createDocumentFragment();
+  if (state.mode === "continuous" || state.mode === "single") {
+    for (let pageNo = 1; pageNo <= state.pageCount; pageNo += 1) {
+      if (renderId !== state.renderId) return;
+      const pageElement = await createPage(pageNo);
+      if (renderId !== state.renderId) return;
+      fragment.append(pageElement);
+    }
+  } else {
+    for (const spreadPages of getBookSpreads()) {
+      const spread = document.createElement("div");
+      spread.className = "spread";
+      for (const pageNo of spreadPages) {
+        if (renderId !== state.renderId) return;
+        const pageElement = await createPage(pageNo);
+        if (renderId !== state.renderId) return;
+        spread.append(pageElement);
+      }
+      fragment.append(spread);
+    }
+  }
+  ui.pages.append(fragment);
+
+  if (renderId !== state.renderId) return;
+  paintSearchHits();
+  updateToolLayers();
+  scrollCurrentIntoView(scrollLockId);
+  observePages(renderId);
+  queueNearbyContent(state.currentPage, renderId);
+}
+
+function createPage(pageNo) {
+  const viewport = getFallbackViewport();
+  const shell = document.createElement("section");
+  shell.className = "page-shell";
+  shell.dataset.page = String(pageNo);
+  shell.style.width = `${viewport.width}px`;
+  shell.style.height = `${viewport.height}px`;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.ceil(viewport.width);
+  canvas.height = Math.ceil(viewport.height);
+  canvas.style.width = `${viewport.width}px`;
+  canvas.style.height = `${viewport.height}px`;
+  shell.append(canvas);
+
+  const textLayer = document.createElement("div");
+  textLayer.className = "text-layer";
+  shell.append(textLayer);
+
+  const searchLayer = document.createElement("div");
+  searchLayer.className = "search-layer";
+  shell.append(searchLayer);
+
+  const annotationLayer = document.createElement("div");
+  annotationLayer.className = "annotation-layer";
+  shell.append(annotationLayer);
+  wireAnnotationLayer(annotationLayer, pageNo);
+
+  const objectLayer = document.createElement("div");
+  objectLayer.className = "object-layer";
+  shell.append(objectLayer);
+
+  state.renderedPages.set(pageNo, {
+    shell,
+    page: null,
+    viewport,
+    canvas,
+    textLayer,
+    annotationLayer,
+    objectLayer,
+    searchLayer,
+    contentRendered: false,
+    contentRendering: false
+  });
+  state.pageShells[pageNo - 1] = shell;
+  renderAnnotationsForPage(pageNo);
+  return shell;
+}
+
+function getFallbackViewport() {
+  const width = 612 * state.scale;
+  const height = 792 * state.scale;
+  return { width, height, scale: state.scale };
+}
+
+function queuePageContent(pageNo, renderId, priority = false) {
+  const record = state.renderedPages.get(pageNo);
+  if (!record || record.contentRendered || record.contentRendering) return;
+  state.pageRenderQueue = state.pageRenderQueue.filter((item) => item.pageNo !== pageNo);
+  const item = { pageNo, renderId };
+  if (priority) {
+    state.pageRenderQueue.unshift(item);
+  } else {
+    state.pageRenderQueue.push(item);
+  }
+  processPageRenderQueue();
+}
+
+function queueNearbyContent(pageNo, renderId) {
+  const current = clamp(pageNo || state.currentPage || 1, 1, state.pageCount || 1);
+  const pages = [current];
+  for (let distance = 1; distance <= PAGE_RENDER_NEIGHBORS; distance += 1) {
+    const before = current - distance;
+    const after = current + distance;
+    if (before >= 1) pages.push(before);
+    if (after <= state.pageCount) pages.push(after);
+  }
+  for (let index = pages.length - 1; index >= 0; index -= 1) {
+    queuePageContent(pages[index], renderId, true);
+  }
+}
+
+function queueDocumentContent(renderId) {
+  const current = clamp(state.currentPage || 1, 1, state.pageCount || 1);
+  queuePageContent(current, renderId, true);
+  for (let distance = 1; distance <= state.pageCount; distance += 1) {
+    const before = current - distance;
+    const after = current + distance;
+    if (before >= 1) queuePageContent(before, renderId);
+    if (after <= state.pageCount) queuePageContent(after, renderId);
+  }
+}
+
+function cancelActivePageRender(nextPageNo) {
+  if (!state.activePageRenderTask || state.activePageNo === nextPageNo) return;
+  state.activePageRenderTask.cancel?.();
+}
+
+function observePages(renderId) {
+  if (!("IntersectionObserver" in window)) {
+    queueDocumentContent(renderId);
+    return;
+  }
+
+  state.pageObserver = new IntersectionObserver((entries) => {
+    for (const entry of entries) {
+      if (!entry.isIntersecting) continue;
+      queueNearbyContent(Number(entry.target.dataset.page), renderId);
+    }
+  }, {
+    root: ui.reader,
+    rootMargin: PAGE_OBSERVER_MARGIN,
+    threshold: 0.01
+  });
+
+  for (const shell of state.pageShells) {
+    if (shell) state.pageObserver.observe(shell);
+  }
+}
+
+function disconnectPageObserver() {
+  state.pageObserver?.disconnect();
+  state.pageObserver = null;
+}
+
+async function processPageRenderQueue() {
+  if (state.isProcessingPageQueue) return;
+  state.isProcessingPageQueue = true;
+  try {
+    while (state.pageRenderQueue.length) {
+      const { pageNo, renderId } = state.pageRenderQueue.shift();
+      if (renderId !== state.renderId) continue;
+      try {
+        await renderPageContent(pageNo, renderId);
+      } catch (error) {
+        if (error?.name === "RenderingCancelledException") continue;
+        console.warn(`Could not render page ${pageNo}:`, error);
+      }
+    }
+  } finally {
+    state.isProcessingPageQueue = false;
+  }
+}
+
+async function renderPageContent(pageNo, renderId) {
+  const record = state.renderedPages.get(pageNo);
+  if (!record || record.contentRendered || record.contentRendering) return;
+  record.contentRendering = true;
+  try {
+    const page = await state.pdf.getPage(pageNo);
+    if (renderId !== state.renderId) return;
+    const viewport = page.getViewport({ scale: state.scale });
+    record.page = page;
+    record.viewport = viewport;
+    record.shell.style.width = `${viewport.width}px`;
+    record.shell.style.height = `${viewport.height}px`;
+    record.canvas.width = Math.ceil(viewport.width);
+    record.canvas.height = Math.ceil(viewport.height);
+    record.canvas.style.width = `${viewport.width}px`;
+    record.canvas.style.height = `${viewport.height}px`;
+    record.textLayer.style.setProperty("--scale-factor", viewport.scale);
+    renderAnnotationsForPage(pageNo);
+    const renderTask = page.render({ canvasContext: record.canvas.getContext("2d"), viewport });
+    state.activePageRenderTask = renderTask;
+    state.activePageNo = pageNo;
+    await renderTask.promise;
+    if (renderId !== state.renderId) return;
+    await renderTextLayer(page, viewport, record.textLayer, pageNo);
+    record.contentRendered = true;
+    paintSearchHits();
+    if (pageNo === state.currentPage) {
+      scrollCurrentIntoView();
+    }
+  } finally {
+    if (state.activePageNo === pageNo) {
+      state.activePageRenderTask = null;
+      state.activePageNo = null;
+    }
+    record.contentRendering = false;
+  }
+}
+
+async function renderTextLayer(page, viewport, layer, pageNo) {
+  layer.innerHTML = "";
+  const content = await page.getTextContent();
+  if (pdfjsLib.TextLayer) {
+    const textLayer = new pdfjsLib.TextLayer({
+      textContentSource: content,
+      container: layer,
+      viewport
+    });
+    await textLayer.render();
+  }
+  const record = state.renderedPages.get(pageNo) || {};
+  record.text = content.items.map((item) => item.str).join(" ");
+  state.renderedPages.set(pageNo, record);
+}
+
+function wireAnnotationLayer(layer, pageNo) {
+  layer.addEventListener("pointerdown", (event) => {
+    if (event.button !== 0) return;
+    if (event.target.closest(".field-box")) return;
+    if (state.tool === "text") {
+      addTextField(pageNo, event.offsetX, event.offsetY);
+      return;
+    }
+    if (state.tool !== "highlight" && state.tool !== "signature") return;
+    layer.setPointerCapture(event.pointerId);
+    state.drawing = {
+      pageNo,
+      startX: event.offsetX,
+      startY: event.offsetY,
+      points: [[event.offsetX, event.offsetY]],
+      lastX: event.offsetX,
+      lastY: event.offsetY,
+      strokeWidth: 1.8,
+      preview: document.createElement(state.tool === "signature" ? "svg" : "div")
+    };
+    state.drawing.preview.className = state.tool === "signature" ? "ink-box" : "highlight-box";
+    if (state.tool === "signature") {
+      state.drawing.preview.setAttribute("width", "100%");
+      state.drawing.preview.setAttribute("height", "100%");
+      state.drawing.preview.setAttribute("viewBox", `0 0 ${layer.clientWidth} ${layer.clientHeight}`);
+      state.drawing.line = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      state.drawing.line.setAttribute("fill", "none");
+      state.drawing.line.setAttribute("stroke", "#111827");
+      state.drawing.line.setAttribute("stroke-width", String(state.drawing.strokeWidth));
+      state.drawing.line.setAttribute("stroke-linecap", "round");
+      state.drawing.line.setAttribute("stroke-linejoin", "round");
+      state.drawing.preview.append(state.drawing.line);
+    }
+    layer.append(state.drawing.preview);
+  });
+
+  layer.addEventListener("pointermove", (event) => {
+    if (!state.drawing) return;
+    if (state.tool === "signature") event.preventDefault();
+    const x = event.offsetX;
+    const y = event.offsetY;
+    if (state.tool === "signature") {
+      const distance = Math.hypot(x - state.drawing.lastX, y - state.drawing.lastY);
+      if (distance < 1.4) return;
+      state.drawing.points.push([x, y]);
+      state.drawing.lastX = x;
+      state.drawing.lastY = y;
+      state.drawing.line.setAttribute("d", pointsToSmoothPath(state.drawing.points));
+    } else {
+      positionBox(state.drawing.preview, state.drawing.startX, state.drawing.startY, x, y);
+    }
+  });
+
+  layer.addEventListener("pointerup", finishDrawing);
+  layer.addEventListener("pointercancel", () => {
+    state.drawing?.preview.remove();
+    state.drawing = null;
+  });
+}
+
+function finishDrawing(event) {
+  if (!state.drawing) return;
+  const record = state.renderedPages.get(state.drawing.pageNo);
+  const width = record.viewport.width;
+  const height = record.viewport.height;
+  if (state.tool === "highlight") {
+    const box = normalizedBox(state.drawing.startX, state.drawing.startY, event.offsetX, event.offsetY, width, height);
+    state.drawing.preview.remove();
+    if (box.w > 0.01 && box.h > 0.005) {
+      state.meta.highlights.push({ id: crypto.randomUUID(), page: state.drawing.pageNo, ...box });
+    }
+  } else if (state.tool === "signature") {
+    const points = state.drawing.points.map(([x, y]) => [x / width, y / height]);
+    state.drawing.preview.remove();
+    if (points.length > 2) {
+      const signature = getActiveSignature(state.drawing.pageNo);
+      getSignatureStrokes(signature).push(points);
+      signature.strokeWidth = state.drawing.strokeWidth / width;
+    }
+  }
+  state.drawing = null;
+  saveMeta();
+  renderAnnotationsForPage(record.shell.dataset.page);
+  renderSavedSignatures();
+}
+
+function addTextField(pageNo, x, y) {
+  addTextFieldWithValue(pageNo, x, y, "");
+}
+
+function addTextFieldWithValue(pageNo, x, y, text, options = {}) {
+  const record = state.renderedPages.get(pageNo);
+  const id = crypto.randomUUID();
+  const field = {
+    id,
+    page: pageNo,
+    x: x / record.viewport.width,
+    y: y / record.viewport.height,
+    w: 0.09,
+    h: 0.032,
+    fontSize: options.fontSize || 15,
+    text
+  };
+  state.meta.fields.push(field);
+  state.selectedFieldId = id;
+  saveMeta();
+  renderAnnotationsForPage(pageNo);
+  requestAnimationFrame(() => {
+    const content = record.objectLayer.querySelector(`[data-field-id="${CSS.escape(id)}"] .field-content`);
+    content?.focus();
+    const box = record.objectLayer.querySelector(`[data-field-id="${CSS.escape(id)}"]`);
+    if (box && content) autosizeTextField(box, content, field, record);
+  });
+  return field;
+}
+
+function renderAnnotationsForPage(pageNo) {
+  pageNo = Number(pageNo);
+  const record = state.renderedPages.get(pageNo);
+  if (!record) return;
+  const layer = record.annotationLayer;
+  const objectLayer = record.objectLayer;
+  layer.innerHTML = "";
+  objectLayer.innerHTML = "";
+  const w = record.viewport.width;
+  const h = record.viewport.height;
+
+  state.meta.highlights.filter((item) => item.page === pageNo).forEach((item) => {
+    const box = document.createElement("div");
+    box.className = "highlight-box movable-annotation";
+    setNormRect(box, item, w, h);
+    box.title = "גרור להזזה";
+    wireRectAnnotationDrag(box, item, record);
+    box.append(createAnnotationControls({
+      label: "הדגשה",
+      onDelete: () => removeAnnotation("highlights", item.id, pageNo)
+    }));
+    layer.append(box);
+  });
+
+  state.meta.fields.filter((item) => item.page === pageNo).forEach((item) => {
+    const field = document.createElement("div");
+    field.className = "field-box";
+    field.dataset.fieldId = item.id;
+    field.addEventListener("pointerdown", (event) => {
+      state.selectedFieldId = item.id;
+      markSelectedField(pageNo);
+      event.stopPropagation();
+    });
+    field.classList.toggle("selected", state.selectedFieldId === item.id);
+    setNormRect(field, item, w, h);
+
+    const content = document.createElement("div");
+    content.className = "field-content";
+    content.contentEditable = "true";
+    content.dir = "auto";
+    content.style.fontSize = `${getFieldFontSize(item)}px`;
+    content.textContent = item.text;
+    content.addEventListener("input", () => {
+      item.text = content.textContent;
+      autosizeTextField(field, content, item, record);
+    });
+    content.addEventListener("blur", () => {
+      if (!content.textContent.trim()) {
+        removeAnnotation("fields", item.id, pageNo);
+      }
+    });
+    content.addEventListener("pointerdown", (event) => {
+      state.selectedFieldId = item.id;
+      markSelectedField(pageNo);
+      event.stopPropagation();
+    });
+
+    const menuButton = document.createElement("button");
+    menuButton.className = "field-menu-button";
+    menuButton.type = "button";
+    menuButton.textContent = "⋯";
+    menuButton.title = "אפשרויות טקסט";
+    menuButton.setAttribute("aria-label", "אפשרויות טקסט");
+    menuButton.addEventListener("pointerdown", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+    });
+    menuButton.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      state.selectedFieldId = item.id;
+      markSelectedField(pageNo);
+      field.classList.toggle("menu-open");
+    });
+
+    const menu = document.createElement("div");
+    menu.className = "field-menu";
+    menu.setAttribute("role", "menu");
+
+    const handle = createFieldMenuButton("↕", "הזז", "גרור כדי להזיז");
+    handle.classList.add("field-drag-action");
+    handle.addEventListener("pointerdown", (event) => {
+      state.selectedFieldId = item.id;
+      markSelectedField(pageNo);
+      event.stopPropagation();
+    });
+
+    const smaller = createFieldMenuButton("A−", "הקטן", "הקטן טקסט");
+    smaller.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      changeFieldFontSize(item, field, content, record, -1);
+    });
+
+    const larger = createFieldMenuButton("A+", "הגדל", "הגדל טקסט");
+    larger.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      changeFieldFontSize(item, field, content, record, 1);
+    });
+
+    const fill = createFieldFillMenu(item, field, content, record);
+
+    const del = createFieldMenuButton("×", "מחק", "מחק שדה");
+    del.classList.add("danger");
+    del.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      removeAnnotation("fields", item.id, pageNo);
+    });
+
+    menu.append(handle, smaller, larger, fill, del);
+
+    wireFieldDrag(handle, field, item, record);
+    field.append(menuButton, menu, content);
+    objectLayer.append(field);
+    requestAnimationFrame(() => autosizeTextField(field, content, item, record, false));
+  });
+
+  state.meta.signatures.filter((item) => item.page === pageNo).forEach((item) => {
+    const strokes = getSignatureStrokes(item).filter((stroke) => stroke.length > 1);
+    if (!strokes.length) return;
+    const isActiveSignature = state.tool === "signature" && item.sessionId === state.signatureSessionId;
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.classList.add("ink-box");
+    svg.setAttribute("viewBox", `0 0 ${w} ${h}`);
+    svg.style.inset = "0";
+    const paths = strokes.map((stroke) => {
+      const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      path.setAttribute("fill", "none");
+      path.setAttribute("stroke", "#111827");
+      path.setAttribute("stroke-width", String(getSignatureStrokeWidth(item, w)));
+      path.setAttribute("stroke-linecap", "round");
+      path.setAttribute("stroke-linejoin", "round");
+      path.setAttribute("d", pointsToSmoothPath(stroke.map(([x, y]) => [x * w, y * h])));
+      svg.append(path);
+      return path;
+    });
+    layer.append(svg);
+
+    const box = document.createElement("div");
+    box.className = "signature-move-box movable-annotation";
+    box.classList.toggle("signing-pad", isActiveSignature);
+    box.title = "גרור להזזה";
+    setSignatureMoveBox(box, item, w, h, isActiveSignature);
+    wireSignatureDrag(box, item, record, paths);
+    box.append(createAnnotationControls({
+      label: "חתימה",
+      onCommit: isActiveSignature ? () => commitActiveSignature() : null,
+      onSave: () => saveSignatureToProfile(item),
+      onDelete: () => removeAnnotation("signatures", item.id, pageNo)
+    }));
+    layer.append(box);
+  });
+}
+
+function removeAnnotation(type, id, pageNo) {
+  state.meta[type] = state.meta[type].filter((item) => item.id !== id);
+  if (type === "fields" && state.selectedFieldId === id) state.selectedFieldId = null;
+  saveMeta();
+  renderAnnotationsForPage(pageNo);
+}
+
+function markSelectedField(pageNo) {
+  const record = state.renderedPages.get(Number(pageNo));
+  if (!record) return;
+  document.querySelectorAll(".field-box").forEach((field) => {
+    field.classList.remove("selected");
+    if (field.dataset.fieldId !== state.selectedFieldId) field.classList.remove("menu-open");
+  });
+  if (!state.selectedFieldId) return;
+  record.objectLayer.querySelector(`[data-field-id="${CSS.escape(state.selectedFieldId)}"]`)?.classList.add("selected");
+}
+
+function deleteSelectedField() {
+  const field = state.meta.fields.find((item) => item.id === state.selectedFieldId);
+  if (!field) {
+    state.selectedFieldId = null;
+    return;
+  }
+  removeAnnotation("fields", field.id, field.page);
+}
+
+function createFieldMenuButton(icon, label, title) {
+  const button = document.createElement("button");
+  button.className = "field-menu-action";
+  button.type = "button";
+  button.innerHTML = `<span>${icon}</span><small>${label}</small>`;
+  button.title = title;
+  button.setAttribute("aria-label", title);
+  button.addEventListener("pointerdown", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+  });
+  return button;
+}
+
+function createFieldFillMenu(item, field, content, record) {
+  const wrap = document.createElement("div");
+  wrap.className = "field-fill-menu";
+
+  const trigger = createFieldMenuButton("▾", "מילוי", "מילוי מהיר");
+  trigger.classList.add("field-fill-trigger");
+  trigger.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    wrap.classList.toggle("open");
+  });
+
+  const list = document.createElement("div");
+  list.className = "field-fill-list";
+  list.setAttribute("role", "menu");
+
+  [
+    ["name", "שם"],
+    ["address", "כתובת"],
+    ["email", "מייל"],
+    ["phone", "טלפון"],
+    ["date", "תאריך"],
+    ["custom", "אחר"]
+  ].forEach(([type, label]) => {
+    const option = document.createElement("button");
+    option.type = "button";
+    option.textContent = label;
+    option.addEventListener("pointerdown", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+    });
+    option.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const value = getQuickFillValue(type);
+      if (!value) return;
+      setFieldText(item, value);
+      wrap.classList.remove("open");
+      field.classList.remove("menu-open");
+      content.focus();
+    });
+    list.append(option);
+  });
+
+  wrap.append(trigger, list);
+  return wrap;
+}
+
+function closeFieldMenus() {
+  document.querySelectorAll(".field-box.menu-open").forEach((field) => field.classList.remove("menu-open"));
+  document.querySelectorAll(".field-fill-menu.open").forEach((menu) => menu.classList.remove("open"));
+}
+
+function clearAllAnnotations() {
+  if (!state.pdf) return;
+  const count = (state.meta.highlights?.length || 0)
+    + (state.meta.fields?.length || 0)
+    + (state.meta.signatures?.length || 0);
+  if (!count) return;
+  if (!confirm(`למחוק את כל ההוספות במסמך הזה? (${count})`)) return;
+  state.meta.highlights = [];
+  state.meta.fields = [];
+  state.meta.signatures = [];
+  state.selectedFieldId = null;
+  saveMeta();
+  for (const pageNo of state.renderedPages.keys()) {
+    renderAnnotationsForPage(pageNo);
+  }
+}
+
+function initProfileControls() {
+  const fields = {
+    name: $("profileName"),
+    address: $("profileAddress"),
+    email: $("profileEmail"),
+    phone: $("profilePhone")
+  };
+
+  Object.entries(fields).forEach(([key, input]) => {
+    if (!input) return;
+    input.value = state.profile[key] || "";
+    input.addEventListener("input", () => {
+      state.profile[key] = input.value;
+      saveProfile();
+    });
+  });
+  renderSavedSignatures();
+}
+
+function renderSavedSignatures() {
+  let wrap = ui.savedSignatureList;
+  if (!wrap) {
+    wrap = document.createElement("div");
+    wrap.className = "saved-signatures";
+    wrap.id = "savedSignatureList";
+    document.querySelector(".autofill-body")?.append(wrap);
+    ui.savedSignatureList = wrap;
+  }
+  if (!wrap) return;
+  wrap.innerHTML = "";
+
+  const current = getCurrentSignatureForSaving();
+  const saveCurrent = document.createElement("button");
+  saveCurrent.type = "button";
+  saveCurrent.className = "save-signature-action";
+  saveCurrent.textContent = "שמור חתימה נוכחית";
+  saveCurrent.disabled = !current;
+  saveCurrent.title = current ? "שמור את החתימה שצוירה כעת" : "צייר חתימה ואז שמור אותה";
+  saveCurrent.addEventListener("click", () => {
+    const signature = getCurrentSignatureForSaving();
+    if (signature) saveSignatureToProfile(signature);
+  });
+  wrap.append(saveCurrent);
+
+  const saved = getSavedSignatures();
+  if (!saved.length) {
+    const empty = document.createElement("div");
+    empty.className = "saved-signature-empty";
+    empty.textContent = "אין חתימות שמורות";
+    wrap.append(empty);
+    return;
+  }
+
+  saved.forEach((signature) => {
+    const row = document.createElement("div");
+    row.className = "saved-signature-row";
+
+    const insert = document.createElement("button");
+    insert.type = "button";
+    insert.textContent = signature.name || "חתימה";
+    insert.title = "הכנס חתימה למסמך";
+    insert.addEventListener("click", () => insertSavedSignature(signature.id));
+
+    const del = document.createElement("button");
+    del.type = "button";
+    del.className = "danger";
+    del.textContent = "×";
+    del.title = "מחק חתימה שמורה";
+    del.addEventListener("click", () => removeSavedSignature(signature.id));
+
+    row.append(insert, del);
+    wrap.append(row);
+  });
+}
+
+function getSavedSignatures() {
+  if (!Array.isArray(state.profile.signatures)) state.profile.signatures = [];
+  return state.profile.signatures;
+}
+
+function getCurrentSignatureForSaving() {
+  if (!state.signatureSessionId) return null;
+  return state.meta.signatures.find((item) => (
+    item.sessionId === state.signatureSessionId && hasSignatureContent(item)
+  )) || null;
+}
+
+function hasSignatureContent(item) {
+  return getSignatureStrokes(item).some((stroke) => stroke.length > 1);
+}
+
+function commitActiveSignature() {
+  const active = getCurrentSignatureForSaving();
+  if (!active) return;
+  state.signatureSessionId = crypto.randomUUID();
+  saveMeta();
+  renderVisibleAnnotations();
+  renderSavedSignatures();
+}
+
+function saveSignatureToProfile(item) {
+  const saved = serializeSavedSignature(item);
+  if (!saved) return;
+  const signatures = getSavedSignatures();
+  saved.name = `חתימה ${signatures.length + 1}`;
+  signatures.push(saved);
+  saveProfile();
+  renderSavedSignatures();
+}
+
+function serializeSavedSignature(item) {
+  const strokes = getSignatureStrokes(item).filter((stroke) => stroke.length > 1);
+  if (!strokes.length) return null;
+  const bounds = getSignatureBounds({ strokes });
+  const contentW = bounds.maxX - bounds.minX;
+  const contentH = bounds.maxY - bounds.minY;
+  if (contentW <= 0 || contentH <= 0) return null;
+  return {
+    id: crypto.randomUUID(),
+    name: "",
+    createdAt: Date.now(),
+    aspect: contentW / contentH,
+    strokeWidthRatio: (Number(item.strokeWidth) || 0.0025) / contentW,
+    strokes: strokes.map((stroke) => stroke.map(([x, y]) => [
+      (x - bounds.minX) / contentW,
+      (y - bounds.minY) / contentH
+    ]))
+  };
+}
+
+function insertSavedSignature(id) {
+  if (!state.pdf) return;
+  const saved = getSavedSignatures().find((item) => item.id === id);
+  if (!saved?.strokes?.length) return;
+  const placement = getDefaultSignaturePlacement();
+  const record = state.renderedPages.get(placement.pageNo);
+  if (!record) return;
+  const targetWidthPx = clamp(record.viewport.width * 0.28, 140, 260);
+  const targetHeightPx = clamp(targetWidthPx / clamp(Number(saved.aspect) || 3, 1, 6), 42, 120);
+  const left = clamp(placement.x - targetWidthPx / 2, 8, Math.max(8, record.viewport.width - targetWidthPx - 8));
+  const top = clamp(placement.y - targetHeightPx / 2, 8, Math.max(8, record.viewport.height - targetHeightPx - 8));
+  const targetWidth = targetWidthPx / record.viewport.width;
+  const targetHeight = targetHeightPx / record.viewport.height;
+  const signature = {
+    id: crypto.randomUUID(),
+    sessionId: null,
+    page: placement.pageNo,
+    strokes: saved.strokes.map((stroke) => stroke.map(([x, y]) => [
+      (left / record.viewport.width) + x * targetWidth,
+      (top / record.viewport.height) + y * targetHeight
+    ])),
+    strokeWidth: Math.max(0.0015, (Number(saved.strokeWidthRatio) || 0.012) * targetWidth)
+  };
+  state.meta.signatures.push(signature);
+  saveMeta();
+  renderAnnotationsForPage(placement.pageNo);
+}
+
+function removeSavedSignature(id) {
+  state.profile.signatures = getSavedSignatures().filter((item) => item.id !== id);
+  saveProfile();
+  renderSavedSignatures();
+}
+
+function applyQuickFill(type) {
+  if (!state.pdf) return;
+  const value = getQuickFillValue(type);
+  if (!value) return;
+  const selected = getActiveTextField();
+  if (selected) {
+    setFieldText(selected, value);
+    return;
+  }
+  const placement = getDefaultFieldPlacement();
+  addTextFieldWithValue(placement.pageNo, placement.x, placement.y, value);
+}
+
+function getActiveTextField() {
+  const activeField = document.activeElement?.closest?.(".field-box");
+  const id = activeField?.dataset.fieldId || state.selectedFieldId;
+  return state.meta.fields.find((field) => field.id === id);
+}
+
+function getQuickFillValue(type) {
+  if (type === "date") return new Intl.DateTimeFormat("he-IL").format(new Date());
+  if (type === "custom") return prompt("טקסט להוספה:")?.trim() || "";
+  return (state.profile[type] || "").trim();
+}
+
+function setFieldText(field, text) {
+  field.text = text;
+  const record = state.renderedPages.get(field.page);
+  if (!record) {
+    saveMeta();
+    return;
+  }
+  const box = record.objectLayer.querySelector(`[data-field-id="${CSS.escape(field.id)}"]`);
+  const content = box?.querySelector(".field-content");
+  if (!box || !content) {
+    saveMeta();
+    return;
+  }
+  content.textContent = text;
+  state.selectedFieldId = field.id;
+  markSelectedField(field.page);
+  autosizeTextField(box, content, field, record);
+  content.focus();
+}
+
+function getDefaultFieldPlacement() {
+  const visiblePages = [...document.querySelectorAll(".page-shell")];
+  const readerRect = ui.reader.getBoundingClientRect();
+  const page = visiblePages.find((shell) => {
+    const rect = shell.getBoundingClientRect();
+    return rect.bottom > readerRect.top + 80 && rect.top < readerRect.bottom - 80;
+  }) || visiblePages[0];
+  if (!page) return { pageNo: state.currentPage, x: 24, y: 24 };
+  const rect = page.getBoundingClientRect();
+  return {
+    pageNo: Number(page.dataset.page),
+    x: clamp(readerRect.left + ui.reader.clientWidth * 0.5 - rect.left, 16, Math.max(16, rect.width - 80)),
+    y: clamp(readerRect.top + ui.reader.clientHeight * 0.32 - rect.top, 16, Math.max(16, rect.height - 40))
+  };
+}
+
+function getDefaultSignaturePlacement() {
+  const placement = getDefaultFieldPlacement();
+  return {
+    pageNo: placement.pageNo,
+    x: placement.x,
+    y: placement.y + 22
+  };
+}
+
+function updateToolLayers() {
+  document.querySelectorAll(".annotation-layer").forEach((layer) => {
+    layer.classList.toggle("active", state.tool === "highlight" || state.tool === "text" || state.tool === "signature");
+  });
+  ui.reader.classList.toggle("can-pan", state.tool === "pan");
+}
+
+function renderVisibleAnnotations() {
+  state.renderedPages.forEach((_, pageNo) => renderAnnotationsForPage(pageNo));
+}
+
+function wireFieldDrag(handle, field, item, record) {
+  handle.addEventListener("pointerdown", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    handle.setPointerCapture(event.pointerId);
+    const start = {
+      x: event.clientX,
+      y: event.clientY,
+      itemX: item.x,
+      itemY: item.y
+    };
+
+    const move = (moveEvent) => {
+      const dx = (moveEvent.clientX - start.x) / record.viewport.width;
+      const dy = (moveEvent.clientY - start.y) / record.viewport.height;
+      item.x = clamp(start.itemX + dx, 0, Math.max(0, 1 - item.w));
+      item.y = clamp(start.itemY + dy, 0, Math.max(0, 1 - item.h));
+      setNormRect(field, item, record.viewport.width, record.viewport.height);
+    };
+
+    const up = () => {
+      handle.removeEventListener("pointermove", move);
+      handle.removeEventListener("pointerup", up);
+      handle.removeEventListener("pointercancel", up);
+      saveMeta();
+    };
+
+    handle.addEventListener("pointermove", move);
+    handle.addEventListener("pointerup", up);
+    handle.addEventListener("pointercancel", up);
+  });
+}
+
+function createAnnotationControls({ label, onCommit, onSave, onDelete }) {
+  const controls = document.createElement("div");
+  controls.className = "annotation-controls";
+  controls.setAttribute("aria-label", label);
+
+  const move = document.createElement("span");
+  move.className = "annotation-drag-hint";
+  move.textContent = "↕";
+  move.title = "גרור להזזה";
+
+  const commit = document.createElement("button");
+  commit.type = "button";
+  commit.className = "annotation-commit";
+  commit.textContent = "✓";
+  commit.title = "סיים חתימה";
+  commit.setAttribute("aria-label", `סיים ${label}`);
+  commit.hidden = !onCommit;
+  commit.addEventListener("pointerdown", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+  });
+  commit.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    onCommit?.();
+  });
+
+  const save = document.createElement("button");
+  save.type = "button";
+  save.className = "annotation-save";
+  save.textContent = "S";
+  save.title = "שמור למילוי מהיר";
+  save.setAttribute("aria-label", `שמור ${label} למילוי מהיר`);
+  save.hidden = !onSave;
+  save.addEventListener("pointerdown", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+  });
+  save.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    onSave?.();
+  });
+
+  const del = document.createElement("button");
+  del.type = "button";
+  del.className = "annotation-delete";
+  del.textContent = "×";
+  del.title = "מחק";
+  del.setAttribute("aria-label", `מחק ${label}`);
+  del.addEventListener("pointerdown", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+  });
+  del.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    onDelete();
+  });
+
+  controls.append(move, commit, save, del);
+  return controls;
+}
+
+function wireRectAnnotationDrag(element, item, record) {
+  element.addEventListener("pointerdown", (event) => {
+    if (event.button !== 0 || event.target.closest("button")) return;
+    event.preventDefault();
+    event.stopPropagation();
+    element.setPointerCapture(event.pointerId);
+    const start = {
+      x: event.clientX,
+      y: event.clientY,
+      itemX: item.x,
+      itemY: item.y
+    };
+
+    const move = (moveEvent) => {
+      moveEvent.preventDefault();
+      const dx = (moveEvent.clientX - start.x) / record.viewport.width;
+      const dy = (moveEvent.clientY - start.y) / record.viewport.height;
+      item.x = clamp(start.itemX + dx, 0, Math.max(0, 1 - item.w));
+      item.y = clamp(start.itemY + dy, 0, Math.max(0, 1 - item.h));
+      setNormRect(element, item, record.viewport.width, record.viewport.height);
+    };
+
+    const up = () => {
+      element.removeEventListener("pointermove", move);
+      element.removeEventListener("pointerup", up);
+      element.removeEventListener("pointercancel", up);
+      saveMeta();
+    };
+
+    element.addEventListener("pointermove", move);
+    element.addEventListener("pointerup", up);
+    element.addEventListener("pointercancel", up);
+  });
+}
+
+function wireSignatureDrag(element, item, record, paths) {
+  element.addEventListener("pointerdown", (event) => {
+    if (event.button !== 0 || event.target.closest("button")) return;
+    event.preventDefault();
+    event.stopPropagation();
+    element.setPointerCapture(event.pointerId);
+    const bounds = getSignatureBounds(item);
+    const start = {
+      x: event.clientX,
+      y: event.clientY,
+      strokes: getSignatureStrokes(item).map((stroke) => stroke.map(([x, y]) => [x, y])),
+      minDx: -bounds.minX,
+      maxDx: 1 - bounds.maxX,
+      minDy: -bounds.minY,
+      maxDy: 1 - bounds.maxY
+    };
+
+    const move = (moveEvent) => {
+      moveEvent.preventDefault();
+      const dx = clamp((moveEvent.clientX - start.x) / record.viewport.width, start.minDx, start.maxDx);
+      const dy = clamp((moveEvent.clientY - start.y) / record.viewport.height, start.minDy, start.maxDy);
+      item.strokes = start.strokes.map((stroke) => stroke.map(([x, y]) => [x + dx, y + dy]));
+      delete item.points;
+      paths.forEach((path, index) => {
+        const stroke = item.strokes[index] || [];
+        path.setAttribute("d", pointsToSmoothPath(stroke.map(([x, y]) => [x * record.viewport.width, y * record.viewport.height])));
+      });
+      setSignatureMoveBox(element, item, record.viewport.width, record.viewport.height);
+    };
+
+    const up = () => {
+      element.removeEventListener("pointermove", move);
+      element.removeEventListener("pointerup", up);
+      element.removeEventListener("pointercancel", up);
+      saveMeta();
+    };
+
+    element.addEventListener("pointermove", move);
+    element.addEventListener("pointerup", up);
+    element.addEventListener("pointercancel", up);
+  });
+}
+
+function setSignatureMoveBox(element, item, width, height, isActiveSignature = false) {
+  const bounds = getSignatureBounds(item);
+  const padPxX = isActiveSignature ? 38 : 10;
+  const padPxY = isActiveSignature ? 28 : 10;
+  const minWidthPx = isActiveSignature ? 340 : 18;
+  const minHeightPx = isActiveSignature ? 130 : 18;
+  const padX = padPxX / width;
+  const padY = padPxY / height;
+  const contentW = bounds.maxX - bounds.minX;
+  const contentH = bounds.maxY - bounds.minY;
+  const targetW = Math.max(contentW + padX * 2, minWidthPx / width);
+  const targetH = Math.max(contentH + padY * 2, minHeightPx / height);
+  const centerX = (bounds.minX + bounds.maxX) / 2;
+  const centerY = (bounds.minY + bounds.maxY) / 2;
+  const box = {
+    x: clamp(centerX - targetW / 2, 0, 1),
+    y: clamp(centerY - targetH / 2, 0, 1),
+    w: clamp(targetW, 0.025, 1),
+    h: clamp(targetH, 0.025, 1)
+  };
+  if (box.x + box.w > 1) box.w = 1 - box.x;
+  if (box.y + box.h > 1) box.h = 1 - box.y;
+  setNormRect(element, box, width, height);
+}
+
+function getSignatureBounds(item) {
+  const points = getSignatureStrokes(item).flat();
+  if (!points.length) {
+    return { minX: 0, minY: 0, maxX: 0, maxY: 0 };
+  }
+  const xs = points.map(([x]) => x);
+  const ys = points.map(([, y]) => y);
+  return {
+    minX: Math.min(...xs),
+    minY: Math.min(...ys),
+    maxX: Math.max(...xs),
+    maxY: Math.max(...ys)
+  };
+}
+
+function autosizeTextField(field, content, item, record, persist = true) {
+  const text = content.textContent || "";
+  const measure = getTextMeasureElement();
+  const style = getComputedStyle(content);
+  measure.style.font = style.font;
+  measure.style.lineHeight = style.lineHeight;
+  measure.style.whiteSpace = "pre";
+  measure.textContent = text || "הקלד כאן";
+
+  const paddingX = 18;
+  const paddingY = 10;
+  const minWidth = 32;
+  const minHeight = 24;
+  const maxWidth = Math.max(80, record.viewport.width - item.x * record.viewport.width - 8);
+  const measuredWidth = Math.ceil(measure.getBoundingClientRect().width + paddingX);
+  const measuredHeight = Math.ceil(measure.getBoundingClientRect().height + paddingY);
+  const widthPx = clamp(measuredWidth, minWidth, maxWidth);
+  const heightPx = Math.max(minHeight, measuredHeight);
+
+  item.w = widthPx / record.viewport.width;
+  item.h = heightPx / record.viewport.height;
+  setNormRect(field, item, record.viewport.width, record.viewport.height);
+  if (persist) saveMeta();
+}
+
+function changeFieldFontSize(item, field, content, record, delta) {
+  item.fontSize = clamp(getFieldFontSize(item) + delta, 8, 32);
+  content.style.fontSize = `${item.fontSize}px`;
+  autosizeTextField(field, content, item, record);
+  content.focus();
+}
+
+function getFieldFontSize(item) {
+  return Number.isFinite(Number(item.fontSize)) ? Number(item.fontSize) : 15;
+}
+
+function getSignatureStrokeWidth(item, pageWidth) {
+  const normalized = Number(item.strokeWidth);
+  if (Number.isFinite(normalized) && normalized > 0) {
+    return clamp(normalized * pageWidth, 1.1, 2.4);
+  }
+  return 1.8;
+}
+
+function getActiveSignature(pageNo) {
+  if (!state.signatureSessionId) state.signatureSessionId = crypto.randomUUID();
+  let signature = state.meta.signatures.find((item) => (
+    item.page === pageNo && item.sessionId === state.signatureSessionId
+  ));
+  if (!signature) {
+    signature = {
+      id: crypto.randomUUID(),
+      sessionId: state.signatureSessionId,
+      page: pageNo,
+      strokes: [],
+      strokeWidth: 0.0025
+    };
+    state.meta.signatures.push(signature);
+  }
+  return signature;
+}
+
+function getSignatureStrokes(item) {
+  if (Array.isArray(item.strokes)) return item.strokes;
+  if (Array.isArray(item.points)) {
+    item.strokes = [item.points];
+    delete item.points;
+    return item.strokes;
+  }
+  item.strokes = [];
+  return item.strokes;
+}
+
+function pointsToSmoothPath(points) {
+  if (!points.length) return "";
+  if (points.length === 1) return `M ${points[0][0]} ${points[0][1]}`;
+  if (points.length === 2) return `M ${points[0][0]} ${points[0][1]} L ${points[1][0]} ${points[1][1]}`;
+
+  let path = `M ${points[0][0]} ${points[0][1]}`;
+  for (let i = 1; i < points.length - 1; i += 1) {
+    const [x, y] = points[i];
+    const [nextX, nextY] = points[i + 1];
+    const midX = (x + nextX) / 2;
+    const midY = (y + nextY) / 2;
+    path += ` Q ${x} ${y} ${midX} ${midY}`;
+  }
+  const [lastX, lastY] = points[points.length - 1];
+  return `${path} L ${lastX} ${lastY}`;
+}
+
+function getTextMeasureElement() {
+  let measure = document.getElementById("textMeasure");
+  if (!measure) {
+    measure = document.createElement("span");
+    measure.id = "textMeasure";
+    measure.className = "text-measure";
+    document.body.append(measure);
+  }
+  return measure;
+}
+
+function setNormRect(element, item, width, height) {
+  element.style.left = `${item.x * width}px`;
+  element.style.top = `${item.y * height}px`;
+  element.style.width = `${item.w * width}px`;
+  element.style.height = `${item.h * height}px`;
+}
+
+function positionBox(element, x1, y1, x2, y2) {
+  element.style.left = `${Math.min(x1, x2)}px`;
+  element.style.top = `${Math.min(y1, y2)}px`;
+  element.style.width = `${Math.abs(x2 - x1)}px`;
+  element.style.height = `${Math.abs(y2 - y1)}px`;
+}
+
+function normalizedBox(x1, y1, x2, y2, width, height) {
+  return {
+    x: Math.min(x1, x2) / width,
+    y: Math.min(y1, y2) / height,
+    w: Math.abs(x2 - x1) / width,
+    h: Math.abs(y2 - y1) / height
+  };
+}
+
+async function search() {
+  if (!state.pdf) return;
+  const term = ui.searchInput.value.trim();
+  state.search = { term, hits: [], index: -1 };
+  if (!term) {
+    paintSearchHits();
+    updateSearchLabel();
+    return;
+  }
+  const options = { caseSensitive: ui.searchCase.checked, wholeWord: ui.searchWhole.checked };
+  for (let pageNo = 1; pageNo <= state.pageCount; pageNo += 1) {
+    const page = await state.pdf.getPage(pageNo);
+    const content = await page.getTextContent();
+    const viewport = page.getViewport({ scale: state.scale });
+    for (const item of content.items) {
+      const matches = findTextMatches(item.str, term, options);
+      if (!matches.length) continue;
+      const rect = textItemRect(item, viewport);
+      for (const match of matches) {
+        const matchRect = textMatchRect(item, rect, match, content.styles?.[item.fontName]);
+        state.search.hits.push({
+          page: pageNo,
+          x: matchRect.x / viewport.width,
+          y: matchRect.y / viewport.height,
+          w: Math.max(8, matchRect.width) / viewport.width,
+          h: Math.max(8, matchRect.height) / viewport.height
+        });
+      }
+    }
+  }
+  state.search.index = state.search.hits.length ? 0 : -1;
+  updateSearchLabel();
+  if (state.search.index >= 0) await goToSearchHit(state.search.index);
+  paintSearchHits();
+}
+
+function paintSearchHits() {
+  document.querySelectorAll(".search-layer").forEach((layer) => layer.innerHTML = "");
+  state.search.hits.forEach((hit, index) => {
+    const record = state.renderedPages.get(hit.page);
+    if (!record) return;
+    const marker = document.createElement("div");
+    marker.className = `search-hit${index === state.search.index ? " current" : ""}`;
+    marker.style.left = `${hit.x * record.viewport.width}px`;
+    marker.style.top = `${hit.y * record.viewport.height}px`;
+    marker.style.width = `${hit.w * record.viewport.width}px`;
+    marker.style.height = `${hit.h * record.viewport.height}px`;
+    marker.title = `תוצאת חיפוש בעמוד ${hit.page}`;
+    record.searchLayer.append(marker);
+  });
+}
+
+async function moveSearch(direction) {
+  if (!state.search.hits.length) return;
+  state.search.index = (state.search.index + direction + state.search.hits.length) % state.search.hits.length;
+  updateSearchLabel();
+  await goToSearchHit(state.search.index);
+  paintSearchHits();
+}
+
+function updateSearchLabel() {
+  const total = state.search.hits.length;
+  ui.searchCount.textContent = total ? `${state.search.index + 1}/${total}` : "0/0";
+}
+
+async function goToSearchHit(index) {
+  const hit = state.search.hits[index];
+  if (!hit) return;
+  await goToPage(hit.page, { save: false, scroll: false });
+  requestAnimationFrame(() => {
+    const record = state.renderedPages.get(hit.page);
+    if (!record) return;
+    const targetTop = record.shell.offsetTop + (hit.y * record.viewport.height) - (ui.reader.clientHeight * 0.35);
+    ui.reader.scrollTo({ top: Math.max(0, targetTop), behavior: "smooth" });
+  });
+}
+
+function findTextMatches(text, term, { caseSensitive, wholeWord }) {
+  if (!text || !term) return [];
+  const haystack = caseSensitive ? text : text.toLocaleLowerCase();
+  const needle = caseSensitive ? term : term.toLocaleLowerCase();
+  const matches = [];
+  let fromIndex = 0;
+  while (fromIndex <= haystack.length) {
+    const index = haystack.indexOf(needle, fromIndex);
+    if (index === -1) break;
+    const end = index + needle.length;
+    if (!wholeWord || (isWordBoundary(text[index - 1]) && isWordBoundary(text[end]))) {
+      matches.push({
+        start: index,
+        end
+      });
+    }
+    fromIndex = Math.max(end, index + 1);
+  }
+  return matches;
+}
+
+function isWordBoundary(char) {
+  return !char || !/[\p{L}\p{N}_]/u.test(char);
+}
+
+function textItemRect(item, viewport) {
+  const tx = pdfjsLib.Util.transform(viewport.transform, item.transform);
+  const height = Math.max(8, Math.hypot(tx[2], tx[3]));
+  const width = Math.max(8, (item.width || item.str.length * height * .52) * viewport.scale);
+  return { x: tx[4], y: tx[5] - height, width, height };
+}
+
+function textMatchRect(item, rect, match, style = {}) {
+  const text = item.str || "";
+  const fontFamily = style.fontFamily || "sans-serif";
+  const fullWidth = measureSearchText(text, rect.height, fontFamily);
+  if (!fullWidth) {
+    const fallbackWidth = rect.width * ((match.end - match.start) / Math.max(1, text.length));
+    const fallbackX = isRtlTextItem(item)
+      ? rect.x + rect.width - (rect.width * (match.start / Math.max(1, text.length))) - fallbackWidth
+      : rect.x + (rect.width * (match.start / Math.max(1, text.length)));
+    return { x: fallbackX, y: rect.y, width: fallbackWidth, height: rect.height };
+  }
+
+  const prefixWidth = measureSearchText(text.slice(0, match.start), rect.height, fontFamily) * (rect.width / fullWidth);
+  const matchWidth = measureSearchText(text.slice(match.start, match.end), rect.height, fontFamily) * (rect.width / fullWidth);
+  const x = isRtlTextItem(item)
+    ? rect.x + rect.width - prefixWidth - matchWidth
+    : rect.x + prefixWidth;
+
+  return { x, y: rect.y, width: matchWidth, height: rect.height };
+}
+
+function measureSearchText(text, fontSize, fontFamily) {
+  if (!text) return 0;
+  const measure = getTextMeasureElement();
+  measure.style.fontSize = `${fontSize}px`;
+  measure.style.fontFamily = fontFamily;
+  measure.style.whiteSpace = "pre";
+  measure.textContent = text;
+  return measure.getBoundingClientRect().width;
+}
+
+function isRtlTextItem(item) {
+  return item.dir === "rtl" || /[\u0590-\u08FF]/u.test(item.str || "");
+}
+
+function addBookmark() {
+  if (!state.pdf) return;
+  state.meta.bookmarks.push({
+    id: crypto.randomUUID(),
+    name: nextBookmarkName(state.currentPage),
+    page: state.currentPage
+  });
+  saveMeta();
+  renderBookmarks();
+}
+
+function renderBookmarks() {
+  ui.bookmarkList.innerHTML = "";
+  state.meta.bookmarks.forEach((bookmark) => {
+    const item = document.createElement("div");
+    item.className = "bookmark-item";
+
+    const label = document.createElement("button");
+    label.className = "bookmark-open";
+    label.type = "button";
+    label.textContent = `${bookmark.name} · ${bookmark.page}`;
+    label.title = "פתח סימניה";
+    label.addEventListener("click", () => goToPage(bookmark.page));
+
+    const edit = document.createElement("button");
+    edit.className = "icon-action";
+    edit.textContent = "✎";
+    edit.title = "ערוך שם";
+    edit.setAttribute("aria-label", "ערוך שם סימניה");
+    edit.addEventListener("click", () => startBookmarkEdit(item, bookmark));
+
+    const del = document.createElement("button");
+    del.className = "icon-action danger";
+    del.textContent = "×";
+    del.title = "מחק סימניה";
+    del.setAttribute("aria-label", "מחק סימניה");
+    del.addEventListener("click", () => {
+      state.meta.bookmarks = state.meta.bookmarks.filter((entry) => entry.id !== bookmark.id);
+      saveMeta();
+      renderBookmarks();
+    });
+    item.append(label, edit, del);
+    ui.bookmarkList.append(item);
+  });
+}
+
+function nextBookmarkName(page) {
+  const base = `עמוד ${page}`;
+  const existing = new Set(state.meta.bookmarks.map((bookmark) => bookmark.name));
+  if (!existing.has(base)) return base;
+  let index = 2;
+  while (existing.has(`${base} (${index})`)) index += 1;
+  return `${base} (${index})`;
+}
+
+function startBookmarkEdit(item, bookmark) {
+  item.innerHTML = "";
+  const input = document.createElement("input");
+  input.value = bookmark.name;
+  input.select();
+
+  const save = document.createElement("button");
+  save.className = "icon-action success";
+  save.textContent = "✓";
+  save.title = "שמור";
+  save.setAttribute("aria-label", "שמור שם סימניה");
+
+  const cancel = document.createElement("button");
+  cancel.className = "icon-action";
+  cancel.textContent = "↶";
+  cancel.title = "בטל";
+  cancel.setAttribute("aria-label", "בטל עריכת סימניה");
+
+  const finish = () => {
+    const name = input.value.trim();
+    if (name) bookmark.name = name;
+    saveMeta();
+    renderBookmarks();
+  };
+
+  save.addEventListener("click", finish);
+  cancel.addEventListener("click", renderBookmarks);
+  input.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") finish();
+    if (event.key === "Escape") renderBookmarks();
+  });
+
+  item.append(input, save, cancel);
+  input.focus();
+}
+
+function savePosition() {
+  const position = getVisibleReadingPosition();
+  state.currentPage = position.page;
+  state.meta.readingPosition = position.page;
+  state.meta.readingOffset = position.offset;
+  state.meta.savedReadingPosition = position.page;
+  state.meta.savedReadingOffset = position.offset;
+  saveMeta();
+  updateStatus();
+}
+
+function restorePosition() {
+  const page = state.meta.savedReadingPosition || state.meta.readingPosition || 1;
+  const offset = state.meta.savedReadingPosition ? state.meta.savedReadingOffset : state.meta.readingOffset;
+  goToPage(page, { offset: offset || 0, save: false });
+}
+
+async function goToPage(pageNo, options = {}) {
+  if (!state.pdf) return;
+  const { offset = 0, save = true, scroll = true } = options;
+  state.currentPage = clamp(Math.round(pageNo), 1, state.pageCount);
+  if (save) {
+    state.meta.readingPosition = state.currentPage;
+    state.meta.readingOffset = clamp(offset, 0, 1);
+    saveMeta(false);
+  }
+  let target = document.querySelector(`[data-page="${state.currentPage}"]`);
+  if (!target) {
+    await render();
+    target = document.querySelector(`[data-page="${state.currentPage}"]`);
+  }
+  cancelActivePageRender(state.currentPage);
+  queueNearbyContent(state.currentPage, state.renderId);
+  if (target && scroll) {
+    const scrollLockId = lockScrollTracking();
+    scrollToPageOffset(target, offset);
+    releaseScrollTrackingAfterLayout(scrollLockId);
+  }
+  updateStatus();
+}
+
+function onScroll() {
+  if (state.isRendering || state.isAdjustingScroll) return;
+  const position = getVisibleReadingPosition();
+  if (!position.page) return;
+  if (position.page !== state.currentPage) {
+    state.currentPage = position.page;
+    cancelActivePageRender(position.page);
+    queueNearbyContent(position.page, state.renderId);
+    updateStatus();
+  }
+  state.meta.readingPosition = position.page;
+  state.meta.readingOffset = position.offset;
+  saveScrollMeta();
+}
+
+function onReaderWheel(event) {
+  if (state.mode !== "single" || !state.pdf || event.ctrlKey || event.metaKey) return;
+  if (isTypingTarget(event.target)) return;
+
+  const primaryDelta = Math.abs(event.deltaY) >= Math.abs(event.deltaX) ? event.deltaY : event.deltaX;
+  if (!primaryDelta) return;
+
+  event.preventDefault();
+  state.pageWheelDelta += primaryDelta;
+
+  const now = performance.now();
+  if (now < state.pageWheelLockedUntil) return;
+
+  const threshold = event.deltaMode === WheelEvent.DOM_DELTA_PIXEL ? 18 : 0.8;
+  if (Math.abs(state.pageWheelDelta) < threshold) return;
+
+  const direction = state.pageWheelDelta > 0 ? 1 : -1;
+  state.pageWheelDelta = 0;
+  state.pageWheelLockedUntil = now + 180;
+  goToPage(state.currentPage + direction, { offset: 0 });
+}
+
+function syncSinglePageWheel() {
+  const shouldUsePageWheel = state.mode === "single";
+  if (shouldUsePageWheel === state.isSinglePageWheelActive) return;
+  state.pageWheelDelta = 0;
+  state.pageWheelLockedUntil = 0;
+  state.isSinglePageWheelActive = shouldUsePageWheel;
+  if (shouldUsePageWheel) {
+    ui.reader.addEventListener("wheel", onReaderWheel, { passive: false });
+  } else {
+    ui.reader.removeEventListener("wheel", onReaderWheel);
+  }
+}
+
+function handleSinglePageKey(event) {
+  if (state.mode !== "single" || !state.pdf || isTypingTarget(event.target) || event.ctrlKey || event.metaKey || event.altKey) {
+    return false;
+  }
+  const nextKeys = new Set(["ArrowDown", "ArrowRight", "PageDown", " "]);
+  const previousKeys = new Set(["ArrowUp", "ArrowLeft", "PageUp"]);
+  if (!nextKeys.has(event.key) && !previousKeys.has(event.key)) return false;
+  event.preventDefault();
+  const direction = previousKeys.has(event.key) ? -1 : 1;
+  goToPage(state.currentPage + direction, { offset: 0 });
+  return true;
+}
+
+function getVisibleReadingPosition() {
+  const shells = state.pageShells;
+  if (!shells.length) return { page: state.currentPage || 1, offset: 0 };
+  const readerTop = ui.reader.scrollTop;
+  const viewportMiddle = readerTop + (ui.reader.clientHeight / 2);
+  let low = 0;
+  let high = shells.length - 1;
+  let nearestIndex = 0;
+
+  while (low <= high) {
+    const middleIndex = Math.floor((low + high) / 2);
+    const shell = shells[middleIndex];
+    if (!shell) break;
+    const shellMiddle = shell.offsetTop + (shell.offsetHeight / 2);
+    nearestIndex = middleIndex;
+    if (shellMiddle < viewportMiddle) low = middleIndex + 1;
+    else high = middleIndex - 1;
+  }
+
+  let nearest = shells[nearestIndex] || shells[0];
+  let nearestDistance = Math.abs((nearest.offsetTop + (nearest.offsetHeight / 2)) - viewportMiddle);
+  for (let index = Math.max(0, nearestIndex - 2); index <= Math.min(shells.length - 1, nearestIndex + 2); index += 1) {
+    const shell = shells[index];
+    if (!shell) continue;
+    const distance = Math.abs((shell.offsetTop + (shell.offsetHeight / 2)) - viewportMiddle);
+    if (distance < nearestDistance) {
+      nearest = shell;
+      nearestDistance = distance;
+    }
+  }
+  const offset = clamp((readerTop - nearest.offsetTop) / Math.max(1, nearest.offsetHeight), 0, 1);
+  return { page: Number(nearest.dataset.page), offset };
+}
+
+function updateStatus() {
+  ui.pageInput.value = state.currentPage || 1;
+  ui.pageTotal.textContent = `/ ${state.pageCount || 0}`;
+  ui.zoomLabel.textContent = `${Math.round(state.scale * 100)}%`;
+  const progress = state.pageCount ? (state.currentPage / state.pageCount) * 100 : 0;
+  if (ui.pageSlider) {
+    ui.pageSlider.min = "1";
+    ui.pageSlider.max = String(Math.max(1, state.pageCount || 1));
+    ui.pageSlider.value = String(clamp(state.currentPage || 1, 1, state.pageCount || 1));
+    ui.pageSlider.disabled = !state.pdf || state.pageCount <= 1;
+    ui.pageSlider.style.setProperty("--slider-progress", `${progress}%`);
+  }
+  const atStart = !state.pdf || state.currentPage <= 1;
+  const atEnd = !state.pdf || state.currentPage >= state.pageCount;
+  ["firstPage"].forEach((id) => {
+    const button = $(id);
+    if (button) button.disabled = atStart;
+  });
+  ["lastPage"].forEach((id) => {
+    const button = $(id);
+    if (button) button.disabled = atEnd;
+  });
+}
+
+async function fitTo(kind) {
+  state.fit = kind;
+  if (!state.pdf) return;
+  const page = await state.pdf.getPage(state.currentPage);
+  const viewport = page.getViewport({ scale: 1 });
+  const gap = state.mode.startsWith("book") ? 34 : 0;
+  const widthFactor = state.mode.startsWith("book") ? 2 : 1;
+  const availableWidth = Math.max(320, ui.reader.clientWidth - 44 - gap);
+  const availableHeight = Math.max(320, ui.reader.clientHeight - 44);
+  const scaleW = availableWidth / (viewport.width * widthFactor);
+  const scaleH = availableHeight / viewport.height;
+  state.scale = clamp(kind === "page" ? Math.min(scaleW, scaleH) : scaleW, 0.35, 3.5);
+  await render();
+}
+
+async function setScale(scale) {
+  state.scale = clamp(scale, 0.35, 3.5);
+  state.fit = "custom";
+  await render();
+}
+
+function normalizeBookStart() {
+  state.currentPage = clamp(state.currentPage, 1, state.pageCount || 1);
+}
+
+function getBookSpreads() {
+  const spreads = [];
+  if (state.pageCount >= 1) spreads.push([1]);
+  for (let pageNo = 2; pageNo <= state.pageCount; pageNo += 2) {
+    const pages = pageNo + 1 <= state.pageCount ? [pageNo, pageNo + 1] : [pageNo];
+    spreads.push(state.mode === "book-rtl" ? [...pages].reverse() : pages);
+  }
+  return spreads;
+}
+
+function lockScrollTracking() {
+  state.isAdjustingScroll = true;
+  return ++state.scrollLockId;
+}
+
+function releaseScrollTrackingAfterLayout(scrollLockId) {
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      if (scrollLockId !== state.scrollLockId) return;
+      state.isRendering = false;
+      state.isAdjustingScroll = false;
+    });
+  });
+}
+
+function scrollCurrentIntoView(scrollLockId = lockScrollTracking()) {
+  requestAnimationFrame(() => {
+    const target = document.querySelector(`[data-page="${state.currentPage}"]`);
+    if (target) scrollToPageOffset(target, state.meta.readingOffset || 0);
+    releaseScrollTrackingAfterLayout(scrollLockId);
+  });
+}
+
+function scrollToPageOffset(target, offset = 0) {
+  const top = target.offsetTop + (target.offsetHeight * clamp(offset, 0, 1));
+  if (state.mode === "single") {
+    const previousBehavior = ui.reader.style.scrollBehavior;
+    ui.reader.style.scrollBehavior = "auto";
+    ui.reader.scrollTo({ top: Math.max(0, top), behavior: "auto" });
+    ui.reader.style.scrollBehavior = previousBehavior;
+    return;
+  }
+  ui.reader.scrollTo({ top: Math.max(0, top), behavior: "auto" });
+}
+
+async function takeScreenshot() {
+  if (!state.pdf || !window.html2canvas) return;
+  const target = document.querySelector(`[data-page="${state.currentPage}"]`) || ui.pages;
+  const canvas = await window.html2canvas(target, { backgroundColor: "#ffffff", scale: 1 });
+  downloadBlob(await canvasToBlob(canvas), `${baseName()}-page-${state.currentPage}.png`);
+}
+
+async function exportPdf() {
+  if (!state.pdf || !window.PDFLib) return;
+  const { PDFDocument, rgb } = window.PDFLib;
+  const pdfDoc = await PDFDocument.load(state.fileBytes.slice(0));
+  const pages = pdfDoc.getPages();
+
+  state.meta.highlights.forEach((item) => {
+    const page = pages[item.page - 1];
+    const { width, height } = page.getSize();
+    page.drawRectangle({
+      x: item.x * width,
+      y: height - (item.y + item.h) * height,
+      width: item.w * width,
+      height: item.h * height,
+      color: rgb(1, .86, .04),
+      opacity: .34
+    });
+  });
+
+  for (const item of state.meta.fields) {
+    const page = pages[item.page - 1];
+    const { width, height } = page.getSize();
+    const imageBytes = await textToPng(
+      item.text || "",
+      Math.max(80, item.w * width * 2),
+      Math.max(36, item.h * height * 2),
+      getFieldFontSize(item) * 2
+    );
+    const image = await pdfDoc.embedPng(imageBytes);
+    page.drawImage(image, {
+      x: item.x * width,
+      y: height - (item.y + item.h) * height,
+      width: item.w * width,
+      height: item.h * height
+    });
+  }
+
+  state.meta.signatures.forEach((item) => {
+    const page = pages[item.page - 1];
+    const { width, height } = page.getSize();
+    getSignatureStrokes(item).forEach((stroke) => {
+      for (let i = 1; i < stroke.length; i += 1) {
+        const [x1, y1] = stroke[i - 1];
+        const [x2, y2] = stroke[i];
+        page.drawLine({
+          start: { x: x1 * width, y: height - y1 * height },
+          end: { x: x2 * width, y: height - y2 * height },
+          thickness: clamp((Number(item.strokeWidth) || 0.0025) * width, 0.9, 1.8),
+          color: rgb(.06, .09, .16)
+        });
+      }
+    });
+  });
+
+  const bytes = await pdfDoc.save();
+  downloadBlob(new Blob([bytes], { type: "application/pdf" }), `${baseName()}-signed.pdf`);
+}
+
+function loadMeta() {
+  try {
+    return normalizeMeta({ ...emptyMeta(), ...JSON.parse(localStorage.getItem(storageKey()) || "{}") });
+  } catch {
+    return emptyMeta();
+  }
+}
+
+function normalizeMeta(meta) {
+  return {
+    ...emptyMeta(),
+    ...meta,
+    bookmarks: Array.isArray(meta.bookmarks) ? meta.bookmarks : [],
+    highlights: Array.isArray(meta.highlights) ? meta.highlights : [],
+    fields: Array.isArray(meta.fields) ? meta.fields : [],
+    signatures: Array.isArray(meta.signatures) ? meta.signatures : [],
+    readingPosition: Number.isFinite(Number(meta.readingPosition)) ? Number(meta.readingPosition) : 1,
+    readingOffset: Number.isFinite(Number(meta.readingOffset)) ? clamp(Number(meta.readingOffset), 0, 1) : 0,
+    savedReadingPosition: Number.isFinite(Number(meta.savedReadingPosition)) ? Number(meta.savedReadingPosition) : null,
+    savedReadingOffset: Number.isFinite(Number(meta.savedReadingOffset)) ? clamp(Number(meta.savedReadingOffset), 0, 1) : 0
+  };
+}
+
+function saveMeta(renderTime = true) {
+  if (!state.fingerprint) return;
+  state.meta.updatedAt = renderTime ? Date.now() : state.meta.updatedAt;
+  localStorage.setItem(storageKey(), JSON.stringify(state.meta));
+}
+
+function storageKey() {
+  return `daily-pdf-reader:${state.fingerprint}`;
+}
+
+function loadProfile() {
+  try {
+    return normalizeProfile(JSON.parse(localStorage.getItem(profileKey()) || "{}"));
+  } catch {
+    return normalizeProfile({});
+  }
+}
+
+function normalizeProfile(profile) {
+  return {
+    name: "",
+    address: "",
+    email: "",
+    phone: "",
+    ...profile,
+    signatures: Array.isArray(profile.signatures) ? profile.signatures : []
+  };
+}
+
+function saveProfile() {
+  localStorage.setItem(profileKey(), JSON.stringify(state.profile));
+}
+
+function profileKey() {
+  return "daily-pdf-reader:profile";
+}
+
+function downloadBlob(blob, name) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = name;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function canvasToBlob(canvas) {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (blob) {
+        resolve(blob);
+      } else {
+        reject(new Error("Could not create image from canvas"));
+      }
+    }, "image/png", .95);
+  });
+}
+
+function startReaderPan(event) {
+  if (!state.pdf || isTypingTarget(event.target)) return;
+  const rightButton = event.button === 2;
+  const spaceDrag = state.spacePressed && event.button === 0;
+  const panToolDrag = state.tool === "pan" && event.button === 0;
+  if (!rightButton && !spaceDrag && !panToolDrag) return;
+  event.preventDefault();
+  ui.reader.setPointerCapture(event.pointerId);
+  state.panning = {
+    pointerId: event.pointerId,
+    x: event.clientX,
+    y: event.clientY,
+    left: ui.reader.scrollLeft,
+    top: ui.reader.scrollTop
+  };
+  if (rightButton) state.suppressContextMenu = true;
+  ui.reader.classList.add("panning");
+}
+
+function moveReaderPan(event) {
+  if (!state.panning || state.panning.pointerId !== event.pointerId) return;
+  event.preventDefault();
+  ui.reader.scrollLeft = state.panning.left - (event.clientX - state.panning.x);
+  ui.reader.scrollTop = state.panning.top - (event.clientY - state.panning.y);
+}
+
+function stopReaderPan(event) {
+  if (!state.panning || state.panning.pointerId !== event.pointerId) return;
+  state.panning = null;
+  ui.reader.classList.remove("panning");
+}
+
+async function textToPng(text, width, height, fontSize = 30) {
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.ceil(width);
+  canvas.height = Math.ceil(height);
+  const ctx = canvas.getContext("2d");
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = "#111827";
+  ctx.font = `${Math.max(10, fontSize)}px Segoe UI, Arial, sans-serif`;
+  ctx.textAlign = "right";
+  ctx.textBaseline = "middle";
+  ctx.direction = "rtl";
+  wrapCanvasText(ctx, text, canvas.width - 14, canvas.height / 2, canvas.width - 18, Math.max(14, fontSize * 1.25));
+  const blob = canvas.convertToBlob
+    ? await canvas.convertToBlob({ type: "image/png" })
+    : await canvasToBlob(canvas);
+  return new Uint8Array(await blob.arrayBuffer());
+}
+
+function wrapCanvasText(ctx, text, x, y, maxWidth, lineHeight) {
+  const words = String(text).split(/\s+/);
+  const lines = [];
+  let line = "";
+  for (const word of words) {
+    const testLine = line ? `${line} ${word}` : word;
+    if (ctx.measureText(testLine).width > maxWidth && line) {
+      lines.push(line);
+      line = word;
+    } else {
+      line = testLine;
+    }
+  }
+  if (line) lines.push(line);
+  const startY = y - ((lines.length - 1) * lineHeight) / 2;
+  lines.forEach((entry, index) => ctx.fillText(entry, x, startY + index * lineHeight));
+}
+
+function baseName() {
+  return (state.file?.name || "document").replace(/\.pdf$/i, "");
+}
+
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function debounce(fn, wait) {
+  let timer;
+  return (...args) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn(...args), wait);
+  };
+}
+
+function isTypingTarget(target) {
+  return Boolean(target?.closest?.("input, textarea, [contenteditable='true'], button"));
+}
+  </script>
+</head>
+<body>
+  <svg class="icon-sprite" aria-hidden="true" focusable="false">
+    <symbol id="icon-file-plus" viewBox="0 0 24 24">
+      <path d="M14 3.5H7.5A2.5 2.5 0 0 0 5 6v12a2.5 2.5 0 0 0 2.5 2.5h9A2.5 2.5 0 0 0 19 18V8.5L14 3.5Z"/>
+      <path d="M14 3.5v4A1.5 1.5 0 0 0 15.5 9H19"/>
+      <path d="M12 12.5v5M9.5 15h5"/>
+    </symbol>
+    <symbol id="icon-navigation" viewBox="0 0 24 24">
+      <path d="M12 4.5v15"/>
+      <path d="m8 8.5 4-4 4 4"/>
+      <path d="m8 15.5 4 4 4-4"/>
+    </symbol>
+    <symbol id="icon-search" viewBox="0 0 24 24">
+      <circle cx="11" cy="11" r="5.5"/>
+      <path d="m15.5 15.5 4 4"/>
+    </symbol>
+    <symbol id="icon-bookmark" viewBox="0 0 24 24">
+      <path d="M7 5.5A2.5 2.5 0 0 1 9.5 3h5A2.5 2.5 0 0 1 17 5.5v15l-5-3-5 3v-15Z"/>
+    </symbol>
+    <symbol id="icon-bookmark-plus" viewBox="0 0 24 24">
+      <path d="M7 5.5A2.5 2.5 0 0 1 9.5 3h5A2.5 2.5 0 0 1 17 5.5v15l-5-3-5 3v-15Z"/>
+      <path d="M12 7.5v5M9.5 10h5"/>
+    </symbol>
+    <symbol id="icon-pen-line" viewBox="0 0 24 24">
+      <path d="M4.5 19.5h15"/>
+      <path d="m7 16 2.2-.45L17.8 7a2.1 2.1 0 0 0-3-3L6.45 12.8 6 15l1 1Z"/>
+    </symbol>
+    <symbol id="icon-sparkles" viewBox="0 0 24 24">
+      <path d="M13.5 4.5 15 8l3.5 1.5L15 11l-1.5 3.5L12 11 8.5 9.5 12 8l1.5-3.5Z"/>
+      <path d="M6.5 13.5 7.4 16l2.1.9-2.1.9-.9 2.2-.9-2.2-2.1-.9 2.1-.9.9-2.5Z"/>
+    </symbol>
+    <symbol id="icon-map-pin" viewBox="0 0 24 24">
+      <path d="M12 21s6-5.2 6-11a6 6 0 1 0-12 0c0 5.8 6 11 6 11Z"/>
+      <circle cx="12" cy="10" r="2"/>
+    </symbol>
+    <symbol id="icon-history" viewBox="0 0 24 24">
+      <path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3L4.5 8.9"/>
+      <path d="M4.5 4.8v4.1h4.1"/>
+      <path d="M12 8v4.2l2.7 1.6"/>
+    </symbol>
+    <symbol id="icon-monitor-down" viewBox="0 0 24 24">
+      <rect x="4" y="4.5" width="16" height="11" rx="2"/>
+      <path d="M12 8v5"/>
+      <path d="m9.7 10.8 2.3 2.3 2.3-2.3"/>
+      <path d="M9 20h6"/>
+      <path d="M12 15.5V20"/>
+    </symbol>
+    <symbol id="icon-chevron-up" viewBox="0 0 24 24">
+      <path d="m7 14 5-5 5 5"/>
+    </symbol>
+    <symbol id="icon-chevron-down" viewBox="0 0 24 24">
+      <path d="m7 10 5 5 5-5"/>
+    </symbol>
+    <symbol id="icon-page-first" viewBox="0 0 24 24">
+      <path d="M6 5v14"/>
+      <path d="m18 7-5 5 5 5"/>
+      <path d="m12 7-5 5 5 5"/>
+    </symbol>
+    <symbol id="icon-page-last" viewBox="0 0 24 24">
+      <path d="M18 5v14"/>
+      <path d="m6 7 5 5-5 5"/>
+      <path d="m12 7 5 5-5 5"/>
+    </symbol>
+  </svg>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <div class="brand-mark">PDF</div>
+        <div>
+          <h1>קורא PDF יומי</h1>
+          <p id="fileName">לא נפתח קובץ</p>
+        </div>
+      </div>
+
+      <label class="open-drop" for="fileInput" id="dropZone">
+        <span><span class="drop-icon"><svg><use href="#icon-file-plus"></use></svg></span> פתח או גרור PDF לכאן</span>
+        <small>הסימניות, ההדגשות והמיקום נשמרים בדפדפן</small>
+      </label>
+      <input id="fileInput" type="file" accept="application/pdf,.pdf">
+
+      <section class="panel nav-panel">
+        <div class="panel-title"><span class="panel-icon"><svg><use href="#icon-navigation"></use></svg></span> ניווט</div>
+        <div class="jump-row">
+          <button class="nav-arrow" id="firstPage" title="עמוד ראשון" aria-label="עמוד ראשון"><svg><use href="#icon-page-first"></use></svg></button>
+          <label class="page-pill">
+            <span>עמוד</span>
+            <input id="pageInput" inputmode="numeric" aria-label="מספר עמוד" value="1">
+            <span id="pageTotal">/ 0</span>
+          </label>
+          <button class="nav-arrow" id="lastPage" title="עמוד אחרון" aria-label="עמוד אחרון"><svg><use href="#icon-page-last"></use></svg></button>
+        </div>
+        <div class="page-slider-row">
+          <input id="pageSlider" class="page-slider" type="range" min="1" max="1" value="1" step="1" aria-label="דפדוף מהיר בין עמודים">
+        </div>
+      </section>
+
+      <details class="panel search-panel">
+        <summary class="panel-title">
+          <span><span class="panel-icon"><svg><use href="#icon-search"></use></svg></span> חיפוש והעתקה</span>
+          <span class="panel-caret">▾</span>
+        </summary>
+        <div class="search-body">
+          <div class="search-row">
+            <input id="searchInput" placeholder="חיפוש טקסט">
+            <button class="icon-btn small" id="searchBtn" title="חפש" aria-label="חפש"><svg><use href="#icon-search"></use></svg></button>
+          </div>
+          <div class="search-options">
+            <label><input id="searchCase" type="checkbox"> Aa</label>
+            <label><input id="searchWhole" type="checkbox"> מילה שלמה</label>
+          </div>
+          <div class="result-row">
+            <button class="icon-btn small" id="prevResult" title="תוצאה קודמת" aria-label="תוצאה קודמת"><svg><use href="#icon-chevron-up"></use></svg></button>
+            <span id="searchCount">0/0</span>
+            <button class="icon-btn small" id="nextResult" title="תוצאה הבאה" aria-label="תוצאה הבאה"><svg><use href="#icon-chevron-down"></use></svg></button>
+          </div>
+        </div>
+      </details>
+
+      <section class="panel">
+        <div class="panel-title"><span class="panel-icon"><svg><use href="#icon-bookmark"></use></svg></span> סימניות</div>
+        <button class="side-action" id="addBookmark">
+          <span class="action-icon"><svg><use href="#icon-bookmark-plus"></use></svg></span>
+          <span>הוסף סימניה לעמוד הנוכחי</span>
+        </button>
+        <div class="bookmark-list" id="bookmarkList"></div>
+      </section>
+
+      <details class="panel autofill-panel">
+        <summary class="panel-title">
+          <span><span class="panel-icon"><svg><use href="#icon-pen-line"></use></svg></span> מילוי מהיר</span>
+          <span class="panel-caret">▾</span>
+        </summary>
+        <div class="autofill-body">
+          <div class="autofill-grid">
+            <input id="profileName" placeholder="שם מלא" autocomplete="name">
+            <input id="profileAddress" placeholder="כתובת" autocomplete="street-address">
+            <input id="profileEmail" placeholder="מייל" autocomplete="email">
+            <input id="profilePhone" placeholder="טלפון" autocomplete="tel">
+          </div>
+          <div class="quick-fill-grid">
+            <button data-fill="name" title="הכנס שם">שם</button>
+            <button data-fill="address" title="הכנס כתובת">כתובת</button>
+            <button data-fill="email" title="הכנס מייל">מייל</button>
+            <button data-fill="phone" title="הכנס טלפון">טלפון</button>
+            <button data-fill="date" title="הכנס תאריך היום">תאריך</button>
+            <button data-fill="custom" title="הכנס טקסט חופשי">אחר</button>
+          </div>
+        </div>
+      </details>
+
+      <section class="panel">
+        <div class="panel-title"><span class="panel-icon"><svg><use href="#icon-sparkles"></use></svg></span> פעולות מהירות</div>
+        <button class="side-action" id="savePosition">
+          <span class="action-icon"><svg><use href="#icon-map-pin"></use></svg></span>
+          <span>שמור מיקום</span>
+        </button>
+        <button class="side-action" id="restorePosition">
+          <span class="action-icon"><svg><use href="#icon-history"></use></svg></span>
+          <span>חזור למיקום האחרון</span>
+        </button>
+        <button class="side-action" id="installHelp">
+          <span class="action-icon"><svg><use href="#icon-monitor-down"></use></svg></span>
+          <span>ברירת מחדל והתקנה</span>
+        </button>
+      </section>
+    </aside>
+
+    <main class="workspace">
+      <header class="toolbar">
+        <div class="tool-group">
+          <button id="toggleSidebar" title="הצג/הסתר סרגל צד">☰</button>
+          <button id="fitWidth">רוחב</button>
+          <button id="fitPage">דף מלא</button>
+          <button id="zoomOut">−</button>
+          <output id="zoomLabel">100%</output>
+          <button id="zoomIn">+</button>
+          <button id="fullscreenBtn">מסך מלא</button>
+        </div>
+
+        <div class="tool-group segmented" aria-label="מצב קריאה">
+          <button data-mode="continuous" class="active">רציף</button>
+          <button data-mode="single">דף</button>
+          <button data-mode="book-rtl">ספר RTL</button>
+          <button data-mode="book-ltr">ספר LTR</button>
+        </div>
+
+        <div class="tool-group segmented" aria-label="כלי עריכה">
+          <button data-tool="select" class="active">בחירה</button>
+          <button data-tool="pan">גרירה</button>
+          <button data-tool="highlight">הדגשה</button>
+          <button data-tool="text">טקסט</button>
+          <button data-tool="signature">חתימה</button>
+        </div>
+
+        <div class="tool-group">
+          <button id="clearAnnotationsBtn">נקה הוספות</button>
+          <button id="screenshotBtn">צילום</button>
+          <button id="downloadBtn">שמור PDF</button>
+        </div>
+      </header>
+
+      <div class="reader" id="reader">
+        <div class="empty-state" id="emptyState">
+          <strong>קורא PDF מהיר, עברי ונוח ליום-יום</strong>
+          <span>פתח קובץ כדי להתחיל. אפשר לבחור טקסט ולהעתיק, לקרוא ברצף או כספר, לסמן, למלא שדות ולחתום.</span>
+        </div>
+        <div class="pages" id="pages"></div>
+      </div>
+    </main>
+  </div>
+
+  <dialog id="helpDialog">
+    <button class="dialog-close" id="closeHelp">×</button>
+    <h2>התקנה כאפליקציית ווב</h2>
+    <p>ב-Chrome או Edge אפשר להתקין את קורא ה-PDF כאפליקציה דרך כפתור ההתקנה, או דרך תפריט הדפדפן: התקן אפליקציה.</p>
+    <p>לאחר ההתקנה היא תיפתח בחלון עצמאי עם אייקון. פתיחת קבצי PDF כברירת מחדל תלויה בתמיכת הדפדפן והמערכת ב-File Handling, ולכן בדרך כלל עדיין פותחים קובץ דרך גרירה או כפתור פתיחה.</p>
+    <p>לאחר פתיחה ראשונה, קבצי האפליקציה נשמרים במטמון מקומי. ספריות חיצוניות נשמרות לאחר שהדפדפן טוען אותן פעם אחת.</p>
+  </dialog>
+</body>
+</html>
+
+
+
+
+
+

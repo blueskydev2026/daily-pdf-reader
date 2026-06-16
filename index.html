@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#111827">
+  <title>קורא PDF יומי</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs" type="module"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="app.js" type="module"></script>
+</head>
+<body>
+  <svg class="icon-sprite" aria-hidden="true" focusable="false">
+    <symbol id="icon-file-plus" viewBox="0 0 24 24">
+      <path d="M14 3.5H7.5A2.5 2.5 0 0 0 5 6v12a2.5 2.5 0 0 0 2.5 2.5h9A2.5 2.5 0 0 0 19 18V8.5L14 3.5Z"/>
+      <path d="M14 3.5v4A1.5 1.5 0 0 0 15.5 9H19"/>
+      <path d="M12 12.5v5M9.5 15h5"/>
+    </symbol>
+    <symbol id="icon-navigation" viewBox="0 0 24 24">
+      <path d="M12 4.5v15"/>
+      <path d="m8 8.5 4-4 4 4"/>
+      <path d="m8 15.5 4 4 4-4"/>
+    </symbol>
+    <symbol id="icon-search" viewBox="0 0 24 24">
+      <circle cx="11" cy="11" r="5.5"/>
+      <path d="m15.5 15.5 4 4"/>
+    </symbol>
+    <symbol id="icon-bookmark" viewBox="0 0 24 24">
+      <path d="M7 5.5A2.5 2.5 0 0 1 9.5 3h5A2.5 2.5 0 0 1 17 5.5v15l-5-3-5 3v-15Z"/>
+    </symbol>
+    <symbol id="icon-bookmark-plus" viewBox="0 0 24 24">
+      <path d="M7 5.5A2.5 2.5 0 0 1 9.5 3h5A2.5 2.5 0 0 1 17 5.5v15l-5-3-5 3v-15Z"/>
+      <path d="M12 7.5v5M9.5 10h5"/>
+    </symbol>
+    <symbol id="icon-pen-line" viewBox="0 0 24 24">
+      <path d="M4.5 19.5h15"/>
+      <path d="m7 16 2.2-.45L17.8 7a2.1 2.1 0 0 0-3-3L6.45 12.8 6 15l1 1Z"/>
+    </symbol>
+    <symbol id="icon-sparkles" viewBox="0 0 24 24">
+      <path d="M13.5 4.5 15 8l3.5 1.5L15 11l-1.5 3.5L12 11 8.5 9.5 12 8l1.5-3.5Z"/>
+      <path d="M6.5 13.5 7.4 16l2.1.9-2.1.9-.9 2.2-.9-2.2-2.1-.9 2.1-.9.9-2.5Z"/>
+    </symbol>
+    <symbol id="icon-map-pin" viewBox="0 0 24 24">
+      <path d="M12 21s6-5.2 6-11a6 6 0 1 0-12 0c0 5.8 6 11 6 11Z"/>
+      <circle cx="12" cy="10" r="2"/>
+    </symbol>
+    <symbol id="icon-history" viewBox="0 0 24 24">
+      <path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3L4.5 8.9"/>
+      <path d="M4.5 4.8v4.1h4.1"/>
+      <path d="M12 8v4.2l2.7 1.6"/>
+    </symbol>
+    <symbol id="icon-monitor-down" viewBox="0 0 24 24">
+      <rect x="4" y="4.5" width="16" height="11" rx="2"/>
+      <path d="M12 8v5"/>
+      <path d="m9.7 10.8 2.3 2.3 2.3-2.3"/>
+      <path d="M9 20h6"/>
+      <path d="M12 15.5V20"/>
+    </symbol>
+    <symbol id="icon-chevron-up" viewBox="0 0 24 24">
+      <path d="m7 14 5-5 5 5"/>
+    </symbol>
+    <symbol id="icon-chevron-down" viewBox="0 0 24 24">
+      <path d="m7 10 5 5 5-5"/>
+    </symbol>
+    <symbol id="icon-page-first" viewBox="0 0 24 24">
+      <path d="M6 5v14"/>
+      <path d="m18 7-5 5 5 5"/>
+      <path d="m12 7-5 5 5 5"/>
+    </symbol>
+    <symbol id="icon-page-last" viewBox="0 0 24 24">
+      <path d="M18 5v14"/>
+      <path d="m6 7 5 5-5 5"/>
+      <path d="m12 7 5 5-5 5"/>
+    </symbol>
+  </svg>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <div class="brand-mark">PDF</div>
+        <div>
+          <h1>קורא PDF יומי</h1>
+          <p id="fileName">לא נפתח קובץ</p>
+        </div>
+      </div>
+
+      <label class="open-drop" for="fileInput" id="dropZone">
+        <span><span class="drop-icon"><svg><use href="#icon-file-plus"></use></svg></span> פתח או גרור PDF לכאן</span>
+        <small>הסימניות, ההדגשות והמיקום נשמרים בדפדפן</small>
+      </label>
+      <input id="fileInput" type="file" accept="application/pdf,.pdf">
+
+      <section class="panel nav-panel">
+        <div class="panel-title"><span class="panel-icon"><svg><use href="#icon-navigation"></use></svg></span> ניווט</div>
+        <div class="jump-row">
+          <button class="nav-arrow" id="firstPage" title="עמוד ראשון" aria-label="עמוד ראשון"><svg><use href="#icon-page-first"></use></svg></button>
+          <label class="page-pill">
+            <span>עמוד</span>
+            <input id="pageInput" inputmode="numeric" aria-label="מספר עמוד" value="1">
+            <span id="pageTotal">/ 0</span>
+          </label>
+          <button class="nav-arrow" id="lastPage" title="עמוד אחרון" aria-label="עמוד אחרון"><svg><use href="#icon-page-last"></use></svg></button>
+        </div>
+        <div class="page-slider-row">
+          <input id="pageSlider" class="page-slider" type="range" min="1" max="1" value="1" step="1" aria-label="דפדוף מהיר בין עמודים">
+        </div>
+      </section>
+
+      <details class="panel search-panel">
+        <summary class="panel-title">
+          <span><span class="panel-icon"><svg><use href="#icon-search"></use></svg></span> חיפוש והעתקה</span>
+          <span class="panel-caret">▾</span>
+        </summary>
+        <div class="search-body">
+          <div class="search-row">
+            <input id="searchInput" placeholder="חיפוש טקסט">
+            <button class="icon-btn small" id="searchBtn" title="חפש" aria-label="חפש"><svg><use href="#icon-search"></use></svg></button>
+          </div>
+          <div class="search-options">
+            <label><input id="searchCase" type="checkbox"> Aa</label>
+            <label><input id="searchWhole" type="checkbox"> מילה שלמה</label>
+          </div>
+          <div class="result-row">
+            <button class="icon-btn small" id="prevResult" title="תוצאה קודמת" aria-label="תוצאה קודמת"><svg><use href="#icon-chevron-up"></use></svg></button>
+            <span id="searchCount">0/0</span>
+            <button class="icon-btn small" id="nextResult" title="תוצאה הבאה" aria-label="תוצאה הבאה"><svg><use href="#icon-chevron-down"></use></svg></button>
+          </div>
+        </div>
+      </details>
+
+      <section class="panel">
+        <div class="panel-title"><span class="panel-icon"><svg><use href="#icon-bookmark"></use></svg></span> סימניות</div>
+        <button class="side-action" id="addBookmark">
+          <span class="action-icon"><svg><use href="#icon-bookmark-plus"></use></svg></span>
+          <span>הוסף סימניה לעמוד הנוכחי</span>
+        </button>
+        <div class="bookmark-list" id="bookmarkList"></div>
+      </section>
+
+      <details class="panel autofill-panel">
+        <summary class="panel-title">
+          <span><span class="panel-icon"><svg><use href="#icon-pen-line"></use></svg></span> מילוי מהיר</span>
+          <span class="panel-caret">▾</span>
+        </summary>
+        <div class="autofill-body">
+          <div class="autofill-grid">
+            <input id="profileName" placeholder="שם מלא" autocomplete="name">
+            <input id="profileAddress" placeholder="כתובת" autocomplete="street-address">
+            <input id="profileEmail" placeholder="מייל" autocomplete="email">
+            <input id="profilePhone" placeholder="טלפון" autocomplete="tel">
+          </div>
+          <div class="quick-fill-grid">
+            <button data-fill="name" title="הכנס שם">שם</button>
+            <button data-fill="address" title="הכנס כתובת">כתובת</button>
+            <button data-fill="email" title="הכנס מייל">מייל</button>
+            <button data-fill="phone" title="הכנס טלפון">טלפון</button>
+            <button data-fill="date" title="הכנס תאריך היום">תאריך</button>
+            <button data-fill="custom" title="הכנס טקסט חופשי">אחר</button>
+          </div>
+        </div>
+      </details>
+
+      <section class="panel">
+        <div class="panel-title"><span class="panel-icon"><svg><use href="#icon-sparkles"></use></svg></span> פעולות מהירות</div>
+        <button class="side-action" id="savePosition">
+          <span class="action-icon"><svg><use href="#icon-map-pin"></use></svg></span>
+          <span>שמור מיקום</span>
+        </button>
+        <button class="side-action" id="restorePosition">
+          <span class="action-icon"><svg><use href="#icon-history"></use></svg></span>
+          <span>חזור למיקום האחרון</span>
+        </button>
+        <button class="side-action" id="installHelp">
+          <span class="action-icon"><svg><use href="#icon-monitor-down"></use></svg></span>
+          <span>ברירת מחדל והתקנה</span>
+        </button>
+      </section>
+    </aside>
+
+    <main class="workspace">
+      <header class="toolbar">
+        <div class="tool-group">
+          <button id="toggleSidebar" title="הצג/הסתר סרגל צד">☰</button>
+          <button id="fitWidth">רוחב</button>
+          <button id="fitPage">דף מלא</button>
+          <button id="zoomOut">−</button>
+          <output id="zoomLabel">100%</output>
+          <button id="zoomIn">+</button>
+          <button id="fullscreenBtn">מסך מלא</button>
+        </div>
+
+        <div class="tool-group segmented" aria-label="מצב קריאה">
+          <button data-mode="continuous" class="active">רציף</button>
+          <button data-mode="single">דף</button>
+          <button data-mode="book-rtl">ספר RTL</button>
+          <button data-mode="book-ltr">ספר LTR</button>
+        </div>
+
+        <div class="tool-group segmented" aria-label="כלי עריכה">
+          <button data-tool="select" class="active">בחירה</button>
+          <button data-tool="pan">גרירה</button>
+          <button data-tool="highlight">הדגשה</button>
+          <button data-tool="text">טקסט</button>
+          <button data-tool="signature">חתימה</button>
+        </div>
+
+        <div class="tool-group">
+          <button id="clearAnnotationsBtn">נקה הוספות</button>
+          <button id="screenshotBtn">צילום</button>
+          <button id="downloadBtn">שמור PDF</button>
+        </div>
+      </header>
+
+      <div class="reader" id="reader">
+        <div class="empty-state" id="emptyState">
+          <strong>קורא PDF מהיר, עברי ונוח ליום-יום</strong>
+          <span>פתח קובץ כדי להתחיל. אפשר לבחור טקסט ולהעתיק, לקרוא ברצף או כספר, לסמן, למלא שדות ולחתום.</span>
+        </div>
+        <div class="pages" id="pages"></div>
+      </div>
+    </main>
+  </div>
+
+  <dialog id="helpDialog">
+    <button class="dialog-close" id="closeHelp">×</button>
+    <h2>התקנה כאפליקציית ווב</h2>
+    <p>ב-Chrome או Edge אפשר להתקין את קורא ה-PDF כאפליקציה דרך כפתור ההתקנה, או דרך תפריט הדפדפן: התקן אפליקציה.</p>
+    <p>לאחר ההתקנה היא תיפתח בחלון עצמאי עם אייקון. פתיחת קבצי PDF כברירת מחדל תלויה בתמיכת הדפדפן והמערכת ב-File Handling, ולכן בדרך כלל עדיין פותחים קובץ דרך גרירה או כפתור פתיחה.</p>
+    <p>לאחר פתיחה ראשונה, קבצי האפליקציה נשמרים במטמון מקומי. ספריות חיצוניות נשמרות לאחר שהדפדפן טוען אותן פעם אחת.</p>
+  </dialog>
+</body>
+</html>
