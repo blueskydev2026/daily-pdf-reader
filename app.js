@@ -41,6 +41,16 @@ const state = {
   isSinglePageWheelActive: false,
   selectedFieldId: null,
   signatureSessionId: null,
+  screenshotSelection: {
+    active: false,
+    dragging: false,
+    pointerId: null,
+    pageNo: null,
+    box: null,
+    rect: null,
+    startX: 0,
+    startY: 0
+  },
   profile: loadProfile(),
   installPrompt: null,
   spacePressed: false,
@@ -80,7 +90,10 @@ const ui = {
   sidebar: $("sidebar"),
   helpDialog: $("helpDialog"),
   savedSignatureList: $("savedSignatureList"),
-  statusMessage: $("statusMessage")
+  statusMessage: $("statusMessage"),
+  screenshotBtn: $("screenshotBtn"),
+  screenshotMenu: $("screenshotMenu"),
+  selectionActionMenu: $("selectionActionMenu")
 };
 
 const saveScrollMeta = debounce(() => saveMeta(false), 200);
@@ -158,6 +171,7 @@ function wireEvents() {
       document.querySelectorAll("[data-tool]").forEach((btn) => btn.classList.remove("active"));
       button.classList.add("active");
       state.tool = nextTool;
+      stopScreenshotSelection();
       if (state.tool === "signature" && !wasSignatureTool) {
         state.signatureSessionId = crypto.randomUUID();
       } else if (state.tool !== "signature") {
@@ -190,7 +204,18 @@ function wireEvents() {
   $("nextResult").addEventListener("click", () => moveSearch(1));
   $("prevResult").addEventListener("click", () => moveSearch(-1));
 
-  $("screenshotBtn").addEventListener("click", takeScreenshot);
+  ui.screenshotBtn.addEventListener("click", toggleScreenshotMenu);
+  $("screenshotPageBtn").addEventListener("click", () => {
+    closeScreenshotMenu();
+    stopScreenshotSelection();
+    takeScreenshot();
+  });
+  $("screenshotAreaBtn").addEventListener("click", () => {
+    closeScreenshotMenu();
+    startScreenshotSelection();
+  });
+  $("saveSelectionShot").addEventListener("click", () => saveSelectionScreenshot());
+  $("copySelectionShot").addEventListener("click", () => copySelectionScreenshot());
   $("downloadBtn").addEventListener("click", exportPdf);
   $("clearAnnotationsBtn").addEventListener("click", clearAllAnnotations);
 
@@ -224,6 +249,11 @@ function wireEvents() {
       announce("חלון ההתקנה נסגר.");
       return;
     }
+    if (event.key === "Escape" && state.screenshotSelection.active) {
+      stopScreenshotSelection();
+      announce("בחירת הצילום בוטלה.");
+      return;
+    }
     if (handleSinglePageKey(event)) return;
     if (event.code === "Space" && !isTypingTarget(event.target)) {
       state.spacePressed = true;
@@ -234,6 +264,10 @@ function wireEvents() {
     if (event.code === "Space") state.spacePressed = false;
   });
   document.addEventListener("pointerdown", (event) => {
+    if (!event.target.closest("#screenshotDropdown")) closeScreenshotMenu();
+    if (!event.target.closest("#selectionActionMenu") && !event.target.closest(".screenshot-layer")) {
+      hideSelectionActionMenu();
+    }
     if (!event.target.closest(".field-box")) closeFieldMenus();
   });
   window.addEventListener("resize", debounce(() => fitTo(state.fit), 150));
@@ -312,6 +346,7 @@ function isPdfFile(file) {
 }
 
 async function openFile(file) {
+  stopScreenshotSelection();
   state.file = file;
   state.fileBytes = await file.arrayBuffer();
   state.pdf = await pdfjsLib.getDocument({
@@ -405,6 +440,11 @@ function createPage(pageNo) {
   objectLayer.className = "object-layer";
   shell.append(objectLayer);
 
+  const screenshotLayer = document.createElement("div");
+  screenshotLayer.className = "screenshot-layer";
+  shell.append(screenshotLayer);
+  wireScreenshotLayer(screenshotLayer, pageNo);
+
   state.renderedPages.set(pageNo, {
     shell,
     page: null,
@@ -413,6 +453,7 @@ function createPage(pageNo) {
     textLayer,
     annotationLayer,
     objectLayer,
+    screenshotLayer,
     searchLayer,
     contentRendered: false,
     contentRendering: false
@@ -706,6 +747,7 @@ function renderAnnotationsForPage(pageNo) {
     wireRectAnnotationDrag(box, item, record);
     box.append(createAnnotationControls({
       label: "הדגשה",
+      compact: true,
       onDelete: () => removeAnnotation("highlights", item.id, pageNo)
     }));
     layer.append(box);
@@ -1192,7 +1234,11 @@ function updateToolLayers() {
   document.querySelectorAll(".annotation-layer").forEach((layer) => {
     layer.classList.toggle("active", state.tool === "highlight" || state.tool === "text" || state.tool === "signature");
   });
+  document.querySelectorAll(".screenshot-layer").forEach((layer) => {
+    layer.classList.toggle("active", state.screenshotSelection.active);
+  });
   ui.reader.classList.toggle("can-pan", state.tool === "pan");
+  ui.reader.classList.toggle("screenshot-selecting", state.screenshotSelection.active);
 }
 
 function renderVisibleAnnotations() {
@@ -1232,7 +1278,7 @@ function wireFieldDrag(handle, field, item, record) {
   });
 }
 
-function createAnnotationControls({ label, onCommit, onSave, onDelete }) {
+function createAnnotationControls({ label, compact = false, onCommit, onSave, onDelete }) {
   const controls = document.createElement("div");
   controls.className = "annotation-controls";
   controls.setAttribute("aria-label", label);
@@ -1292,7 +1338,11 @@ function createAnnotationControls({ label, onCommit, onSave, onDelete }) {
     onDelete();
   });
 
-  controls.append(move, commit, save, del);
+  if (compact) {
+    controls.append(move, del);
+  } else {
+    controls.append(move, commit, save, del);
+  }
   return controls;
 }
 
@@ -2042,6 +2092,209 @@ function scrollToPageOffset(target, offset = 0) {
   ui.reader.style.scrollBehavior = "auto";
   ui.reader.scrollTo({ left, top: Math.max(0, top), behavior: "auto" });
   ui.reader.style.scrollBehavior = previousBehavior;
+}
+
+function toggleScreenshotMenu(event) {
+  event.stopPropagation();
+  const isOpen = !ui.screenshotMenu.hidden;
+  ui.screenshotMenu.hidden = isOpen;
+  ui.screenshotBtn.setAttribute("aria-expanded", String(!isOpen));
+}
+
+function closeScreenshotMenu() {
+  if (!ui.screenshotMenu) return;
+  ui.screenshotMenu.hidden = true;
+  ui.screenshotBtn?.setAttribute("aria-expanded", "false");
+}
+
+function startScreenshotSelection() {
+  if (!state.pdf) {
+    announce("פתח קובץ PDF לפני צילום לפי בחירה.");
+    return;
+  }
+  state.screenshotSelection.active = true;
+  state.screenshotSelection.dragging = false;
+  clearScreenshotSelectionBox();
+  hideSelectionActionMenu();
+  updateToolLayers();
+  announce("סמן אזור במסמך לצילום.");
+}
+
+function stopScreenshotSelection() {
+  if (!state.screenshotSelection.active && !state.screenshotSelection.box) return;
+  state.screenshotSelection.active = false;
+  state.screenshotSelection.dragging = false;
+  state.screenshotSelection.pointerId = null;
+  clearScreenshotSelectionBox();
+  hideSelectionActionMenu();
+  updateToolLayers();
+}
+
+function wireScreenshotLayer(layer, pageNo) {
+  layer.addEventListener("pointerdown", (event) => {
+    if (!state.screenshotSelection.active || event.button !== 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    layer.setPointerCapture(event.pointerId);
+    clearScreenshotSelectionBox();
+    hideSelectionActionMenu();
+
+    const layerRect = layer.getBoundingClientRect();
+    const startX = clamp(event.clientX - layerRect.left, 0, layerRect.width);
+    const startY = clamp(event.clientY - layerRect.top, 0, layerRect.height);
+    const box = document.createElement("div");
+    box.className = "screenshot-selection-box";
+    layer.append(box);
+
+    Object.assign(state.screenshotSelection, {
+      dragging: true,
+      pointerId: event.pointerId,
+      pageNo,
+      box,
+      rect: { x: startX, y: startY, w: 0, h: 0 },
+      startX,
+      startY
+    });
+    drawScreenshotSelection(event, layer);
+  });
+
+  layer.addEventListener("pointermove", (event) => {
+    if (!state.screenshotSelection.dragging || state.screenshotSelection.pointerId !== event.pointerId) return;
+    event.preventDefault();
+    drawScreenshotSelection(event, layer);
+  });
+
+  const finish = (event) => {
+    if (!state.screenshotSelection.dragging || state.screenshotSelection.pointerId !== event.pointerId) return;
+    event.preventDefault();
+    event.stopPropagation();
+    drawScreenshotSelection(event, layer);
+    state.screenshotSelection.dragging = false;
+    state.screenshotSelection.pointerId = null;
+    const rect = state.screenshotSelection.rect;
+    if (!rect || rect.w < 6 || rect.h < 6) {
+      clearScreenshotSelectionBox();
+      hideSelectionActionMenu();
+      return;
+    }
+    showSelectionActionMenu(layer, rect);
+  };
+
+  layer.addEventListener("pointerup", finish);
+  layer.addEventListener("pointercancel", finish);
+}
+
+function drawScreenshotSelection(event, layer) {
+  const selection = state.screenshotSelection;
+  const layerRect = layer.getBoundingClientRect();
+  const endX = clamp(event.clientX - layerRect.left, 0, layerRect.width);
+  const endY = clamp(event.clientY - layerRect.top, 0, layerRect.height);
+  const x = Math.min(selection.startX, endX);
+  const y = Math.min(selection.startY, endY);
+  const w = Math.abs(endX - selection.startX);
+  const h = Math.abs(endY - selection.startY);
+  selection.rect = { x, y, w, h };
+  if (selection.box) {
+    selection.box.style.left = `${x}px`;
+    selection.box.style.top = `${y}px`;
+    selection.box.style.width = `${w}px`;
+    selection.box.style.height = `${h}px`;
+  }
+}
+
+function clearScreenshotSelectionBox() {
+  state.screenshotSelection.box?.remove();
+  state.screenshotSelection.box = null;
+  state.screenshotSelection.rect = null;
+  state.screenshotSelection.pageNo = null;
+}
+
+function showSelectionActionMenu(layer, rect) {
+  const layerRect = layer.getBoundingClientRect();
+  const menu = ui.selectionActionMenu;
+  menu.hidden = false;
+  const menuWidth = menu.offsetWidth || 190;
+  const menuHeight = menu.offsetHeight || 88;
+  const left = clamp(layerRect.left + rect.x + rect.w + 8, 8, window.innerWidth - menuWidth - 8);
+  const top = clamp(layerRect.top + rect.y, 8, window.innerHeight - menuHeight - 8);
+  menu.style.left = `${left}px`;
+  menu.style.top = `${top}px`;
+}
+
+function hideSelectionActionMenu() {
+  if (!ui.selectionActionMenu) return;
+  ui.selectionActionMenu.hidden = true;
+}
+
+async function saveSelectionScreenshot() {
+  try {
+    const pageNo = state.screenshotSelection.pageNo;
+    const canvas = await renderSelectionCanvas();
+    downloadBlob(await canvasToBlob(canvas), `${baseName()}-selection-page-${pageNo}.png`);
+  } catch (error) {
+    console.warn("Could not save selected screenshot:", error);
+    announce("לא ניתן לשמור את האזור שנבחר.");
+  }
+}
+
+async function copySelectionScreenshot() {
+  try {
+    if (!navigator.clipboard || !window.ClipboardItem) {
+      announce("הדפדפן לא מאפשר העתקת תמונה ללוח.");
+      return;
+    }
+    const canvas = await renderSelectionCanvas();
+    const blob = await canvasToBlob(canvas);
+    await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
+    announce("הצילום הועתק ללוח.");
+  } catch (error) {
+    console.warn("Could not copy selected screenshot:", error);
+    announce("לא ניתן להעתיק את הצילום ללוח בדפדפן הזה.");
+  }
+}
+
+async function renderSelectionCanvas() {
+  const selection = state.screenshotSelection;
+  if (!state.pdf || !window.html2canvas || !selection.rect || !selection.pageNo) {
+    throw new Error("No selected screenshot area");
+  }
+  const record = state.renderedPages.get(selection.pageNo);
+  if (!record) throw new Error("Selected page is not rendered");
+  if (record.contentRendering) await waitForPageContent(record);
+  if (!record.contentRendered) await renderPageContent(selection.pageNo, state.renderId);
+  if (record.contentRendering) await waitForPageContent(record);
+
+  const pageCanvas = await window.html2canvas(record.shell, {
+    backgroundColor: "#ffffff",
+    scale: 1,
+    ignoreElements: (element) => Boolean(element.closest?.(".screenshot-layer") || element.closest?.(".selection-action-menu"))
+  });
+
+  const shellRect = record.shell.getBoundingClientRect();
+  const scaleX = pageCanvas.width / Math.max(1, shellRect.width);
+  const scaleY = pageCanvas.height / Math.max(1, shellRect.height);
+  const sourceX = Math.round(selection.rect.x * scaleX);
+  const sourceY = Math.round(selection.rect.y * scaleY);
+  const sourceW = Math.max(1, Math.round(selection.rect.w * scaleX));
+  const sourceH = Math.max(1, Math.round(selection.rect.h * scaleY));
+  const cropped = document.createElement("canvas");
+  cropped.width = sourceW;
+  cropped.height = sourceH;
+  cropped.getContext("2d").drawImage(pageCanvas, sourceX, sourceY, sourceW, sourceH, 0, 0, sourceW, sourceH);
+  return cropped;
+}
+
+function waitForPageContent(record) {
+  return new Promise((resolve) => {
+    const check = () => {
+      if (!record.contentRendering) {
+        resolve();
+      } else {
+        setTimeout(check, 50);
+      }
+    };
+    check();
+  });
 }
 
 async function takeScreenshot() {

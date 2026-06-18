@@ -209,7 +209,13 @@
 
         <div class="tool-group">
           <button id="clearAnnotationsBtn">נקה הוספות</button>
-          <button id="screenshotBtn">צילום</button>
+          <div class="dropdown action-dropdown" id="screenshotDropdown">
+            <button id="screenshotBtn" aria-haspopup="true" aria-expanded="false">צילום</button>
+            <div class="dropdown-menu" id="screenshotMenu" role="menu" hidden>
+              <button type="button" id="screenshotPageBtn" role="menuitem">צילום עמוד שלם</button>
+              <button type="button" id="screenshotAreaBtn" role="menuitem">צילום לפי בחירה</button>
+            </div>
+          </div>
           <button id="downloadBtn">שמור PDF</button>
         </div>
       </header>
@@ -222,6 +228,11 @@
         <div class="pages" id="pages"></div>
       </div>
     </main>
+  </div>
+
+  <div class="selection-action-menu" id="selectionActionMenu" hidden>
+    <button type="button" id="saveSelectionShot">שמור כצילום</button>
+    <button type="button" id="copySelectionShot">העתק ללוח</button>
   </div>
 
   <dialog id="helpDialog" role="dialog" aria-modal="true" aria-labelledby="helpDialogTitle">

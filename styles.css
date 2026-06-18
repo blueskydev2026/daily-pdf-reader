@@ -310,6 +310,55 @@ summary.panel-title::-webkit-details-marker {
   align-items: center;
 }
 
+.dropdown {
+  position: relative;
+  display: inline-flex;
+}
+
+.dropdown-menu,
+.selection-action-menu {
+  position: absolute;
+  z-index: 60;
+  display: grid;
+  gap: 4px;
+  min-width: 172px;
+  padding: 6px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 18px 44px rgba(15, 23, 42, .18);
+}
+
+.dropdown-menu[hidden],
+.selection-action-menu[hidden] {
+  display: none;
+}
+
+.dropdown-menu {
+  top: calc(100% + 6px);
+  inset-inline-end: 0;
+}
+
+.selection-action-menu {
+  position: fixed;
+}
+
+.dropdown-menu button,
+.selection-action-menu button {
+  justify-content: flex-start;
+  width: 100%;
+  border-color: transparent;
+  background: transparent;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.dropdown-menu button:hover,
+.selection-action-menu button:hover {
+  border-color: #d7e1ed;
+  background: #f1f7fb;
+}
+
 .result-row {
   justify-content: space-between;
   padding-inline: 2px;
@@ -809,6 +858,11 @@ summary.panel-title::-webkit-details-marker {
   cursor: grabbing;
 }
 
+.reader.screenshot-selecting {
+  cursor: crosshair;
+  user-select: none;
+}
+
 .pages {
   display: flex;
   flex-direction: column;
@@ -852,7 +906,7 @@ summary.panel-title::-webkit-details-marker {
   display: block;
 }
 
-.text-layer, .annotation-layer, .search-layer, .object-layer {
+.text-layer, .annotation-layer, .search-layer, .object-layer, .screenshot-layer {
   position: absolute;
   inset: 0;
 }
@@ -894,6 +948,25 @@ summary.panel-title::-webkit-details-marker {
 .object-layer {
   pointer-events: none;
   z-index: 8;
+}
+
+.screenshot-layer {
+  pointer-events: none;
+  z-index: 12;
+  touch-action: none;
+}
+
+.screenshot-layer.active {
+  pointer-events: auto;
+  cursor: crosshair;
+}
+
+.screenshot-selection-box {
+  position: absolute;
+  border: 2px solid var(--accent);
+  background: rgba(13, 148, 136, .14);
+  box-shadow: 0 0 0 9999px rgba(15, 23, 42, .18);
+  pointer-events: none;
 }
 
 .highlight-box {
