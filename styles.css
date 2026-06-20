@@ -854,6 +854,24 @@ summary.panel-title::-webkit-details-marker {
   cursor: grab;
 }
 
+.saved-position-indicator {
+  display: none;
+  color: #0f766e;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.side-action.has-saved-position {
+  grid-template-columns: 32px minmax(0, 1fr) auto;
+  border-color: #a7d9d1;
+  background: var(--accent-soft);
+}
+
+.side-action.has-saved-position .saved-position-indicator {
+  display: inline;
+}
+
 .reader.can-pan.panning {
   cursor: grabbing;
 }

@@ -1832,6 +1832,7 @@ function savePosition() {
   state.meta.savedReadingOffset = position.offset;
   saveMeta();
   updateStatus();
+  announce(`המיקום נשמר בעמוד ${position.page}.`);
 }
 
 function restorePosition() {
@@ -1965,6 +1966,15 @@ function updateStatus() {
   ui.pageInput.value = state.currentPage || 1;
   ui.pageTotal.textContent = `/ ${state.pageCount || 0}`;
   ui.zoomLabel.textContent = `${Math.round(state.scale * 100)}%`;
+  const savePositionButton = $("savePosition");
+  const hasSavedPosition = Number(state.meta.savedReadingPosition) > 0;
+  savePositionButton?.classList.toggle("has-saved-position", hasSavedPosition);
+  savePositionButton?.setAttribute(
+    "aria-label",
+    hasSavedPosition
+      ? `שמור מיקום. קיים מיקום שמור בעמוד ${state.meta.savedReadingPosition}`
+      : "שמור מיקום"
+  );
   const progress = state.pageCount ? (state.currentPage / state.pageCount) * 100 : 0;
   if (ui.pageSlider) {
     ui.pageSlider.min = "1";

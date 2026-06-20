@@ -874,6 +874,24 @@ summary.panel-title::-webkit-details-marker {
   cursor: grab;
 }
 
+.saved-position-indicator {
+  display: none;
+  color: #0f766e;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.side-action.has-saved-position {
+  grid-template-columns: 32px minmax(0, 1fr) auto;
+  border-color: #a7d9d1;
+  background: var(--accent-soft);
+}
+
+.side-action.has-saved-position .saved-position-indicator {
+  display: inline;
+}
+
 .reader.can-pan.panning {
   cursor: grabbing;
 }
@@ -3184,6 +3202,7 @@ function savePosition() {
   state.meta.savedReadingOffset = position.offset;
   saveMeta();
   updateStatus();
+  announce(`המיקום נשמר בעמוד ${position.page}.`);
 }
 
 function restorePosition() {
@@ -3317,6 +3336,15 @@ function updateStatus() {
   ui.pageInput.value = state.currentPage || 1;
   ui.pageTotal.textContent = `/ ${state.pageCount || 0}`;
   ui.zoomLabel.textContent = `${Math.round(state.scale * 100)}%`;
+  const savePositionButton = $("savePosition");
+  const hasSavedPosition = Number(state.meta.savedReadingPosition) > 0;
+  savePositionButton?.classList.toggle("has-saved-position", hasSavedPosition);
+  savePositionButton?.setAttribute(
+    "aria-label",
+    hasSavedPosition
+      ? `שמור מיקום. קיים מיקום שמור בעמוד ${state.meta.savedReadingPosition}`
+      : "שמור מיקום"
+  );
   const progress = state.pageCount ? (state.currentPage / state.pageCount) * 100 : 0;
   if (ui.pageSlider) {
     ui.pageSlider.min = "1";
@@ -4048,6 +4076,7 @@ function isTypingTarget(target) {
         <button class="side-action" id="savePosition">
           <span class="action-icon"><svg><use href="#icon-map-pin"></use></svg></span>
           <span>שמור מיקום</span>
+          <span class="saved-position-indicator" aria-hidden="true">✓ נשמר</span>
         </button>
         <button class="side-action" id="restorePosition">
           <span class="action-icon"><svg><use href="#icon-history"></use></svg></span>
