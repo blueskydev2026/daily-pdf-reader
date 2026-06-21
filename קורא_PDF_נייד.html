@@ -2318,7 +2318,8 @@ function createFieldFillMenu(item, field, content, record) {
     ["email", "מייל"],
     ["phone", "טלפון"],
     ["date", "תאריך"],
-    ["custom", "אחר"]
+    ["check", "✓"],
+    ["cross", "✕"]
   ].forEach(([type, label]) => {
     const option = document.createElement("button");
     option.type = "button";
@@ -2551,7 +2552,8 @@ function getActiveTextField() {
 
 function getQuickFillValue(type) {
   if (type === "date") return new Intl.DateTimeFormat("he-IL").format(new Date());
-  if (type === "custom") return prompt("טקסט להוספה:")?.trim() || "";
+  if (type === "check") return "✓";
+  if (type === "cross") return "✕";
   return (state.profile[type] || "").trim();
 }
 
@@ -4066,7 +4068,8 @@ function isTypingTarget(target) {
             <button data-fill="email" title="הכנס מייל">מייל</button>
             <button data-fill="phone" title="הכנס טלפון">טלפון</button>
             <button data-fill="date" title="הכנס תאריך היום">תאריך</button>
-            <button data-fill="custom" title="הכנס טקסט חופשי">אחר</button>
+            <button data-fill="check" title="הכנס סימון V">✓</button>
+            <button data-fill="cross" title="הכנס סימון X">✕</button>
           </div>
         </div>
       </details>

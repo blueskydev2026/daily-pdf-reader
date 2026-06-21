@@ -948,7 +948,8 @@ function createFieldFillMenu(item, field, content, record) {
     ["email", "מייל"],
     ["phone", "טלפון"],
     ["date", "תאריך"],
-    ["custom", "אחר"]
+    ["check", "✓"],
+    ["cross", "✕"]
   ].forEach(([type, label]) => {
     const option = document.createElement("button");
     option.type = "button";
@@ -1181,7 +1182,8 @@ function getActiveTextField() {
 
 function getQuickFillValue(type) {
   if (type === "date") return new Intl.DateTimeFormat("he-IL").format(new Date());
-  if (type === "custom") return prompt("טקסט להוספה:")?.trim() || "";
+  if (type === "check") return "✓";
+  if (type === "cross") return "✕";
   return (state.profile[type] || "").trim();
 }
 
