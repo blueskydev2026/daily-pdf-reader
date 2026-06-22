@@ -35,6 +35,16 @@ button, input {
   font: inherit;
 }
 
+select {
+  min-height: 36px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0 10px;
+  color: var(--ink);
+  background: #fff;
+  font: inherit;
+}
+
 button {
   border: 1px solid var(--line);
   background: var(--surface);
@@ -1320,6 +1330,129 @@ dialog {
   direction: rtl;
 }
 
+dialog::backdrop {
+  background: rgba(15, 23, 42, .48);
+  backdrop-filter: blur(3px);
+}
+
+.print-dialog {
+  width: min(650px, calc(100vw - 24px));
+  padding: 22px;
+  border-radius: 18px;
+}
+
+.print-dialog-heading {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding-inline-end: 38px;
+}
+
+.print-dialog-heading h2 { margin: 0 0 3px; }
+.print-dialog-heading p { margin: 0; color: var(--muted); }
+
+.print-dialog-icon {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  flex: 0 0 auto;
+  border-radius: 14px;
+  color: #fff;
+  background: var(--accent);
+  font-size: 25px;
+}
+
+.print-mode-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px;
+  margin: 20px 0 16px;
+  padding: 4px;
+  border-radius: 11px;
+  background: #eef2f7;
+}
+
+.print-mode-tabs button { border-color: transparent; background: transparent; }
+.print-mode-tabs button.active { color: #fff; background: var(--accent); }
+
+.print-options {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(170px, .7fr);
+  gap: 14px;
+}
+
+.print-options[hidden] { display: none; }
+
+.print-options fieldset {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 12px 14px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.print-options legend { padding: 0 6px; font-weight: 700; }
+.print-options fieldset label { display: flex; align-items: center; gap: 8px; }
+.print-options fieldset label.unavailable { color: var(--muted); opacity: .55; }
+.print-options input[type="radio"],
+.print-options input[type="checkbox"],
+.print-check input { width: 17px; min-height: 17px; accent-color: var(--accent); }
+
+.print-range-option #printRange {
+  min-width: 130px;
+  min-height: 32px;
+  margin-inline-start: auto;
+}
+
+.print-select-label {
+  display: grid;
+  align-content: start;
+  gap: 7px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  font-weight: 700;
+}
+
+.print-common-options {
+  display: flex;
+  align-items: end;
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.print-common-options > label { display: grid; gap: 6px; }
+.print-common-options .print-check { display: flex; align-items: center; padding-bottom: 9px; }
+
+.print-summary {
+  margin-top: 14px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  color: var(--accent-strong);
+  background: var(--accent-soft);
+  font-weight: 700;
+}
+
+.print-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 9px;
+  margin-top: 18px;
+}
+
+.primary-print {
+  min-width: 132px;
+  color: #fff;
+  border-color: var(--accent);
+  background: var(--accent);
+  font-weight: 700;
+}
+
+.primary-print:hover { border-color: var(--accent-strong); background: var(--accent-strong); }
+.print-dialog.is-busy #printForm { opacity: .68; pointer-events: none; }
+
 .dialog-close {
   position: absolute;
   top: 10px;
@@ -1342,4 +1475,5 @@ dialog {
   .reader { padding: 12px; }
   .spread { gap: 8px; }
   .pages { gap: 12px; }
+  .print-options { grid-template-columns: 1fr; }
 }

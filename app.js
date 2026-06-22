@@ -51,6 +51,7 @@ const state = {
     startX: 0,
     startY: 0
   },
+  printMode: "document",
   profile: loadProfile(),
   installPrompt: null,
   spacePressed: false,
@@ -93,7 +94,10 @@ const ui = {
   statusMessage: $("statusMessage"),
   screenshotBtn: $("screenshotBtn"),
   screenshotMenu: $("screenshotMenu"),
-  selectionActionMenu: $("selectionActionMenu")
+  selectionActionMenu: $("selectionActionMenu"),
+  printBtn: $("printBtn"),
+  printMenu: $("printMenu"),
+  printDialog: $("printDialog")
 };
 
 const saveScrollMeta = debounce(() => saveMeta(false), 200);
@@ -210,12 +214,30 @@ function wireEvents() {
     stopScreenshotSelection();
     takeScreenshot();
   });
-  $("screenshotAreaBtn").addEventListener("click", () => {
-    closeScreenshotMenu();
-    startScreenshotSelection();
-  });
   $("saveSelectionShot").addEventListener("click", () => saveSelectionScreenshot());
   $("copySelectionShot").addEventListener("click", () => copySelectionScreenshot());
+  $("printSelectionStickers").addEventListener("click", () => openPrintDialog("document", "selection"));
+  ui.printBtn.addEventListener("click", togglePrintMenu);
+  $("quickPrintBtn").addEventListener("click", () => {
+    closePrintMenu();
+    runPrint({ mode: "document", scope: "current", perSheet: 1, orientation: "portrait", cutGuides: false });
+  });
+  $("printSelectAreaBtn").addEventListener("click", () => {
+    closePrintMenu();
+    startScreenshotSelection();
+  });
+  $("printOptionsBtn").addEventListener("click", () => {
+    closePrintMenu();
+    openPrintDialog();
+  });
+  $("closePrint").addEventListener("click", closePrintDialog);
+  $("cancelPrint").addEventListener("click", closePrintDialog);
+  $("printForm").addEventListener("submit", submitPrintOptions);
+  document.querySelectorAll("[data-print-mode]").forEach((button) => {
+    button.addEventListener("click", () => setPrintMode(button.dataset.printMode));
+  });
+  $("printForm").addEventListener("input", updatePrintSummary);
+  $("printForm").addEventListener("change", updatePrintSummary);
   $("downloadBtn").addEventListener("click", exportPdf);
   $("clearAnnotationsBtn").addEventListener("click", clearAllAnnotations);
 
@@ -239,6 +261,11 @@ function wireEvents() {
     }
   });
   window.addEventListener("keydown", (event) => {
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "p") {
+      event.preventDefault();
+      openPrintDialog();
+      return;
+    }
     if ((event.key === "Delete" || event.key === "Backspace") && state.selectedFieldId && !isTypingTarget(event.target)) {
       deleteSelectedField();
       event.preventDefault();
@@ -251,7 +278,7 @@ function wireEvents() {
     }
     if (event.key === "Escape" && state.screenshotSelection.active) {
       stopScreenshotSelection();
-      announce("בחירת הצילום בוטלה.");
+      announce("בחירת הקטע להדפסה בוטלה.");
       return;
     }
     if (handleSinglePageKey(event)) return;
@@ -265,6 +292,7 @@ function wireEvents() {
   });
   document.addEventListener("pointerdown", (event) => {
     if (!event.target.closest("#screenshotDropdown")) closeScreenshotMenu();
+    if (!event.target.closest("#printDropdown")) closePrintMenu();
     if (!event.target.closest("#selectionActionMenu") && !event.target.closest(".screenshot-layer")) {
       hideSelectionActionMenu();
     }
@@ -2119,9 +2147,272 @@ function closeScreenshotMenu() {
   ui.screenshotBtn?.setAttribute("aria-expanded", "false");
 }
 
+function togglePrintMenu(event) {
+  event.stopPropagation();
+  const isOpen = !ui.printMenu.hidden;
+  ui.printMenu.hidden = isOpen;
+  ui.printBtn.setAttribute("aria-expanded", String(!isOpen));
+}
+
+function closePrintMenu() {
+  if (!ui.printMenu) return;
+  ui.printMenu.hidden = true;
+  ui.printBtn?.setAttribute("aria-expanded", "false");
+}
+
+function openPrintDialog(mode = "document", source = null) {
+  if (!state.pdf) {
+    announce("יש לפתוח קובץ PDF לפני ההדפסה.");
+    return;
+  }
+  hideSelectionActionMenu();
+  $("printCurrentPage").textContent = String(state.currentPage);
+  $("printRange").placeholder = `למשל 1-${Math.min(4, state.pageCount)}, ${state.pageCount}`;
+  const hasSelection = Boolean(state.screenshotSelection.rect && state.screenshotSelection.pageNo);
+  $("printSelectionScope").classList.toggle("unavailable", !hasSelection);
+  $("printSelectionScope").querySelector("input").disabled = !hasSelection;
+  $("stickerSelectionOption").classList.toggle("unavailable", !hasSelection);
+  $("stickerSelectionOption").querySelector("input").disabled = !hasSelection;
+  setPrintMode(mode);
+  if (source === "selection" && hasSelection) {
+    document.querySelector('[name="printScope"][value="selection"]').checked = true;
+    document.querySelector('[name="stickerSource"][value="selection"]').checked = true;
+  } else if (source) {
+    const sourceName = state.printMode === "stickers" ? "stickerSource" : "printScope";
+    const sourceInput = document.querySelector(`[name="${sourceName}"][value="${source}"]`);
+    if (sourceInput && !sourceInput.disabled) sourceInput.checked = true;
+  }
+  updatePrintSummary();
+  if (!ui.printDialog.open) ui.printDialog.showModal();
+}
+
+function closePrintDialog() {
+  if (ui.printDialog.open) ui.printDialog.close();
+}
+
+function setPrintMode(mode) {
+  state.printMode = mode === "stickers" ? "stickers" : "document";
+  document.querySelectorAll("[data-print-mode]").forEach((button) => {
+    button.classList.toggle("active", button.dataset.printMode === state.printMode);
+  });
+  document.querySelectorAll("[data-print-panel]").forEach((panel) => {
+    panel.hidden = panel.dataset.printPanel !== state.printMode;
+  });
+  updatePrintSummary();
+}
+
+function getPrintOptions() {
+  const mode = state.printMode;
+  return {
+    mode,
+    scope: document.querySelector('[name="printScope"]:checked')?.value || "current",
+    range: $("printRange").value.trim(),
+    perSheet: Number($("pagesPerSheet").value),
+    stickerSource: document.querySelector('[name="stickerSource"]:checked')?.value || "page",
+    copies: Number($("stickerCopies").value),
+    orientation: $("printOrientation").value,
+    includeAnnotations: $("printAnnotations").checked,
+    cutGuides: $("printCutGuides").checked
+  };
+}
+
+function updatePrintSummary() {
+  if (!state.pdf || !$("printSummary")) return;
+  const options = getPrintOptions();
+  if (options.mode === "stickers") {
+    $("printSummary").textContent = `${options.copies} עותקים · גיליון אחד`;
+    return;
+  }
+  let pageCount = options.scope === "all" ? state.pageCount : 1;
+  if (options.scope === "range" && options.range) {
+    try { pageCount = parsePageRange(options.range).length; } catch { pageCount = 0; }
+  }
+  const sheets = Math.max(1, Math.ceil(pageCount / options.perSheet));
+  $("printSummary").textContent = `${pageCount || "—"} עמודים · ${sheets} ${sheets === 1 ? "גיליון" : "גיליונות"}`;
+}
+
+function parsePageRange(value) {
+  if (!value.trim()) throw new Error("יש להזין טווח עמודים.");
+  const pages = [];
+  for (const part of value.split(",")) {
+    const token = part.trim();
+    const match = token.match(/^(\d+)\s*(?:[-–]\s*(\d+))?$/);
+    if (!match) throw new Error("טווח העמודים אינו תקין.");
+    const start = Number(match[1]);
+    const end = Number(match[2] || match[1]);
+    if (start < 1 || end < start || end > state.pageCount) {
+      throw new Error(`מספרי העמודים חייבים להיות בין 1 ל-${state.pageCount}.`);
+    }
+    for (let page = start; page <= end; page += 1) {
+      if (!pages.includes(page)) pages.push(page);
+    }
+  }
+  return pages;
+}
+
+async function submitPrintOptions(event) {
+  event.preventDefault();
+  await runPrint(getPrintOptions());
+}
+
+async function runPrint(options) {
+  if (!state.pdf) return;
+  const printButton = $("startPrint");
+  try {
+    ui.printDialog.classList.add("is-busy");
+    if (printButton) printButton.textContent = "מכין להדפסה…";
+    announce("מכין את הדפים להדפסה…");
+
+    let images;
+    let itemsPerSheet;
+    if (options.mode === "stickers") {
+      const sourceCanvas = await getStickerSourceCanvas(options.stickerSource, options.includeAnnotations);
+      const source = sourceCanvas.toDataURL("image/png");
+      images = Array.from({ length: options.copies }, () => source);
+      itemsPerSheet = options.copies;
+    } else {
+      if (options.scope === "selection") {
+        images = [(await renderSelectionCanvas(options.includeAnnotations)).toDataURL("image/png")];
+      } else {
+        const pages = options.scope === "all"
+          ? Array.from({ length: state.pageCount }, (_, index) => index + 1)
+          : options.scope === "range" ? parsePageRange(options.range) : [state.currentPage];
+        images = [];
+        for (let index = 0; index < pages.length; index += 1) {
+          announce(`מכין עמוד ${index + 1} מתוך ${pages.length}…`);
+          images.push((await renderPrintablePage(pages[index], options.includeAnnotations)).toDataURL("image/jpeg", .94));
+        }
+      }
+      itemsPerSheet = options.perSheet;
+    }
+
+    await printImageSheets(images, itemsPerSheet, options);
+    closePrintDialog();
+  } catch (error) {
+    console.warn("Could not prepare print job:", error);
+    announce(error.message || "לא ניתן להכין את ההדפסה.");
+  } finally {
+    ui.printDialog.classList.remove("is-busy");
+    if (printButton) printButton.textContent = "הדפס עכשיו";
+  }
+}
+
+async function ensurePrintablePage(pageNo) {
+  const record = state.renderedPages.get(pageNo);
+  if (!record) throw new Error(`עמוד ${pageNo} אינו זמין.`);
+  if (!record.contentRendered && !record.contentRendering) queuePageContent(pageNo, state.renderId, true);
+  await waitForPageContent(record);
+  if (!record.contentRendered) {
+    await renderPageContent(pageNo, state.renderId);
+    await waitForPageContent(record);
+  }
+  return record;
+}
+
+async function renderPrintablePage(pageNo, includeAnnotations = false) {
+  const record = await ensurePrintablePage(pageNo);
+  return window.html2canvas(record.shell, {
+    backgroundColor: "#ffffff",
+    scale: 1.45,
+    logging: false,
+    ignoreElements: (element) => Boolean(
+      element.closest?.(".screenshot-layer")
+      || element.closest?.(".annotation-controls")
+      || element.closest?.(".field-menu-button")
+      || element.closest?.(".field-menu")
+      || (!includeAnnotations && (element.closest?.(".annotation-layer") || element.closest?.(".object-layer")))
+    )
+  });
+}
+
+async function getStickerSourceCanvas(source, includeAnnotations = false) {
+  if (source === "selection") return renderSelectionCanvas(includeAnnotations);
+  if (source === "window") return renderVisibleWindowCanvas(includeAnnotations);
+  return renderPrintablePage(state.currentPage, includeAnnotations);
+}
+
+async function renderVisibleWindowCanvas(includeAnnotations = false) {
+  const readerRect = ui.reader.getBoundingClientRect();
+  const scale = 1.25;
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(readerRect.width * scale));
+  canvas.height = Math.max(1, Math.round(readerRect.height * scale));
+  const context = canvas.getContext("2d");
+  context.fillStyle = "#ffffff";
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  let drewContent = false;
+
+  for (let pageNo = 1; pageNo <= state.pageCount; pageNo += 1) {
+    const shell = state.renderedPages.get(pageNo)?.shell;
+    if (!shell) continue;
+    const rect = shell.getBoundingClientRect();
+    const left = Math.max(rect.left, readerRect.left);
+    const top = Math.max(rect.top, readerRect.top);
+    const right = Math.min(rect.right, readerRect.right);
+    const bottom = Math.min(rect.bottom, readerRect.bottom);
+    if (right <= left || bottom <= top) continue;
+    const pageCanvas = await renderPrintablePage(pageNo, includeAnnotations);
+    const sx = (left - rect.left) * pageCanvas.width / rect.width;
+    const sy = (top - rect.top) * pageCanvas.height / rect.height;
+    const sw = (right - left) * pageCanvas.width / rect.width;
+    const sh = (bottom - top) * pageCanvas.height / rect.height;
+    context.drawImage(pageCanvas, sx, sy, sw, sh, (left - readerRect.left) * scale, (top - readerRect.top) * scale, (right - left) * scale, (bottom - top) * scale);
+    drewContent = true;
+  }
+  if (!drewContent) throw new Error("אין תוכן נראה להדפסה בחלון.");
+  return canvas;
+}
+
+function printImageSheets(images, perSheet, options) {
+  return new Promise((resolve, reject) => {
+    const iframe = document.createElement("iframe");
+    iframe.title = "תצוגת הדפסה";
+    Object.assign(iframe.style, { position: "fixed", width: "1px", height: "1px", left: "-10000px", top: "0", border: "0" });
+    document.body.append(iframe);
+    const pageShape = options.orientation === "landscape" ? 1.414 : .707;
+    const columns = Math.max(1, Math.ceil(Math.sqrt(perSheet * pageShape)));
+    const rows = Math.ceil(perSheet / columns);
+    const sheets = [];
+    for (let index = 0; index < images.length; index += perSheet) {
+      const sheetImages = images.slice(index, index + perSheet)
+        .map((source) => `<div class="cell"><img src="${source}" alt=""></div>`).join("");
+      sheets.push(`<section class="sheet" style="--cols:${columns};--rows:${rows}">${sheetImages}</section>`);
+    }
+    const doc = iframe.contentDocument;
+    doc.open();
+    doc.write(`<!doctype html><html dir="rtl"><head><meta charset="utf-8"><title>הדפסה - ${escapeHtml(baseName())}</title><style>
+      @page { size: A4 ${options.orientation}; margin: 7mm; }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; padding: 0; background: #fff; }
+      .sheet { width: 100%; height: calc(100vh - 1px); display: grid; grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); grid-template-rows: repeat(var(--rows), minmax(0, 1fr)); gap: 3mm; break-after: page; page-break-after: always; }
+      .sheet:last-child { break-after: auto; page-break-after: auto; }
+      .cell { display: flex; align-items: center; justify-content: center; min-width: 0; min-height: 0; overflow: hidden; ${options.cutGuides ? "border: .25mm dashed #999; padding: 2mm;" : ""} }
+      img { display: block; max-width: 100%; max-height: 100%; object-fit: contain; }
+    </style></head><body>${sheets.join("")}</body></html>`);
+    doc.close();
+
+    const cleanup = () => { setTimeout(() => iframe.remove(), 1000); resolve(); };
+    iframe.contentWindow.addEventListener("afterprint", cleanup, { once: true });
+    Promise.all(Array.from(doc.images).map((image) => image.complete ? Promise.resolve() : new Promise((done, fail) => {
+      image.onload = done;
+      image.onerror = fail;
+    }))).then(() => {
+      setTimeout(() => {
+        iframe.contentWindow.focus();
+        iframe.contentWindow.print();
+        setTimeout(cleanup, 60000);
+      }, 100);
+    }).catch((error) => { iframe.remove(); reject(error); });
+  });
+}
+
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
+}
+
 function startScreenshotSelection() {
   if (!state.pdf) {
-    announce("פתח קובץ PDF לפני צילום לפי בחירה.");
+    announce("פתח קובץ PDF לפני סימון קטע להדפסה.");
     return;
   }
   state.screenshotSelection.active = true;
@@ -2129,7 +2420,7 @@ function startScreenshotSelection() {
   clearScreenshotSelectionBox();
   hideSelectionActionMenu();
   updateToolLayers();
-  announce("סמן אזור במסמך לצילום.");
+  announce("גרור מסגרת סביב הקטע שברצונך להדפיס.");
 }
 
 function stopScreenshotSelection() {
@@ -2265,7 +2556,7 @@ async function copySelectionScreenshot() {
   }
 }
 
-async function renderSelectionCanvas() {
+async function renderSelectionCanvas(includeAnnotations = true) {
   const selection = state.screenshotSelection;
   if (!state.pdf || !window.html2canvas || !selection.rect || !selection.pageNo) {
     throw new Error("No selected screenshot area");
@@ -2279,7 +2570,11 @@ async function renderSelectionCanvas() {
   const pageCanvas = await window.html2canvas(record.shell, {
     backgroundColor: "#ffffff",
     scale: 1,
-    ignoreElements: (element) => Boolean(element.closest?.(".screenshot-layer") || element.closest?.(".selection-action-menu"))
+    ignoreElements: (element) => Boolean(
+      element.closest?.(".screenshot-layer")
+      || element.closest?.(".selection-action-menu")
+      || (!includeAnnotations && (element.closest?.(".annotation-layer") || element.closest?.(".object-layer")))
+    )
   });
 
   const shellRect = record.shell.getBoundingClientRect();

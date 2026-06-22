@@ -215,7 +215,14 @@
             <button id="screenshotBtn" aria-haspopup="true" aria-expanded="false">צילום</button>
             <div class="dropdown-menu" id="screenshotMenu" role="menu" hidden>
               <button type="button" id="screenshotPageBtn" role="menuitem">צילום עמוד שלם</button>
-              <button type="button" id="screenshotAreaBtn" role="menuitem">צילום לפי בחירה</button>
+            </div>
+          </div>
+          <div class="dropdown action-dropdown" id="printDropdown">
+            <button id="printBtn" aria-haspopup="true" aria-expanded="false">הדפסה</button>
+            <div class="dropdown-menu" id="printMenu" role="menu" hidden>
+              <button type="button" id="quickPrintBtn" role="menuitem">⚡ הדפס עמוד נוכחי</button>
+              <button type="button" id="printSelectAreaBtn" role="menuitem">סמן קטע להדפסה</button>
+              <button type="button" id="printOptionsBtn" role="menuitem">אפשרויות הדפסה…</button>
             </div>
           </div>
           <button id="downloadBtn">שמור PDF</button>
@@ -235,7 +242,76 @@
   <div class="selection-action-menu" id="selectionActionMenu" hidden>
     <button type="button" id="saveSelectionShot">שמור כצילום</button>
     <button type="button" id="copySelectionShot">העתק ללוח</button>
+    <button type="button" id="printSelectionStickers">הדפס קטע נוכחי</button>
   </div>
+
+  <dialog id="printDialog" class="print-dialog" role="dialog" aria-modal="true" aria-labelledby="printDialogTitle">
+    <button class="dialog-close" id="closePrint" aria-label="סגור חלון הדפסה">×</button>
+    <div class="print-dialog-heading">
+      <span class="print-dialog-icon">⎙</span>
+      <div>
+        <h2 id="printDialogTitle">הדפסה חכמה</h2>
+        <p>בוחרים מה להדפיס ואיך לסדר אותו על הדף.</p>
+      </div>
+    </div>
+
+    <div class="print-mode-tabs" role="tablist" aria-label="סוג הדפסה">
+      <button type="button" class="active" data-print-mode="document">עמודים מהמסמך</button>
+      <button type="button" data-print-mode="stickers">עותקים בדף אחד</button>
+    </div>
+
+    <form id="printForm">
+      <section class="print-options" data-print-panel="document">
+        <fieldset>
+          <legend>מה להדפיס?</legend>
+          <label><input type="radio" name="printScope" value="current" checked> העמוד הנוכחי <strong id="printCurrentPage">1</strong></label>
+          <label id="printSelectionScope"><input type="radio" name="printScope" value="selection"> הקטע המסומן</label>
+          <label><input type="radio" name="printScope" value="all"> כל המסמך</label>
+          <label class="print-range-option"><input type="radio" name="printScope" value="range"> טווח
+            <input id="printRange" type="text" inputmode="numeric" placeholder="למשל 1-4, 7, 10-12" aria-label="טווח עמודים">
+          </label>
+        </fieldset>
+        <label class="print-select-label">עמודים בכל גיליון
+          <select id="pagesPerSheet">
+            <option value="1">עמוד אחד</option>
+            <option value="2">2 עמודים</option>
+            <option value="4">4 עמודים</option>
+            <option value="6">6 עמודים</option>
+            <option value="9">9 עמודים</option>
+            <option value="16">16 עמודים</option>
+          </select>
+        </label>
+      </section>
+
+      <section class="print-options" data-print-panel="stickers" hidden>
+        <fieldset>
+          <legend>מה לשכפל?</legend>
+          <label><input type="radio" name="stickerSource" value="page" checked> העמוד הנוכחי</label>
+          <label><input type="radio" name="stickerSource" value="window"> החלון הנראה כרגע</label>
+          <label id="stickerSelectionOption"><input type="radio" name="stickerSource" value="selection"> הקטע הנבחר</label>
+        </fieldset>
+        <label class="print-select-label">כמה עותקים בדף?
+          <select id="stickerCopies">
+            <option value="2">2</option><option value="4">4</option><option value="6" selected>6</option>
+            <option value="8">8</option><option value="12">12</option><option value="16">16</option><option value="24">24</option>
+          </select>
+        </label>
+      </section>
+
+      <div class="print-common-options">
+        <label>כיוון הדף
+          <select id="printOrientation"><option value="portrait">לאורך</option><option value="landscape">לרוחב</option></select>
+        </label>
+        <label class="print-check"><input id="printAnnotations" type="checkbox"> כלול הוספות משתמש</label>
+        <label class="print-check"><input id="printCutGuides" type="checkbox"> קווי חיתוך</label>
+      </div>
+      <div class="print-summary" id="printSummary">עמוד 1 · גיליון אחד</div>
+      <div class="print-dialog-actions">
+        <button type="button" id="cancelPrint">ביטול</button>
+        <button type="submit" class="primary-print" id="startPrint">הדפס עכשיו</button>
+      </div>
+    </form>
+  </dialog>
 
   <dialog id="helpDialog" role="dialog" aria-modal="true" aria-labelledby="helpDialogTitle">
     <button class="dialog-close" id="closeHelp" aria-label="סגור חלון עזרה">×</button>
