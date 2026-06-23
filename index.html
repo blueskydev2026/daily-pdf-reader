@@ -202,11 +202,8 @@
         </div>
 
         <div class="tool-group segmented" aria-label="כלי עריכה">
-          <button data-tool="select" class="active">בחירה</button>
-          <button data-tool="pan">גרירה</button>
-          <button data-tool="highlight">הדגשה</button>
-          <button data-tool="text">טקסט</button>
-          <button data-tool="signature">חתימה</button>
+          <button data-tool="select">בחירה</button>
+          <button data-tool="pan" class="active">גרירה</button>
         </div>
 
         <div class="tool-group">
@@ -243,6 +240,14 @@
     <button type="button" id="saveSelectionShot">שמור כצילום</button>
     <button type="button" id="copySelectionShot">העתק ללוח</button>
     <button type="button" id="printSelectionStickers">הדפס קטע נוכחי</button>
+  </div>
+
+  <div class="insert-action-menu" id="insertActionMenu" hidden>
+    <div class="insert-action-title">הוסף במקום זה</div>
+    <button type="button" data-insert-action="text">טקסט</button>
+    <button type="button" data-insert-action="note">הערה</button>
+    <button type="button" data-insert-action="signature">חתימה</button>
+    <button type="button" data-insert-action="highlight">הדגשה</button>
   </div>
 
   <dialog id="printDialog" class="print-dialog" role="dialog" aria-modal="true" aria-labelledby="printDialogTitle">

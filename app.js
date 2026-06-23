@@ -20,7 +20,7 @@ const state = {
   scale: 1.25,
   mode: "continuous",
   fit: "width",
-  tool: "select",
+  tool: "pan",
   meta: emptyMeta(),
   renderedPages: new Map(),
   pageShells: [],
@@ -55,7 +55,8 @@ const state = {
   profile: loadProfile(),
   installPrompt: null,
   spacePressed: false,
-  suppressContextMenu: false
+  suppressContextMenu: false,
+  insertMenuPlacement: null
 };
 
 function emptyMeta() {
@@ -95,6 +96,7 @@ const ui = {
   screenshotBtn: $("screenshotBtn"),
   screenshotMenu: $("screenshotMenu"),
   selectionActionMenu: $("selectionActionMenu"),
+  insertActionMenu: $("insertActionMenu"),
   printBtn: $("printBtn"),
   printMenu: $("printMenu"),
   printDialog: $("printDialog")
@@ -179,6 +181,7 @@ function wireEvents() {
       if (state.tool === "signature" && !wasSignatureTool) {
         state.signatureSessionId = crypto.randomUUID();
       } else if (state.tool !== "signature") {
+        removeEmptySignatureDraft(state.signatureSessionId);
         state.signatureSessionId = null;
       }
       updateToolLayers();
@@ -217,6 +220,9 @@ function wireEvents() {
   $("saveSelectionShot").addEventListener("click", () => saveSelectionScreenshot());
   $("copySelectionShot").addEventListener("click", () => copySelectionScreenshot());
   $("printSelectionStickers").addEventListener("click", () => openPrintDialog("document", "selection"));
+  ui.insertActionMenu?.querySelectorAll("[data-insert-action]").forEach((button) => {
+    button.addEventListener("click", () => runInsertAction(button.dataset.insertAction));
+  });
   ui.printBtn.addEventListener("click", togglePrintMenu);
   $("quickPrintBtn").addEventListener("click", () => {
     closePrintMenu();
@@ -258,7 +264,9 @@ function wireEvents() {
     if (state.suppressContextMenu) {
       event.preventDefault();
       state.suppressContextMenu = false;
+      return;
     }
+    showInsertActionMenu(event);
   });
   window.addEventListener("keydown", (event) => {
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "p") {
@@ -296,6 +304,7 @@ function wireEvents() {
     if (!event.target.closest("#selectionActionMenu") && !event.target.closest(".screenshot-layer")) {
       hideSelectionActionMenu();
     }
+    if (!event.target.closest("#insertActionMenu")) hideInsertActionMenu();
     if (!event.target.closest(".field-box")) closeFieldMenus();
   });
   window.addEventListener("resize", debounce(() => fitTo(state.fit), 150));
@@ -717,6 +726,7 @@ function finishDrawing(event) {
     if (points.length > 2) {
       const signature = getActiveSignature(state.drawing.pageNo);
       getSignatureStrokes(signature).push(points);
+      delete signature.draftBox;
       signature.strokeWidth = state.drawing.strokeWidth / width;
     }
   }
@@ -738,9 +748,10 @@ function addTextFieldWithValue(pageNo, x, y, text, options = {}) {
     page: pageNo,
     x: x / record.viewport.width,
     y: y / record.viewport.height,
-    w: 0.09,
-    h: 0.032,
+    w: options.w || 0.09,
+    h: options.h || 0.032,
     fontSize: options.fontSize || 15,
+    type: options.type || "text",
     text
   };
   state.meta.fields.push(field);
@@ -784,6 +795,7 @@ function renderAnnotationsForPage(pageNo) {
   state.meta.fields.filter((item) => item.page === pageNo).forEach((item) => {
     const field = document.createElement("div");
     field.className = "field-box";
+    field.classList.toggle("note-field", item.type === "note");
     field.dataset.fieldId = item.id;
     field.addEventListener("pointerdown", (event) => {
       state.selectedFieldId = item.id;
@@ -818,8 +830,8 @@ function renderAnnotationsForPage(pageNo) {
     menuButton.className = "field-menu-button";
     menuButton.type = "button";
     menuButton.textContent = "⋯";
-    menuButton.title = "אפשרויות טקסט";
-    menuButton.setAttribute("aria-label", "אפשרויות טקסט");
+    menuButton.title = item.type === "note" ? "אפשרויות הערה" : "אפשרויות טקסט";
+    menuButton.setAttribute("aria-label", item.type === "note" ? "אפשרויות הערה" : "אפשרויות טקסט");
     menuButton.addEventListener("pointerdown", (event) => {
       event.preventDefault();
       event.stopPropagation();
@@ -878,8 +890,8 @@ function renderAnnotationsForPage(pageNo) {
 
   state.meta.signatures.filter((item) => item.page === pageNo).forEach((item) => {
     const strokes = getSignatureStrokes(item).filter((stroke) => stroke.length > 1);
-    if (!strokes.length) return;
     const isActiveSignature = state.tool === "signature" && item.sessionId === state.signatureSessionId;
+    if (!strokes.length && !isActiveSignature) return;
     const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     svg.classList.add("ink-box");
     svg.setAttribute("viewBox", `0 0 ${w} ${h}`);
@@ -1119,7 +1131,7 @@ function hasSignatureContent(item) {
 function commitActiveSignature() {
   const active = getCurrentSignatureForSaving();
   if (!active) return;
-  state.signatureSessionId = crypto.randomUUID();
+  setTransientInsertTool("pan");
   saveMeta();
   renderVisibleAnnotations();
   renderSavedSignatures();
@@ -1187,6 +1199,17 @@ function removeSavedSignature(id) {
   state.profile.signatures = getSavedSignatures().filter((item) => item.id !== id);
   saveProfile();
   renderSavedSignatures();
+}
+
+function removeEmptySignatureDraft(sessionId) {
+  if (!sessionId) return;
+  const next = state.meta.signatures.filter((item) => (
+    item.sessionId !== sessionId || hasSignatureContent(item)
+  ));
+  if (next.length !== state.meta.signatures.length) {
+    state.meta.signatures = next;
+    saveMeta();
+  }
 }
 
 function applyQuickFill(type) {
@@ -1456,6 +1479,10 @@ function wireSignatureDrag(element, item, record, paths) {
 
 function setSignatureMoveBox(element, item, width, height, isActiveSignature = false) {
   const bounds = getSignatureBounds(item);
+  if (isActiveSignature && !getSignatureStrokes(item).flat().length && item.draftBox) {
+    setNormRect(element, item.draftBox, width, height);
+    return;
+  }
   const padPxX = isActiveSignature ? 38 : 10;
   const padPxY = isActiveSignature ? 28 : 10;
   const minWidthPx = isActiveSignature ? 340 : 18;
@@ -2529,6 +2556,122 @@ function hideSelectionActionMenu() {
   ui.selectionActionMenu.hidden = true;
 }
 
+function showInsertActionMenu(event) {
+  if (!state.pdf || !ui.insertActionMenu) return;
+  const placement = getPagePlacementFromPoint(event.clientX, event.clientY, event.target);
+  if (!placement) return;
+  event.preventDefault();
+  hideSelectionActionMenu();
+  closeFieldMenus();
+  state.insertMenuPlacement = placement;
+  const menu = ui.insertActionMenu;
+  menu.hidden = false;
+  const menuWidth = menu.offsetWidth || 176;
+  const menuHeight = menu.offsetHeight || 168;
+  const left = clamp(event.clientX, 8, window.innerWidth - menuWidth - 8);
+  const top = clamp(event.clientY, 8, window.innerHeight - menuHeight - 8);
+  menu.style.left = `${left}px`;
+  menu.style.top = `${top}px`;
+}
+
+function hideInsertActionMenu() {
+  if (!ui.insertActionMenu) return;
+  ui.insertActionMenu.hidden = true;
+}
+
+function getPagePlacementFromPoint(clientX, clientY, target) {
+  const shell = target?.closest?.(".page-shell") || [...document.querySelectorAll(".page-shell")].find((pageShell) => {
+    const rect = pageShell.getBoundingClientRect();
+    return clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom;
+  });
+  if (!shell) return null;
+  const pageNo = Number(shell.dataset.page);
+  const record = state.renderedPages.get(pageNo);
+  if (!record) return null;
+  const rect = shell.getBoundingClientRect();
+  return {
+    pageNo,
+    x: clamp(clientX - rect.left, 0, record.viewport.width),
+    y: clamp(clientY - rect.top, 0, record.viewport.height)
+  };
+}
+
+function runInsertAction(action) {
+  const placement = state.insertMenuPlacement;
+  hideInsertActionMenu();
+  if (!placement || !state.renderedPages.has(placement.pageNo)) return;
+  if (action === "text") {
+    setTransientInsertTool("pan");
+    addTextField(placement.pageNo, placement.x, placement.y);
+  } else if (action === "note") {
+    setTransientInsertTool("pan");
+    addTextFieldWithValue(placement.pageNo, placement.x, placement.y, "", {
+      type: "note",
+      w: 0.22,
+      h: 0.085,
+      fontSize: 14
+    });
+  } else if (action === "highlight") {
+    startHighlightToolAtPlacement(placement);
+  } else if (action === "signature") {
+    startSignatureAtPlacement(placement);
+  }
+  state.insertMenuPlacement = null;
+}
+
+function startHighlightToolAtPlacement({ pageNo }) {
+  const record = state.renderedPages.get(pageNo);
+  if (!record) return;
+  state.tool = "highlight";
+  state.signatureSessionId = null;
+  document.querySelectorAll("[data-tool]").forEach((btn) => btn.classList.remove("active"));
+  updateToolLayers();
+  announce("כלי הדגשה פעיל. גרור מלבן על האזור שברצונך להדגיש.");
+}
+
+function startSignatureAtPlacement({ pageNo, x, y }) {
+  const record = state.renderedPages.get(pageNo);
+  if (!record) return;
+  state.tool = "signature";
+  state.signatureSessionId = crypto.randomUUID();
+  document.querySelectorAll("[data-tool]").forEach((btn) => btn.classList.remove("active"));
+  const widthPx = clamp(record.viewport.width * 0.42, 260, 380);
+  const heightPx = clamp(record.viewport.height * 0.16, 110, 150);
+  const left = clamp(x - widthPx / 2, 0, Math.max(0, record.viewport.width - widthPx));
+  const top = clamp(y - heightPx / 2, 0, Math.max(0, record.viewport.height - heightPx));
+  state.meta.signatures.push({
+    id: crypto.randomUUID(),
+    sessionId: state.signatureSessionId,
+    page: pageNo,
+    strokes: [],
+    strokeWidth: 0.0025,
+    draftBox: {
+      x: left / record.viewport.width,
+      y: top / record.viewport.height,
+      w: widthPx / record.viewport.width,
+      h: heightPx / record.viewport.height
+    }
+  });
+  saveMeta();
+  updateToolLayers();
+  renderAnnotationsForPage(pageNo);
+  announce("מצב חתימה פעיל. צייר את החתימה בתוך המסמך ולחץ ✓ לסיום.");
+}
+
+function setTransientInsertTool(tool) {
+  const previousSignatureSessionId = state.signatureSessionId;
+  if (state.tool === "signature" && tool !== "signature") {
+    removeEmptySignatureDraft(previousSignatureSessionId);
+  }
+  state.tool = tool;
+  state.signatureSessionId = null;
+  document.querySelectorAll("[data-tool]").forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.tool === tool);
+  });
+  updateToolLayers();
+  renderVisibleAnnotations();
+}
+
 async function saveSelectionScreenshot() {
   try {
     const pageNo = state.screenshotSelection.pageNo;
@@ -2573,6 +2716,7 @@ async function renderSelectionCanvas(includeAnnotations = true) {
     ignoreElements: (element) => Boolean(
       element.closest?.(".screenshot-layer")
       || element.closest?.(".selection-action-menu")
+      || element.closest?.(".insert-action-menu")
       || (!includeAnnotations && (element.closest?.(".annotation-layer") || element.closest?.(".object-layer")))
     )
   });
@@ -2633,6 +2777,18 @@ async function exportPdf() {
   for (const item of state.meta.fields) {
     const page = pages[item.page - 1];
     const { width, height } = page.getSize();
+    if (item.type === "note") {
+      page.drawRectangle({
+        x: item.x * width,
+        y: height - (item.y + item.h) * height,
+        width: item.w * width,
+        height: item.h * height,
+        color: rgb(1, .98, .92),
+        borderColor: rgb(.92, .7, .03),
+        borderWidth: .8,
+        opacity: .96
+      });
+    }
     const imageBytes = await textToPng(
       item.text || "",
       Math.max(80, item.w * width * 2),
@@ -2761,10 +2917,9 @@ function canvasToBlob(canvas) {
 
 function startReaderPan(event) {
   if (!state.pdf || isTypingTarget(event.target)) return;
-  const rightButton = event.button === 2;
   const spaceDrag = state.spacePressed && event.button === 0;
   const panToolDrag = state.tool === "pan" && event.button === 0;
-  if (!rightButton && !spaceDrag && !panToolDrag) return;
+  if (!spaceDrag && !panToolDrag) return;
   event.preventDefault();
   ui.reader.setPointerCapture(event.pointerId);
   state.panning = {
@@ -2774,7 +2929,6 @@ function startReaderPan(event) {
     left: ui.reader.scrollLeft,
     top: ui.reader.scrollTop
   };
-  if (rightButton) state.suppressContextMenu = true;
   ui.reader.classList.add("panning");
 }
 
