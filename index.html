@@ -237,13 +237,18 @@
   </div>
 
   <div class="selection-action-menu" id="selectionActionMenu" hidden>
-    <button type="button" id="saveSelectionShot">שמור כצילום</button>
-    <button type="button" id="copySelectionShot">העתק ללוח</button>
-    <button type="button" id="printSelectionStickers">הדפס קטע נוכחי</button>
+    <button type="button" id="copySelectionShot">העתק</button>
+    <button type="button" id="highlightSelection">הדגשה</button>
+    <button type="button" id="printSelectionStickers">העבר להדפסה</button>
+    <button type="button" id="saveSelectionShot">שמור כתמונה</button>
   </div>
 
   <div class="insert-action-menu" id="insertActionMenu" hidden>
-    <div class="insert-action-title">הוסף במקום זה</div>
+    <div class="insert-action-title">אפשרויות בחירה</div>
+    <button type="button" data-insert-action="select-area">בחר איזור</button>
+    <button type="button" data-insert-action="select-text">בחר טקסט</button>
+    <div class="insert-action-separator" aria-hidden="true"></div>
+    <div class="insert-action-title">הוסף באיזור זה</div>
     <button type="button" data-insert-action="text">טקסט</button>
     <button type="button" data-insert-action="note">הערה</button>
     <button type="button" data-insert-action="signature">חתימה</button>

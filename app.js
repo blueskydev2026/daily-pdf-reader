@@ -9,6 +9,9 @@ const PDF_LOAD_OPTIONS = {
   disableFontFace: true,
   useSystemFonts: false
 };
+const SESSION_FILE_KEY = "daily-pdf-reader:active-file";
+const FILE_DB_NAME = "daily-pdf-reader-files";
+const FILE_STORE_NAME = "files";
 
 const state = {
   pdf: null,
@@ -43,10 +46,12 @@ const state = {
   signatureSessionId: null,
   screenshotSelection: {
     active: false,
+    mode: "area",
     dragging: false,
     pointerId: null,
     pageNo: null,
     box: null,
+    textHighlights: [],
     rect: null,
     startX: 0,
     startY: 0
@@ -108,6 +113,7 @@ wireEvents();
 initProfileControls();
 registerPwa();
 initFileHandling();
+restoreActiveSessionFile();
 updateStatus();
 
 function wireEvents() {
@@ -219,6 +225,7 @@ function wireEvents() {
   });
   $("saveSelectionShot").addEventListener("click", () => saveSelectionScreenshot());
   $("copySelectionShot").addEventListener("click", () => copySelectionScreenshot());
+  $("highlightSelection").addEventListener("click", () => highlightCurrentSelection());
   $("printSelectionStickers").addEventListener("click", () => openPrintDialog("document", "selection"));
   ui.insertActionMenu?.querySelectorAll("[data-insert-action]").forEach((button) => {
     button.addEventListener("click", () => runInsertAction(button.dataset.insertAction));
@@ -286,7 +293,7 @@ function wireEvents() {
     }
     if (event.key === "Escape" && state.screenshotSelection.active) {
       stopScreenshotSelection();
-      announce("בחירת הקטע להדפסה בוטלה.");
+      announce("בחירת הקטע בוטלה.");
       return;
     }
     if (handleSinglePageKey(event)) return;
@@ -382,7 +389,8 @@ function isPdfFile(file) {
   return file?.type === "application/pdf" || /\.pdf$/i.test(file?.name || "");
 }
 
-async function openFile(file) {
+async function openFile(file, options = {}) {
+  const { remember = true } = options;
   stopScreenshotSelection();
   state.file = file;
   state.fileBytes = await file.arrayBuffer();
@@ -391,15 +399,21 @@ async function openFile(file) {
     ...PDF_LOAD_OPTIONS
   }).promise;
   state.pageCount = state.pdf.numPages;
-  state.fingerprint = `${file.name}:${file.size}:${file.lastModified}`;
+  state.fingerprint = fingerprintForFile(file);
   state.meta = loadMeta();
   state.currentPage = clamp(state.meta.readingPosition || 1, 1, state.pageCount);
   state.search = { term: "", hits: [], index: -1 };
   state.renderedPages.clear();
   ui.fileName.textContent = file.name;
   ui.emptyState.hidden = true;
+  rememberActiveSessionFile(state.fingerprint);
+  if (remember) rememberOpenFile(file, state.fileBytes, state.fingerprint);
   await fitTo("width");
   renderBookmarks();
+}
+
+function fingerprintForFile(file) {
+  return `${file.name}:${file.size}:${file.lastModified}`;
 }
 
 async function render() {
@@ -646,7 +660,27 @@ async function renderTextLayer(page, viewport, layer, pageNo) {
   }
   const record = state.renderedPages.get(pageNo) || {};
   record.text = content.items.map((item) => item.str).join(" ");
+  record.textItems = content.items.map((item) => getViewportTextItem(item, viewport)).filter(Boolean);
   state.renderedPages.set(pageNo, record);
+}
+
+function getViewportTextItem(item, viewport) {
+  const text = String(item.str || "").trim();
+  if (!text) return null;
+  const transform = pdfjsLib.Util.transform(viewport.transform, item.transform);
+  const fontHeight = Math.max(1, Math.hypot(transform[2], transform[3]) || Math.abs(transform[3]) || item.height * viewport.scale);
+  const rawWidth = item.width * viewport.scale;
+  const width = Math.max(1, Math.abs(rawWidth));
+  const x = Math.min(transform[4], transform[4] + rawWidth);
+  const y = transform[5] - fontHeight;
+  return {
+    text,
+    dir: item.dir || "ltr",
+    x,
+    y,
+    w: width,
+    h: fontHeight
+  };
 }
 
 function wireAnnotationLayer(layer, pageNo) {
@@ -2438,25 +2472,31 @@ function escapeHtml(value) {
   return String(value).replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
 }
 
-function startScreenshotSelection() {
+function startScreenshotSelection(mode = "area") {
   if (!state.pdf) {
-    announce("פתח קובץ PDF לפני סימון קטע להדפסה.");
+    announce("פתח קובץ PDF לפני בחירת קטע.");
     return;
   }
   state.screenshotSelection.active = true;
+  state.screenshotSelection.mode = mode === "text" ? "text" : "area";
   state.screenshotSelection.dragging = false;
   clearScreenshotSelectionBox();
+  clearTextSelectionHighlights();
   hideSelectionActionMenu();
   updateToolLayers();
-  announce("גרור מסגרת סביב הקטע שברצונך להדפיס.");
+  announce(state.screenshotSelection.mode === "text"
+    ? "גרור מסגרת סביב הטקסט שברצונך לבחור."
+    : "גרור מסגרת סביב האיזור שברצונך לבחור.");
 }
 
 function stopScreenshotSelection() {
-  if (!state.screenshotSelection.active && !state.screenshotSelection.box) return;
+  if (!state.screenshotSelection.active && !state.screenshotSelection.box && !state.screenshotSelection.textHighlights?.length) return;
   state.screenshotSelection.active = false;
+  state.screenshotSelection.mode = "area";
   state.screenshotSelection.dragging = false;
   state.screenshotSelection.pointerId = null;
   clearScreenshotSelectionBox();
+  clearTextSelectionHighlights();
   hideSelectionActionMenu();
   updateToolLayers();
 }
@@ -2468,6 +2508,7 @@ function wireScreenshotLayer(layer, pageNo) {
     event.stopPropagation();
     layer.setPointerCapture(event.pointerId);
     clearScreenshotSelectionBox();
+    clearTextSelectionHighlights();
     hideSelectionActionMenu();
 
     const layerRect = layer.getBoundingClientRect();
@@ -2475,6 +2516,7 @@ function wireScreenshotLayer(layer, pageNo) {
     const startY = clamp(event.clientY - layerRect.top, 0, layerRect.height);
     const box = document.createElement("div");
     box.className = "screenshot-selection-box";
+    box.classList.toggle("text-selection-box", state.screenshotSelection.mode === "text");
     layer.append(box);
 
     Object.assign(state.screenshotSelection, {
@@ -2505,10 +2547,17 @@ function wireScreenshotLayer(layer, pageNo) {
     const rect = state.screenshotSelection.rect;
     if (!rect || rect.w < 6 || rect.h < 6) {
       clearScreenshotSelectionBox();
+      clearTextSelectionHighlights();
       hideSelectionActionMenu();
       return;
     }
-    showSelectionActionMenu(layer, rect);
+    if (state.screenshotSelection.mode === "text") {
+      finalizeTextSelection(layer).then((hasText) => {
+        if (hasText) showSelectionActionMenu(layer, rect);
+      });
+    } else {
+      showSelectionActionMenu(layer, rect);
+    }
   };
 
   layer.addEventListener("pointerup", finish);
@@ -2531,6 +2580,9 @@ function drawScreenshotSelection(event, layer) {
     selection.box.style.width = `${w}px`;
     selection.box.style.height = `${h}px`;
   }
+  if (selection.mode === "text") {
+    paintTextSelectionHighlights(layer);
+  }
 }
 
 function clearScreenshotSelectionBox() {
@@ -2540,9 +2592,99 @@ function clearScreenshotSelectionBox() {
   state.screenshotSelection.pageNo = null;
 }
 
+function removeSelectionBoxElement() {
+  state.screenshotSelection.box?.remove();
+  state.screenshotSelection.box = null;
+}
+
+function clearTextSelectionHighlights() {
+  state.screenshotSelection.textHighlights?.forEach((highlight) => highlight.remove());
+  state.screenshotSelection.textHighlights = [];
+}
+
+async function finalizeTextSelection(layer) {
+  try {
+    await ensureSelectedPageTextReady();
+    const hasText = paintTextSelectionHighlights(layer);
+    removeSelectionBoxElement();
+    if (!hasText) {
+      clearScreenshotSelectionBox();
+      clearTextSelectionHighlights();
+      announce("לא נמצא טקסט ברור באיזור שנבחר.");
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.warn("Could not finalize text selection:", error);
+    announce("לא ניתן לסמן את הטקסט באיזור שנבחר.");
+    return false;
+  }
+}
+
+async function ensureSelectedPageTextReady() {
+  const selection = state.screenshotSelection;
+  const record = state.renderedPages.get(selection.pageNo);
+  if (!record) throw new Error("Selected page is not rendered");
+  if (record.contentRendering) await waitForPageContent(record);
+  if (!record.contentRendered) await renderPageContent(selection.pageNo, state.renderId);
+  if (record.contentRendering) await waitForPageContent(record);
+}
+
+function paintTextSelectionHighlights(layer) {
+  clearTextSelectionHighlights();
+  const items = getSelectedTextItems();
+  if (!items.length) return false;
+  const fragments = mergeTextSelectionFragments(items);
+  state.screenshotSelection.textHighlights = fragments.map((fragment) => {
+    const highlight = document.createElement("div");
+    highlight.className = "text-selection-highlight";
+    highlight.style.left = `${fragment.x}px`;
+    highlight.style.top = `${fragment.y}px`;
+    highlight.style.width = `${fragment.w}px`;
+    highlight.style.height = `${fragment.h}px`;
+    layer.append(highlight);
+    return highlight;
+  });
+  return true;
+}
+
+function mergeTextSelectionFragments(items) {
+  const lineThreshold = Math.max(4, median(items.map((item) => item.h)) * 0.65);
+  const lines = [];
+  for (const item of items) {
+    const cy = item.y + item.h / 2;
+    let line = lines.find((entry) => Math.abs(entry.cy - cy) <= lineThreshold);
+    if (!line) {
+      line = { cy, items: [] };
+      lines.push(line);
+    }
+    line.items.push(item);
+    line.cy = (line.cy * (line.items.length - 1) + cy) / line.items.length;
+  }
+  return lines.map((line) => {
+    const left = Math.min(...line.items.map((item) => item.x));
+    const right = Math.max(...line.items.map((item) => item.x + item.w));
+    const top = Math.min(...line.items.map((item) => item.y));
+    const bottom = Math.max(...line.items.map((item) => item.y + item.h));
+    const padX = 2;
+    const padY = 1;
+    return {
+      x: Math.max(0, left - padX),
+      y: Math.max(0, top - padY),
+      w: right - left + padX * 2,
+      h: bottom - top + padY * 2
+    };
+  });
+}
+
 function showSelectionActionMenu(layer, rect) {
   const layerRect = layer.getBoundingClientRect();
   const menu = ui.selectionActionMenu;
+  const isTextSelection = state.screenshotSelection.mode === "text";
+  $("copySelectionShot").textContent = isTextSelection ? "העתק טקסט" : "העתק כתמונה";
+  $("highlightSelection").textContent = isTextSelection ? "הדגש טקסט" : "הדגש איזור";
+  $("saveSelectionShot").textContent = "שמור כתמונה";
+  $("printSelectionStickers").textContent = "העבר להדפסה";
   menu.hidden = false;
   const menuWidth = menu.offsetWidth || 190;
   const menuHeight = menu.offsetHeight || 88;
@@ -2601,7 +2743,11 @@ function runInsertAction(action) {
   const placement = state.insertMenuPlacement;
   hideInsertActionMenu();
   if (!placement || !state.renderedPages.has(placement.pageNo)) return;
-  if (action === "text") {
+  if (action === "select-area") {
+    startScreenshotSelection("area");
+  } else if (action === "select-text") {
+    startScreenshotSelection("text");
+  } else if (action === "text") {
     setTransientInsertTool("pan");
     addTextField(placement.pageNo, placement.x, placement.y);
   } else if (action === "note") {
@@ -2623,6 +2769,7 @@ function runInsertAction(action) {
 function startHighlightToolAtPlacement({ pageNo }) {
   const record = state.renderedPages.get(pageNo);
   if (!record) return;
+  stopScreenshotSelection();
   state.tool = "highlight";
   state.signatureSessionId = null;
   document.querySelectorAll("[data-tool]").forEach((btn) => btn.classList.remove("active"));
@@ -2684,7 +2831,64 @@ async function saveSelectionScreenshot() {
   }
 }
 
+async function highlightCurrentSelection() {
+  try {
+    const selection = state.screenshotSelection;
+    const pageNo = selection.pageNo;
+    const mode = selection.mode;
+    const record = state.renderedPages.get(pageNo);
+    if (!selection.rect || !record) {
+      announce("אין איזור בחירה להדגשה.");
+      return;
+    }
+
+    let boxes = [];
+    if (mode === "text") {
+      await ensureSelectedPageTextReady();
+      boxes = mergeTextSelectionFragments(getSelectedTextItems());
+      if (!boxes.length) {
+        announce("לא נמצא טקסט ברור להדגשה.");
+        return;
+      }
+    } else {
+      boxes = [selection.rect];
+    }
+
+    const highlights = boxes
+      .map((box) => normalizedRectFromPixels(box, record.viewport.width, record.viewport.height))
+      .filter((box) => box.w > 0.002 && box.h > 0.002);
+    if (!highlights.length) {
+      announce("האיזור שנבחר קטן מדי להדגשה.");
+      return;
+    }
+
+    for (const box of highlights) {
+      state.meta.highlights.push({ id: crypto.randomUUID(), page: pageNo, ...box });
+    }
+    saveMeta();
+    stopScreenshotSelection();
+    renderAnnotationsForPage(pageNo);
+    announce(mode === "text" ? "הטקסט הנבחר הודגש." : "האזור הנבחר הודגש.");
+  } catch (error) {
+    console.warn("Could not highlight selection:", error);
+    announce("לא ניתן להדגיש את הבחירה.");
+  }
+}
+
+function normalizedRectFromPixels(rect, width, height) {
+  return {
+    x: clamp(rect.x / width, 0, 1),
+    y: clamp(rect.y / height, 0, 1),
+    w: clamp(rect.w / width, 0, 1),
+    h: clamp(rect.h / height, 0, 1)
+  };
+}
+
 async function copySelectionScreenshot() {
+  if (state.screenshotSelection.mode === "text") {
+    await copySelectionText();
+    return;
+  }
   try {
     if (!navigator.clipboard || !window.ClipboardItem) {
       announce("הדפדפן לא מאפשר העתקת תמונה ללוח.");
@@ -2698,6 +2902,95 @@ async function copySelectionScreenshot() {
     console.warn("Could not copy selected screenshot:", error);
     announce("לא ניתן להעתיק את הצילום ללוח בדפדפן הזה.");
   }
+}
+
+async function copySelectionText() {
+  try {
+    const text = await extractSelectedText();
+    if (!text) {
+      announce("לא נמצא טקסט ברור באיזור שנבחר.");
+      return;
+    }
+    await navigator.clipboard.writeText(text);
+    announce("הטקסט הועתק ללוח.");
+  } catch (error) {
+    console.warn("Could not copy selected text:", error);
+    announce("לא ניתן להעתיק את הטקסט ללוח בדפדפן הזה.");
+  }
+}
+
+async function extractSelectedText() {
+  await ensureSelectedPageTextReady();
+  const items = getSelectedTextItems().map((item) => ({
+    ...item,
+    cy: item.y + item.h / 2
+  }));
+  if (!items.length) return "";
+
+  const lineThreshold = Math.max(4, median(items.map((item) => item.h)) * 0.65);
+  const lines = [];
+  for (const item of items.sort((a, b) => a.cy - b.cy || a.x - b.x)) {
+    let line = lines.find((entry) => Math.abs(entry.cy - item.cy) <= lineThreshold);
+    if (!line) {
+      line = { cy: item.cy, items: [] };
+      lines.push(line);
+    }
+    line.items.push(item);
+    line.cy = (line.cy * (line.items.length - 1) + item.cy) / line.items.length;
+  }
+
+  return lines
+    .sort((a, b) => a.cy - b.cy)
+    .map((line) => joinTextLine(line.items))
+    .filter(Boolean)
+    .join("\n");
+}
+
+function getSelectedTextItems() {
+  const selection = state.screenshotSelection;
+  if (!selection.rect || !selection.pageNo) return [];
+  const record = state.renderedPages.get(selection.pageNo);
+  if (!record?.textItems?.length) return [];
+  return record.textItems
+    .filter((item) => rectsOverlap(selection.rect, item))
+    .sort((a, b) => a.y - b.y || a.x - b.x);
+}
+
+function joinTextLine(items) {
+  const sorted = [...items].sort((a, b) => a.x - b.x);
+  const rtlCount = sorted.filter((item) => item.dir === "rtl" || /[\u0590-\u05ff]/.test(item.text)).length;
+  const ordered = rtlCount > sorted.length / 2 ? sorted.reverse() : sorted;
+  const averageHeight = median(ordered.map((item) => item.h)) || 10;
+  let result = "";
+  let previous = null;
+  for (const item of ordered) {
+    if (previous) {
+      const gap = item.x - (previous.x + previous.w);
+      const rtlGap = previous.x - (item.x + item.w);
+      const visualGap = Math.max(gap, rtlGap);
+      if (visualGap > averageHeight * 0.18 && !/[\s־-]$/.test(result)) result += " ";
+    }
+    result += item.text;
+    previous = item;
+  }
+  return result.replace(/\s+/g, " ").trim();
+}
+
+function rectsOverlap(a, b) {
+  const left = Math.max(a.x, b.x);
+  const top = Math.max(a.y, b.y);
+  const right = Math.min(a.x + a.w, b.x + b.w);
+  const bottom = Math.min(a.y + a.h, b.y + b.h);
+  if (right <= left || bottom <= top) return false;
+  const overlapArea = (right - left) * (bottom - top);
+  const itemArea = Math.max(1, b.w * b.h);
+  return overlapArea / itemArea > 0.25;
+}
+
+function median(values) {
+  const sorted = values.filter((value) => Number.isFinite(value)).sort((a, b) => a - b);
+  if (!sorted.length) return 0;
+  return sorted[Math.floor(sorted.length / 2)];
 }
 
 async function renderSelectionCanvas(includeAnnotations = true) {
@@ -2857,6 +3150,120 @@ function saveMeta(renderTime = true) {
 
 function storageKey() {
   return `daily-pdf-reader:${state.fingerprint}`;
+}
+
+function rememberActiveSessionFile(fingerprint) {
+  try {
+    sessionStorage.setItem(SESSION_FILE_KEY, fingerprint);
+  } catch (error) {
+    console.warn("Could not save active file session:", error);
+  }
+}
+
+async function restoreActiveSessionFile() {
+  let fingerprint = "";
+  try {
+    fingerprint = sessionStorage.getItem(SESSION_FILE_KEY) || "";
+  } catch (error) {
+    console.warn("Could not read active file session:", error);
+  }
+  if (!fingerprint || state.file) return;
+
+  try {
+    const record = await readStoredFile(fingerprint);
+    if (!record || state.file) return;
+    const file = new File([record.bytes], record.name, {
+      type: record.type || "application/pdf",
+      lastModified: record.lastModified || Date.now()
+    });
+    if (fingerprintForFile(file) !== fingerprint || !isPdfFile(file)) {
+      forgetActiveSessionFile();
+      return;
+    }
+    await openFile(file, { remember: false });
+    announce("הקובץ האחרון שוחזר אחרי ריענון.");
+  } catch (error) {
+    console.warn("Could not restore active file:", error);
+    forgetActiveSessionFile();
+  }
+}
+
+function forgetActiveSessionFile() {
+  try {
+    sessionStorage.removeItem(SESSION_FILE_KEY);
+  } catch (error) {
+    console.warn("Could not clear active file session:", error);
+  }
+}
+
+async function rememberOpenFile(file, bytes, fingerprint) {
+  try {
+    await writeStoredFile({
+      fingerprint,
+      name: file.name,
+      type: file.type || "application/pdf",
+      size: file.size,
+      lastModified: file.lastModified,
+      bytes: bytes.slice(0),
+      updatedAt: Date.now()
+    });
+  } catch (error) {
+    console.warn("Could not store open file for refresh restore:", error);
+  }
+}
+
+function openFileDatabase() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(FILE_DB_NAME, 1);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(FILE_STORE_NAME)) {
+        db.createObjectStore(FILE_STORE_NAME, { keyPath: "fingerprint" });
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+async function writeStoredFile(record) {
+  const db = await openFileDatabase();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(FILE_STORE_NAME, "readwrite");
+    const request = transaction.objectStore(FILE_STORE_NAME).put(record);
+    request.onerror = () => reject(request.error);
+    transaction.oncomplete = () => {
+      db.close();
+      resolve();
+    };
+    transaction.onerror = () => {
+      db.close();
+      reject(transaction.error);
+    };
+    transaction.onabort = () => {
+      db.close();
+      reject(transaction.error);
+    };
+  });
+}
+
+async function readStoredFile(fingerprint) {
+  const db = await openFileDatabase();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(FILE_STORE_NAME, "readonly");
+    const request = transaction.objectStore(FILE_STORE_NAME).get(fingerprint);
+    request.onsuccess = () => resolve(request.result || null);
+    request.onerror = () => reject(request.error);
+    transaction.oncomplete = () => db.close();
+    transaction.onerror = () => {
+      db.close();
+      reject(transaction.error);
+    };
+    transaction.onabort = () => {
+      db.close();
+      reject(transaction.error);
+    };
+  });
 }
 
 function loadProfile() {

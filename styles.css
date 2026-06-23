@@ -382,6 +382,12 @@ summary.panel-title::-webkit-details-marker {
   white-space: nowrap;
 }
 
+.insert-action-separator {
+  height: 1px;
+  margin: 3px 4px;
+  background: var(--line);
+}
+
 .result-row {
   justify-content: space-between;
   padding-inline: 2px;
@@ -1004,9 +1010,26 @@ summary.panel-title::-webkit-details-marker {
 
 .screenshot-selection-box {
   position: absolute;
+  z-index: 2;
   border: 2px solid var(--accent);
   background: rgba(13, 148, 136, .14);
   box-shadow: 0 0 0 9999px rgba(15, 23, 42, .18);
+  pointer-events: none;
+}
+
+.screenshot-selection-box.text-selection-box {
+  border-color: var(--blue);
+  border-style: dashed;
+  background: transparent;
+  box-shadow: none;
+}
+
+.text-selection-highlight {
+  position: absolute;
+  z-index: 1;
+  border-radius: 3px;
+  background: rgba(37, 99, 235, .26);
+  box-shadow: inset 0 0 0 1px rgba(37, 99, 235, .18);
   pointer-events: none;
 }
 
