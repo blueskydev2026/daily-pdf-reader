@@ -223,6 +223,15 @@ function wireEvents() {
     stopScreenshotSelection();
     takeScreenshot();
   });
+  $("screenshotWindowBtn").addEventListener("click", () => {
+    closeScreenshotMenu();
+    stopScreenshotSelection();
+    saveReaderWindowScreenshot();
+  });
+  $("screenshotSelectAreaBtn").addEventListener("click", () => {
+    closeScreenshotMenu();
+    startScreenshotSelection();
+  });
   $("saveSelectionShot").addEventListener("click", () => saveSelectionScreenshot());
   $("copySelectionShot").addEventListener("click", () => copySelectionScreenshot());
   $("highlightSelection").addEventListener("click", () => highlightCurrentSelection());
@@ -3072,6 +3081,30 @@ async function takeScreenshot() {
   const target = document.querySelector(`[data-page="${state.currentPage}"]`) || ui.pages;
   const canvas = await window.html2canvas(target, { backgroundColor: "#ffffff", scale: 1 });
   downloadBlob(await canvasToBlob(canvas), `${baseName()}-page-${state.currentPage}.png`);
+}
+
+async function saveReaderWindowScreenshot() {
+  if (!state.pdf || !window.html2canvas) return;
+  try {
+    const rect = ui.reader.getBoundingClientRect();
+    const canvas = await window.html2canvas(document.body, {
+      backgroundColor: "#ffffff",
+      scale: 1,
+      x: rect.left + window.scrollX,
+      y: rect.top + window.scrollY,
+      width: rect.width,
+      height: rect.height,
+      ignoreElements: (element) => Boolean(
+        element.closest?.(".dropdown-menu")
+        || element.closest?.(".selection-action-menu")
+        || element.closest?.(".insert-action-menu")
+      )
+    });
+    downloadBlob(await canvasToBlob(canvas), `${baseName()}-window-page-${state.currentPage}.png`);
+  } catch (error) {
+    console.warn("Could not save reader window screenshot:", error);
+    announce("לא ניתן לשמור את חלון התצוגה כתמונה.");
+  }
 }
 
 async function exportPdf() {

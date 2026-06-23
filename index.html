@@ -185,44 +185,46 @@
     <main class="workspace">
       <header class="toolbar">
         <div class="tool-group">
-          <button id="toggleSidebar" title="הצג/הסתר סרגל צד">☰</button>
-          <button id="fitWidth">רוחב</button>
-          <button id="fitPage">דף מלא</button>
-          <button id="zoomOut">−</button>
+          <button id="toggleSidebar" title="הצג או הסתר את סרגל הצד" aria-label="הצג או הסתר סרגל צד">☰</button>
+          <button id="fitWidth" title="התאם את העמוד לרוחב החלון" aria-label="התאם לרוחב">רוחב</button>
+          <button id="fitPage" title="הצג את כל העמוד במסך" aria-label="התאם לדף מלא">דף מלא</button>
+          <button id="zoomOut" title="הקטן תצוגה" aria-label="הקטן תצוגה">−</button>
           <output id="zoomLabel">100%</output>
-          <button id="zoomIn">+</button>
-          <button id="fullscreenBtn">מסך מלא</button>
+          <button id="zoomIn" title="הגדל תצוגה" aria-label="הגדל תצוגה">+</button>
+          <button id="fullscreenBtn" title="פתח במסך מלא" aria-label="פתח במסך מלא">מסך מלא</button>
         </div>
 
         <div class="tool-group segmented" aria-label="מצב קריאה">
-          <button data-mode="continuous" class="active">רציף</button>
-          <button data-mode="single">דף</button>
-          <button data-mode="book-rtl">ספר RTL</button>
-          <button data-mode="book-ltr">ספר LTR</button>
+          <button data-mode="continuous" class="active" title="גלילה רציפה בין עמודים" aria-label="מצב קריאה רציף">רציף</button>
+          <button data-mode="single" title="הצג עמוד אחד בכל פעם" aria-label="מצב עמוד יחיד">דף</button>
+          <button data-mode="book-rtl" title="תצוגת ספר מימין לשמאל" aria-label="מצב ספר מימין לשמאל">ספר RTL</button>
+          <button data-mode="book-ltr" title="תצוגת ספר משמאל לימין" aria-label="מצב ספר משמאל לימין">ספר LTR</button>
         </div>
 
         <div class="tool-group segmented" aria-label="כלי עריכה">
-          <button data-tool="select">בחירה</button>
-          <button data-tool="pan" class="active">גרירה</button>
+          <button data-tool="select" title="בחר טקסט או סמן אזור" aria-label="כלי בחירה">בחירה</button>
+          <button data-tool="pan" class="active" title="גרור את המסמך לתנועה" aria-label="כלי גרירה">גרירה</button>
         </div>
 
         <div class="tool-group">
-          <button id="clearAnnotationsBtn">נקה הוספות</button>
+          <button id="clearAnnotationsBtn" title="מחק את כל ההוספות מהמסמך" aria-label="נקה הוספות">נקה הוספות</button>
           <div class="dropdown action-dropdown" id="screenshotDropdown">
-            <button id="screenshotBtn" aria-haspopup="true" aria-expanded="false">צילום</button>
+            <button id="screenshotBtn" aria-haspopup="true" aria-expanded="false" title="פתח אפשרויות לשמירת עמוד, חלון התצוגה או קטע מסומן כתמונה" aria-label="שמור כתמונה: בחר אם לשמור עמוד מלא, חלון תצוגה או קטע מסומן">שמור כתמונה</button>
             <div class="dropdown-menu" id="screenshotMenu" role="menu" hidden>
-              <button type="button" id="screenshotPageBtn" role="menuitem">צילום עמוד שלם</button>
+              <button type="button" id="screenshotPageBtn" role="menuitem" title="שמור מיד את העמוד הנוכחי כולו כתמונה">שמור עמוד מלא</button>
+              <button type="button" id="screenshotWindowBtn" role="menuitem" title="שמור רק את מה שנראה עכשיו בחלון הקריאה">שמור חלון</button>
+              <button type="button" id="screenshotSelectAreaBtn" role="menuitem" title="סמן קטע במסמך ואז שמור אותו כתמונה">סמן קטע</button>
             </div>
           </div>
           <div class="dropdown action-dropdown" id="printDropdown">
-            <button id="printBtn" aria-haspopup="true" aria-expanded="false">הדפסה</button>
+            <button id="printBtn" aria-haspopup="true" aria-expanded="false" title="פתח אפשרויות הדפסה" aria-label="אפשרויות הדפסה">הדפסה</button>
             <div class="dropdown-menu" id="printMenu" role="menu" hidden>
-              <button type="button" id="quickPrintBtn" role="menuitem">⚡ הדפס עמוד נוכחי</button>
-              <button type="button" id="printSelectAreaBtn" role="menuitem">סמן קטע להדפסה</button>
-              <button type="button" id="printOptionsBtn" role="menuitem">אפשרויות הדפסה…</button>
+              <button type="button" id="quickPrintBtn" role="menuitem" title="הדפס מיד את העמוד הנוכחי">⚡ הדפס עמוד נוכחי</button>
+              <button type="button" id="printSelectAreaBtn" role="menuitem" title="בחר אזור במסמך להדפסה">סמן קטע להדפסה</button>
+              <button type="button" id="printOptionsBtn" role="menuitem" title="פתח הגדרות הדפסה מלאות">אפשרויות הדפסה…</button>
             </div>
           </div>
-          <button id="downloadBtn">שמור PDF</button>
+          <button id="downloadBtn" title="שמור עותק PDF חדש שכולל את ההוספות, ההדגשות, שדות הטקסט והחתימות" aria-label="שמור PDF עם ההוספות">שמור PDF</button>
         </div>
       </header>
 
