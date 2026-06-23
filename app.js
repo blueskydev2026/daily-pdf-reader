@@ -228,6 +228,16 @@ function wireEvents() {
     stopScreenshotSelection();
     saveReaderWindowScreenshot();
   });
+  $("copyScreenshotPageBtn").addEventListener("click", () => {
+    closeScreenshotMenu();
+    stopScreenshotSelection();
+    copyCurrentPageScreenshot();
+  });
+  $("copyScreenshotWindowBtn").addEventListener("click", () => {
+    closeScreenshotMenu();
+    stopScreenshotSelection();
+    copyReaderWindowScreenshot();
+  });
   $("screenshotSelectAreaBtn").addEventListener("click", () => {
     closeScreenshotMenu();
     startScreenshotSelection();
@@ -2924,14 +2934,8 @@ async function copySelectionScreenshot() {
     return;
   }
   try {
-    if (!navigator.clipboard || !window.ClipboardItem) {
-      announce("הדפדפן לא מאפשר העתקת תמונה ללוח.");
-      return;
-    }
     const canvas = await renderSelectionCanvas();
-    const blob = await canvasToBlob(canvas);
-    await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
-    announce("הצילום הועתק ללוח.");
+    await copyCanvasToClipboard(canvas, "הצילום הועתק ללוח.");
   } catch (error) {
     console.warn("Could not copy selected screenshot:", error);
     announce("לא ניתן להעתיק את הצילום ללוח בדפדפן הזה.");
@@ -3078,33 +3082,73 @@ function waitForPageContent(record) {
 
 async function takeScreenshot() {
   if (!state.pdf || !window.html2canvas) return;
-  const target = document.querySelector(`[data-page="${state.currentPage}"]`) || ui.pages;
-  const canvas = await window.html2canvas(target, { backgroundColor: "#ffffff", scale: 1 });
+  const canvas = await renderCurrentPageScreenshotCanvas();
   downloadBlob(await canvasToBlob(canvas), `${baseName()}-page-${state.currentPage}.png`);
 }
 
 async function saveReaderWindowScreenshot() {
   if (!state.pdf || !window.html2canvas) return;
   try {
-    const rect = ui.reader.getBoundingClientRect();
-    const canvas = await window.html2canvas(document.body, {
-      backgroundColor: "#ffffff",
-      scale: 1,
-      x: rect.left + window.scrollX,
-      y: rect.top + window.scrollY,
-      width: rect.width,
-      height: rect.height,
-      ignoreElements: (element) => Boolean(
-        element.closest?.(".dropdown-menu")
-        || element.closest?.(".selection-action-menu")
-        || element.closest?.(".insert-action-menu")
-      )
-    });
+    const canvas = await renderReaderWindowScreenshotCanvas();
     downloadBlob(await canvasToBlob(canvas), `${baseName()}-window-page-${state.currentPage}.png`);
   } catch (error) {
     console.warn("Could not save reader window screenshot:", error);
     announce("לא ניתן לשמור את חלון התצוגה כתמונה.");
   }
+}
+
+async function copyCurrentPageScreenshot() {
+  if (!state.pdf || !window.html2canvas) return;
+  try {
+    const canvas = await renderCurrentPageScreenshotCanvas();
+    await copyCanvasToClipboard(canvas, "העמוד הועתק ללוח כתמונה.");
+  } catch (error) {
+    console.warn("Could not copy page screenshot:", error);
+    announce("לא ניתן להעתיק את העמוד ללוח בדפדפן הזה.");
+  }
+}
+
+async function copyReaderWindowScreenshot() {
+  if (!state.pdf || !window.html2canvas) return;
+  try {
+    const canvas = await renderReaderWindowScreenshotCanvas();
+    await copyCanvasToClipboard(canvas, "חלון התצוגה הועתק ללוח כתמונה.");
+  } catch (error) {
+    console.warn("Could not copy reader window screenshot:", error);
+    announce("לא ניתן להעתיק את חלון התצוגה ללוח בדפדפן הזה.");
+  }
+}
+
+function renderCurrentPageScreenshotCanvas() {
+  const target = document.querySelector(`[data-page="${state.currentPage}"]`) || ui.pages;
+  return window.html2canvas(target, { backgroundColor: "#ffffff", scale: 1 });
+}
+
+function renderReaderWindowScreenshotCanvas() {
+  const rect = ui.reader.getBoundingClientRect();
+  return window.html2canvas(document.body, {
+    backgroundColor: "#ffffff",
+    scale: 1,
+    x: rect.left + window.scrollX,
+    y: rect.top + window.scrollY,
+    width: rect.width,
+    height: rect.height,
+    ignoreElements: (element) => Boolean(
+      element.closest?.(".dropdown-menu")
+      || element.closest?.(".selection-action-menu")
+      || element.closest?.(".insert-action-menu")
+    )
+  });
+}
+
+async function copyCanvasToClipboard(canvas, successMessage) {
+  if (!navigator.clipboard || !window.ClipboardItem) {
+    announce("הדפדפן לא מאפשר העתקת תמונה ללוח.");
+    return;
+  }
+  const blob = await canvasToBlob(canvas);
+  await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
+  announce(successMessage);
 }
 
 async function exportPdf() {

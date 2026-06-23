@@ -351,6 +351,11 @@ summary.panel-title::-webkit-details-marker {
   inset-inline-end: 0;
 }
 
+.toolbar .dropdown-menu {
+  inset-inline-start: 0;
+  inset-inline-end: auto;
+}
+
 .selection-action-menu,
 .insert-action-menu {
   position: fixed;
