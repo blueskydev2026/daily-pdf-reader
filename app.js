@@ -1323,10 +1323,10 @@ function updateToolLayers() {
     layer.classList.toggle("active", state.tool === "highlight" || state.tool === "text" || state.tool === "signature");
   });
   document.querySelectorAll(".screenshot-layer").forEach((layer) => {
-    layer.classList.toggle("active", state.screenshotSelection.active);
+    layer.classList.toggle("active", state.screenshotSelection.active || state.tool === "select");
   });
   ui.reader.classList.toggle("can-pan", state.tool === "pan");
-  ui.reader.classList.toggle("screenshot-selecting", state.screenshotSelection.active);
+  ui.reader.classList.toggle("screenshot-selecting", state.screenshotSelection.active || state.tool === "select");
 }
 
 function renderVisibleAnnotations() {
@@ -2478,7 +2478,7 @@ function startScreenshotSelection(mode = "area") {
     return;
   }
   state.screenshotSelection.active = true;
-  state.screenshotSelection.mode = mode === "text" ? "text" : "area";
+  state.screenshotSelection.mode = normalizeSelectionMode(mode);
   state.screenshotSelection.dragging = false;
   clearScreenshotSelectionBox();
   clearTextSelectionHighlights();
@@ -2487,6 +2487,11 @@ function startScreenshotSelection(mode = "area") {
   announce(state.screenshotSelection.mode === "text"
     ? "גרור מסגרת סביב הטקסט שברצונך לבחור."
     : "גרור מסגרת סביב האיזור שברצונך לבחור.");
+}
+
+function normalizeSelectionMode(mode) {
+  if (mode === "text" || mode === "smart") return mode;
+  return "area";
 }
 
 function stopScreenshotSelection() {
@@ -2503,7 +2508,8 @@ function stopScreenshotSelection() {
 
 function wireScreenshotLayer(layer, pageNo) {
   layer.addEventListener("pointerdown", (event) => {
-    if (!state.screenshotSelection.active || event.button !== 0) return;
+    const toolbarSelection = state.tool === "select";
+    if ((!state.screenshotSelection.active && !toolbarSelection) || event.button !== 0) return;
     event.preventDefault();
     event.stopPropagation();
     layer.setPointerCapture(event.pointerId);
@@ -2511,15 +2517,21 @@ function wireScreenshotLayer(layer, pageNo) {
     clearTextSelectionHighlights();
     hideSelectionActionMenu();
 
+    const mode = state.screenshotSelection.active
+      ? normalizeSelectionMode(state.screenshotSelection.mode)
+      : "smart";
+
     const layerRect = layer.getBoundingClientRect();
     const startX = clamp(event.clientX - layerRect.left, 0, layerRect.width);
     const startY = clamp(event.clientY - layerRect.top, 0, layerRect.height);
     const box = document.createElement("div");
     box.className = "screenshot-selection-box";
-    box.classList.toggle("text-selection-box", state.screenshotSelection.mode === "text");
+    box.classList.toggle("text-selection-box", mode !== "area");
     layer.append(box);
 
     Object.assign(state.screenshotSelection, {
+      active: state.screenshotSelection.active,
+      mode,
       dragging: true,
       pointerId: event.pointerId,
       pageNo,
@@ -2551,9 +2563,10 @@ function wireScreenshotLayer(layer, pageNo) {
       hideSelectionActionMenu();
       return;
     }
-    if (state.screenshotSelection.mode === "text") {
-      finalizeTextSelection(layer).then((hasText) => {
-        if (hasText) showSelectionActionMenu(layer, rect);
+    const mode = state.screenshotSelection.mode;
+    if (mode === "text" || mode === "smart") {
+      finalizeTextSelection(layer, { fallbackToArea: mode === "smart" }).then((finalMode) => {
+        if (finalMode) showSelectionActionMenu(layer, rect);
       });
     } else {
       showSelectionActionMenu(layer, rect);
@@ -2580,7 +2593,7 @@ function drawScreenshotSelection(event, layer) {
     selection.box.style.width = `${w}px`;
     selection.box.style.height = `${h}px`;
   }
-  if (selection.mode === "text") {
+  if (selection.mode === "text" || selection.mode === "smart") {
     paintTextSelectionHighlights(layer);
   }
 }
@@ -2602,22 +2615,34 @@ function clearTextSelectionHighlights() {
   state.screenshotSelection.textHighlights = [];
 }
 
-async function finalizeTextSelection(layer) {
+async function finalizeTextSelection(layer, options = {}) {
+  const { fallbackToArea = false } = options;
   try {
     await ensureSelectedPageTextReady();
     const hasText = paintTextSelectionHighlights(layer);
-    removeSelectionBoxElement();
     if (!hasText) {
-      clearScreenshotSelectionBox();
       clearTextSelectionHighlights();
+      if (fallbackToArea) {
+        state.screenshotSelection.box?.classList.remove("text-selection-box");
+        state.screenshotSelection.mode = "area";
+        return "area";
+      }
+      clearScreenshotSelectionBox();
       announce("לא נמצא טקסט ברור באיזור שנבחר.");
-      return false;
+      return "";
     }
-    return true;
+    removeSelectionBoxElement();
+    state.screenshotSelection.mode = "text";
+    return "text";
   } catch (error) {
     console.warn("Could not finalize text selection:", error);
+    if (fallbackToArea) {
+      clearTextSelectionHighlights();
+      state.screenshotSelection.mode = "area";
+      return "area";
+    }
     announce("לא ניתן לסמן את הטקסט באיזור שנבחר.");
-    return false;
+    return "";
   }
 }
 
