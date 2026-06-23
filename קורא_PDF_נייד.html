@@ -2261,6 +2261,7 @@ function finishDrawing(event) {
     state.drawing.preview.remove();
     if (box.w > 0.01 && box.h > 0.005) {
       state.meta.highlights.push({ id: crypto.randomUUID(), page: state.drawing.pageNo, ...box });
+      setTransientInsertTool("pan");
     }
   } else if (state.tool === "signature") {
     const points = state.drawing.points.map(([x, y]) => [x / width, y / height]);
