@@ -2003,15 +2003,21 @@ async function pageNumberFromDestination(dest) {
 
 async function buildAutomaticOutline(activeFingerprint) {
   const candidates = [];
+  const documentFontSizes = [];
   const pageLimit = Math.min(state.pageCount, 250);
   for (let pageNo = 1; pageNo <= pageLimit; pageNo += 1) {
     if (activeFingerprint !== state.fingerprint) return [];
     const page = await state.pdf.getPage(pageNo);
     const content = await page.getTextContent();
-    const lines = extractHeadingLines(content.items || [], pageNo);
-    candidates.push(...lines);
+    const viewport = page.getViewport({ scale: 1 });
+    const lines = extractOutlineLines(content.items || [], pageNo, viewport);
+    candidates.push(...lines.filter(isPotentialHeadingLine));
+    documentFontSizes.push(...lines.map((line) => line.fontSize));
   }
-  return rankAutomaticHeadings(candidates).slice(0, 80).map((item, index) => ({
+  return rankAutomaticHeadings(candidates, {
+    bodyFontSize: median(documentFontSizes) || 10,
+    pageCount: pageLimit
+  }).slice(0, 80).map((item, index) => ({
     id: `auto-outline-${index}`,
     title: item.text,
     page: item.page,
@@ -2019,16 +2025,20 @@ async function buildAutomaticOutline(activeFingerprint) {
   }));
 }
 
-function extractHeadingLines(items, pageNo) {
+function extractOutlineLines(items, pageNo, viewport) {
   const textItems = items.map((item, index) => {
     const text = String(item.str || "").trim().replace(/\s+/g, " ");
     if (!text) return null;
     const fontSize = Math.max(1, Math.hypot(item.transform?.[2] || 0, item.transform?.[3] || 0) || Math.abs(item.transform?.[3] || 0));
+    const x = item.transform?.[4] || 0;
+    const y = item.transform?.[5] || 0;
     return {
       text,
-      x: item.transform?.[4] || 0,
-      y: item.transform?.[5] || 0,
+      x,
+      y,
+      width: Math.max(1, Math.abs(item.width || 0)),
       fontSize,
+      fontName: String(item.fontName || ""),
       index
     };
   }).filter(Boolean);
@@ -2047,42 +2057,171 @@ function extractHeadingLines(items, pageNo) {
     line.fontSize = Math.max(line.fontSize, item.fontSize);
   }
 
-  return lines.map((line) => {
-    const ordered = line.items.sort((a, b) => a.index - b.index);
-    const text = cleanOutlineTitle(ordered.map((item) => item.text).join(" "));
-    return { text, page: pageNo, fontSize: line.fontSize, normalSize, y: line.y };
-  }).filter(isLikelyHeading);
+  const pageHeight = Math.max(1, viewport?.height || 792);
+  const pageWidth = Math.max(1, viewport?.width || 612);
+  const orderedLines = lines
+    .map((line) => {
+      const ordered = line.items.sort((a, b) => a.index - b.index);
+      const text = cleanOutlineTitle(ordered.map((item) => item.text).join(" "));
+      const left = Math.min(...ordered.map((item) => item.x));
+      const right = Math.max(...ordered.map((item) => item.x + item.width));
+      const isBold = ordered.some((item) => /bold|black|heavy|demi/i.test(item.fontName));
+      return {
+        text,
+        page: pageNo,
+        fontSize: line.fontSize,
+        normalSize,
+        y: line.y,
+        topRatio: clamp(1 - (line.y / pageHeight), 0, 1),
+        leftRatio: clamp(left / pageWidth, 0, 1),
+        widthRatio: clamp((right - left) / pageWidth, 0, 1),
+        centered: Math.abs(((left + right) / 2) - (pageWidth / 2)) < pageWidth * 0.12,
+        isBold
+      };
+    })
+    .filter((line) => line.text)
+    .sort((a, b) => a.page - b.page || a.topRatio - b.topRatio);
+
+  for (let index = 0; index < orderedLines.length; index += 1) {
+    const previous = orderedLines[index - 1];
+    const next = orderedLines[index + 1];
+    orderedLines[index].gapBefore = previous ? Math.max(0, orderedLines[index].topRatio - previous.topRatio) : 0.08;
+    orderedLines[index].gapAfter = next ? Math.max(0, next.topRatio - orderedLines[index].topRatio) : 0.08;
+  }
+  return orderedLines;
 }
 
-function isLikelyHeading(line) {
-  if (!line.text || line.text.length < 3 || line.text.length > 90) return false;
-  if (/^[-ג€“ג€”ג€¢ֲ·.,;:]+$/.test(line.text)) return false;
-  if (/[.!?ד€‚]$/.test(line.text) && line.text.length > 35) return false;
-  const numbered = /^(\d+|[׳-׳×A-Z])([.)]|(\.\d+)+)\s+/.test(line.text);
-  const shortStrongLine = line.text.length <= 55 && line.fontSize >= line.normalSize * 1.16;
-  const largeLine = line.fontSize >= line.normalSize * 1.28;
-  return numbered || shortStrongLine || largeLine;
+function isPotentialHeadingLine(line) {
+  if (!line.text || line.text.length < 3 || line.text.length > 120) return false;
+  if (/^[-\s.,;:()[\]{}]+$/.test(line.text)) return false;
+  if (/^\d{1,4}$/.test(line.text)) return false;
+  if (/https?:\/\/|www\.|@/.test(line.text)) return false;
+  if (digitRatio(line.text) > 0.45 && !hasHeadingNumbering(line.text)) return false;
+  if (/[.!?]$/.test(line.text) && line.text.length > 45 && !hasHeadingNumbering(line.text)) return false;
+  const fontRatio = line.fontSize / Math.max(1, line.normalSize);
+  return hasHeadingNumbering(line.text)
+    || fontRatio >= 1.12
+    || line.isBold
+    || (line.centered && line.text.length <= 70 && fontRatio >= 1.04);
 }
 
-function rankAutomaticHeadings(candidates) {
+function rankAutomaticHeadings(candidates, context = {}) {
+  const bodyFontSize = context.bodyFontSize || median(candidates.map((item) => item.normalSize)) || 10;
+  const repeated = repeatedOutlineTexts(candidates, context.pageCount || state.pageCount || 1);
   const seen = new Set();
-  const sizes = candidates.map((item) => item.fontSize).sort((a, b) => b - a);
-  const largest = sizes[0] || 1;
-  return candidates
-    .sort((a, b) => a.page - b.page || b.y - a.y)
-    .filter((item) => {
-      const key = `${item.page}:${item.text}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      item.level = item.fontSize >= largest * 0.92 ? 0 : item.fontSize >= largest * 0.78 ? 1 : 2;
-      return true;
+  const scored = [];
+  for (const item of candidates.sort((a, b) => a.page - b.page || a.topRatio - b.topRatio)) {
+    const textKey = normalizeOutlineKey(item.text);
+    const exactKey = `${item.page}:${textKey}`;
+    if (seen.has(exactKey)) continue;
+    seen.add(exactKey);
+    if (repeated.has(textKey) && (item.topRatio < 0.16 || item.topRatio > 0.88)) continue;
+
+    const fontRatio = item.fontSize / Math.max(1, bodyFontSize);
+    const localRatio = item.fontSize / Math.max(1, item.normalSize);
+    const numbered = hasHeadingNumbering(item.text);
+    const semantic = hasHeadingKeyword(item.text);
+    const spacing = Math.max(item.gapBefore || 0, item.gapAfter || 0);
+    let score = 0;
+    if (numbered) score += 4;
+    if (semantic) score += 3;
+    if (item.isBold) score += 1.8;
+    if (item.centered) score += 1;
+    if (fontRatio >= 1.55) score += 4;
+    else if (fontRatio >= 1.35) score += 3;
+    else if (fontRatio >= 1.18) score += 2;
+    else if (fontRatio >= 1.08) score += 1;
+    if (localRatio >= 1.2) score += 1.5;
+    if (spacing >= 0.035) score += 1;
+    if (item.text.length <= 70) score += 0.8;
+    if (item.topRatio > 0.92) score -= 2;
+    if (item.topRatio < 0.06 && !numbered && !semantic) score -= 1.5;
+    if (item.widthRatio > 0.9 && item.text.length > 75) score -= 1.5;
+    if (/[.!?]$/.test(item.text)) score -= 1;
+
+    if (score < 3.2) continue;
+    scored.push({
+      ...item,
+      score,
+      level: automaticHeadingLevel(item, fontRatio, numbered)
     });
+  }
+
+  return removeNearbyDuplicateHeadings(scored)
+    .sort((a, b) => a.page - b.page || a.topRatio - b.topRatio);
+}
+
+function automaticHeadingLevel(item, fontRatio, numbered) {
+  const numberDepth = headingNumberDepth(item.text);
+  if (numbered && numberDepth > 1) return clamp(numberDepth - 1, 1, 3);
+  if (fontRatio >= 1.45 || item.centered) return 0;
+  if (fontRatio >= 1.22 || item.isBold) return 1;
+  return 2;
+}
+
+function repeatedOutlineTexts(candidates, pageCount) {
+  const pagesByText = new Map();
+  for (const item of candidates) {
+    const key = normalizeOutlineKey(item.text);
+    if (!key || item.text.length > 90) continue;
+    if (!pagesByText.has(key)) pagesByText.set(key, new Set());
+    pagesByText.get(key).add(item.page);
+  }
+  const repeated = new Set();
+  const threshold = Math.max(3, Math.ceil(pageCount * 0.12));
+  for (const [key, pages] of pagesByText) {
+    if (pages.size >= threshold) repeated.add(key);
+  }
+  return repeated;
+}
+
+function removeNearbyDuplicateHeadings(items) {
+  const result = [];
+  const lastByText = new Map();
+  for (const item of items.sort((a, b) => b.score - a.score)) {
+    const key = normalizeOutlineKey(item.text);
+    const previous = lastByText.get(key);
+    if (previous && Math.abs(previous.page - item.page) <= 1) continue;
+    lastByText.set(key, item);
+    result.push(item);
+  }
+  return result;
+}
+
+function hasHeadingNumbering(text) {
+  return /^(\d+(\.\d+)*|[A-Z]|[IVXLCDM]+)[.)]?\s+/.test(text)
+    || /^(chapter|section|part|appendix)\s+\w+/i.test(text)
+    || /^(פרק|חלק|שער|סעיף|נספח)\s+\S+/.test(text);
+}
+
+function headingNumberDepth(text) {
+  const match = text.match(/^(\d+(?:\.\d+)*)/);
+  return match ? match[1].split(".").length : 1;
+}
+
+function hasHeadingKeyword(text) {
+  return /^(chapter|section|part|appendix|introduction|summary|abstract|conclusion|references)\b/i.test(text)
+    || /^(פרק|חלק|שער|סעיף|נספח|מבוא|סיכום|תקציר|מקורות|תוכן עניינים)\b/.test(text);
+}
+
+function normalizeOutlineKey(text) {
+  return cleanOutlineTitle(text)
+    .toLowerCase()
+    .replace(/^\d+(\.\d+)*[.)]?\s+/, "")
+    .replace(/\s+\d+$/, "")
+    .replace(/[^\p{L}\p{N}\s]/gu, "")
+    .trim();
+}
+
+function digitRatio(text) {
+  const compact = String(text || "").replace(/\s/g, "");
+  if (!compact) return 0;
+  return (compact.match(/\d/g) || []).length / compact.length;
 }
 
 function cleanOutlineTitle(title) {
   return String(title || "").replace(/\s+/g, " ").trim();
 }
-
 function renderOutline() {
   if (!ui.outlineList) return;
   ui.outlineList.innerHTML = "";
