@@ -57,6 +57,7 @@ const state = {
     startY: 0
   },
   printMode: "document",
+  outline: { items: [], type: "empty", loading: false },
   profile: loadProfile(),
   installPrompt: null,
   spacePressed: false,
@@ -88,6 +89,7 @@ const ui = {
   pageInput: $("pageInput"),
   pageTotal: $("pageTotal"),
   pageSlider: $("pageSlider"),
+  outlineList: $("outlineList"),
   bookmarkList: $("bookmarkList"),
   searchInput: $("searchInput"),
   searchCase: $("searchCase"),
@@ -422,11 +424,14 @@ async function openFile(file, options = {}) {
   state.meta = loadMeta();
   state.currentPage = clamp(state.meta.readingPosition || 1, 1, state.pageCount);
   state.search = { term: "", hits: [], index: -1 };
+  state.outline = { items: [], type: "loading", loading: true };
   state.renderedPages.clear();
   ui.fileName.textContent = file.name;
   ui.emptyState.hidden = true;
+  renderOutline();
   rememberActiveSessionFile(state.fingerprint);
   if (remember) rememberOpenFile(file, state.fileBytes, state.fingerprint);
+  buildOutline();
   await fitTo("width");
   renderBookmarks();
 }
@@ -1932,6 +1937,183 @@ function startBookmarkEdit(item, bookmark) {
 
   item.append(input, save, cancel);
   input.focus();
+}
+
+async function buildOutline() {
+  if (!state.pdf) return;
+  const activeFingerprint = state.fingerprint;
+  try {
+    const pdfOutline = await state.pdf.getOutline();
+    if (activeFingerprint !== state.fingerprint) return;
+    const builtinItems = await flattenPdfOutline(pdfOutline || []);
+    if (builtinItems.length) {
+      state.outline = { items: builtinItems, type: "pdf", loading: false };
+      renderOutline();
+      return;
+    }
+
+    state.outline = { items: [], type: "auto-loading", loading: true };
+    renderOutline();
+    const autoItems = await buildAutomaticOutline(activeFingerprint);
+    if (activeFingerprint !== state.fingerprint) return;
+    state.outline = {
+      items: autoItems,
+      type: autoItems.length ? "auto" : "empty",
+      loading: false
+    };
+    renderOutline();
+  } catch (error) {
+    console.warn("Could not build outline:", error);
+    state.outline = { items: [], type: "empty", loading: false };
+    renderOutline();
+  }
+}
+
+async function flattenPdfOutline(items, level = 0, output = []) {
+  for (const item of items) {
+    const page = await pageNumberFromDestination(item.dest);
+    if (page) {
+      output.push({
+        id: `pdf-outline-${output.length}`,
+        title: cleanOutlineTitle(item.title),
+        page,
+        level: clamp(level, 0, 3)
+      });
+    }
+    if (Array.isArray(item.items) && item.items.length) {
+      await flattenPdfOutline(item.items, level + 1, output);
+    }
+  }
+  return output;
+}
+
+async function pageNumberFromDestination(dest) {
+  if (!dest) return null;
+  try {
+    const explicitDest = typeof dest === "string" ? await state.pdf.getDestination(dest) : dest;
+    const [ref] = explicitDest || [];
+    if (ref == null) return null;
+    if (typeof ref === "number") return clamp(ref + 1, 1, state.pageCount);
+    const index = await state.pdf.getPageIndex(ref);
+    return clamp(index + 1, 1, state.pageCount);
+  } catch {
+    return null;
+  }
+}
+
+async function buildAutomaticOutline(activeFingerprint) {
+  const candidates = [];
+  const pageLimit = Math.min(state.pageCount, 250);
+  for (let pageNo = 1; pageNo <= pageLimit; pageNo += 1) {
+    if (activeFingerprint !== state.fingerprint) return [];
+    const page = await state.pdf.getPage(pageNo);
+    const content = await page.getTextContent();
+    const lines = extractHeadingLines(content.items || [], pageNo);
+    candidates.push(...lines);
+  }
+  return rankAutomaticHeadings(candidates).slice(0, 80).map((item, index) => ({
+    id: `auto-outline-${index}`,
+    title: item.text,
+    page: item.page,
+    level: item.level
+  }));
+}
+
+function extractHeadingLines(items, pageNo) {
+  const textItems = items.map((item, index) => {
+    const text = String(item.str || "").trim().replace(/\s+/g, " ");
+    if (!text) return null;
+    const fontSize = Math.max(1, Math.hypot(item.transform?.[2] || 0, item.transform?.[3] || 0) || Math.abs(item.transform?.[3] || 0));
+    return {
+      text,
+      x: item.transform?.[4] || 0,
+      y: item.transform?.[5] || 0,
+      fontSize,
+      index
+    };
+  }).filter(Boolean);
+  if (textItems.length < 3) return [];
+
+  const normalSize = median(textItems.map((item) => item.fontSize));
+  const lineTolerance = Math.max(2.5, normalSize * 0.45);
+  const lines = [];
+  for (const item of textItems.sort((a, b) => b.y - a.y || a.x - b.x)) {
+    let line = lines.find((entry) => Math.abs(entry.y - item.y) <= lineTolerance);
+    if (!line) {
+      line = { y: item.y, items: [], fontSize: item.fontSize };
+      lines.push(line);
+    }
+    line.items.push(item);
+    line.fontSize = Math.max(line.fontSize, item.fontSize);
+  }
+
+  return lines.map((line) => {
+    const ordered = line.items.sort((a, b) => a.index - b.index);
+    const text = cleanOutlineTitle(ordered.map((item) => item.text).join(" "));
+    return { text, page: pageNo, fontSize: line.fontSize, normalSize, y: line.y };
+  }).filter(isLikelyHeading);
+}
+
+function isLikelyHeading(line) {
+  if (!line.text || line.text.length < 3 || line.text.length > 90) return false;
+  if (/^[-–—•·.,;:]+$/.test(line.text)) return false;
+  if (/[.!?。]$/.test(line.text) && line.text.length > 35) return false;
+  const numbered = /^(\d+|[א-תA-Z])([.)]|(\.\d+)+)\s+/.test(line.text);
+  const shortStrongLine = line.text.length <= 55 && line.fontSize >= line.normalSize * 1.16;
+  const largeLine = line.fontSize >= line.normalSize * 1.28;
+  return numbered || shortStrongLine || largeLine;
+}
+
+function rankAutomaticHeadings(candidates) {
+  const seen = new Set();
+  const sizes = candidates.map((item) => item.fontSize).sort((a, b) => b - a);
+  const largest = sizes[0] || 1;
+  return candidates
+    .sort((a, b) => a.page - b.page || b.y - a.y)
+    .filter((item) => {
+      const key = `${item.page}:${item.text}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      item.level = item.fontSize >= largest * 0.92 ? 0 : item.fontSize >= largest * 0.78 ? 1 : 2;
+      return true;
+    });
+}
+
+function cleanOutlineTitle(title) {
+  return String(title || "").replace(/\s+/g, " ").trim();
+}
+
+function renderOutline() {
+  if (!ui.outlineList) return;
+  ui.outlineList.innerHTML = "";
+  if (state.outline.loading) {
+    const loading = document.createElement("div");
+    loading.className = "outline-empty";
+    loading.textContent = state.outline.type === "auto-loading" ? "יוצר תוכן עניינים אוטומטי..." : "טוען תוכן עניינים...";
+    ui.outlineList.append(loading);
+    return;
+  }
+  if (!state.outline.items.length) {
+    const empty = document.createElement("div");
+    empty.className = "outline-empty";
+    empty.textContent = state.pdf ? "לא נמצא תוכן עניינים למסמך הזה." : "פתח PDF כדי להציג תוכן עניינים.";
+    ui.outlineList.append(empty);
+    return;
+  }
+  const source = document.createElement("div");
+  source.className = "outline-source";
+  source.textContent = state.outline.type === "pdf" ? "מתוך המסמך" : "זוהה אוטומטית";
+  ui.outlineList.append(source);
+  for (const item of state.outline.items) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "outline-item";
+    button.style.setProperty("--outline-level", item.level || 0);
+    button.title = `${item.title} · עמוד ${item.page}`;
+    button.innerHTML = `<span>${escapeHtml(item.title)}</span><small>${item.page}</small>`;
+    button.addEventListener("click", () => goToPage(item.page));
+    ui.outlineList.append(button);
+  }
 }
 
 function savePosition() {
