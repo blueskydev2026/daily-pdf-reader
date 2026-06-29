@@ -1954,11 +1954,13 @@ async function buildOutline() {
 
     state.outline = { items: [], type: "auto-loading", loading: true };
     renderOutline();
-    const autoItems = await buildAutomaticOutline(activeFingerprint);
+    const taggedItems = await buildTaggedHeadingOutline(activeFingerprint);
+    if (activeFingerprint !== state.fingerprint) return;
+    const generatedItems = taggedItems.length ? taggedItems : await buildAutomaticOutline(activeFingerprint);
     if (activeFingerprint !== state.fingerprint) return;
     state.outline = {
-      items: autoItems,
-      type: autoItems.length ? "auto" : "empty",
+      items: generatedItems,
+      type: taggedItems.length ? "tagged" : generatedItems.length ? "auto" : "empty",
       loading: false
     };
     renderOutline();
@@ -2001,207 +2003,422 @@ async function pageNumberFromDestination(dest) {
   }
 }
 
+async function buildTaggedHeadingOutline(activeFingerprint) {
+  const items = [];
+  const seen = new Set();
+  const pageLimit = Math.min(state.pageCount, 350);
+  for (let pageNo = 1; pageNo <= pageLimit; pageNo += 1) {
+    if (activeFingerprint !== state.fingerprint) return [];
+    const page = await state.pdf.getPage(pageNo);
+    if (typeof page.getStructTree !== "function") continue;
+    const [structTree, textContent] = await Promise.all([
+      page.getStructTree().catch(() => null),
+      page.getTextContent({ includeMarkedContent: true }).catch(() => ({ items: [] }))
+    ]);
+    const pageItems = taggedHeadingsFromStructTree(structTree, textContent?.items || [], pageNo);
+    for (const item of pageItems) {
+      const key = normalizeOutlineKey(item.title);
+      if (!key || seen.has(`${pageNo}:${key}`)) continue;
+      seen.add(`${pageNo}:${key}`);
+      items.push({
+        id: `tagged-outline-${items.length}`,
+        ...item
+      });
+    }
+  }
+  return removeAdjacentDuplicateHeadings(items).slice(0, 180);
+}
+
+function taggedHeadingsFromStructTree(structTree, textItems, pageNo) {
+  if (!structTree) return [];
+  const textById = textByMarkedContentId(textItems);
+  const headings = [];
+  const visit = (node) => {
+    if (!node || typeof node !== "object") return;
+    const level = taggedHeadingLevel(node.role);
+    if (level != null) {
+      const title = cleanOutlineTitle(structNodeText(node, textById));
+      if (isReasonableOutlineTitle(title)) {
+        headings.push({ title, page: pageNo, level });
+      }
+    }
+    for (const child of structChildren(node)) visit(child);
+  };
+  visit(structTree);
+  return headings;
+}
+
+function textByMarkedContentId(textItems) {
+  const byId = new Map();
+  const idStack = [];
+  for (const item of textItems || []) {
+    if (!item || typeof item !== "object") continue;
+    if (item.type === "beginMarkedContentProps" || item.type === "beginMarkedContent") {
+      idStack.push(item.id ?? item.markedContentId ?? item.mcid ?? null);
+      continue;
+    }
+    if (item.type === "endMarkedContent") {
+      idStack.pop();
+      continue;
+    }
+    const text = cleanOutlineTitle(item.str);
+    if (!text) continue;
+    const id = item.id ?? item.markedContentId ?? item.mcid ?? idStack[idStack.length - 1];
+    if (id == null) continue;
+    const key = String(id);
+    byId.set(key, cleanOutlineTitle(`${byId.get(key) || ""} ${text}`));
+  }
+  return byId;
+}
+
+function structNodeText(node, textById) {
+  const parts = [];
+  const visit = (value) => {
+    if (value == null) return;
+    if (typeof value === "string") {
+      parts.push(value);
+      return;
+    }
+    if (Array.isArray(value)) {
+      value.forEach(visit);
+      return;
+    }
+    if (typeof value !== "object") return;
+    const directText = value.str || value.text || value.actualText || value.alt || value.title;
+    if (directText) parts.push(directText);
+    const id = value.id ?? value.markedContentId ?? value.mcid;
+    if (id != null && textById.has(String(id))) parts.push(textById.get(String(id)));
+    structChildren(value).forEach(visit);
+  };
+  visit(node);
+  return cleanOutlineTitle(parts.join(" "));
+}
+
+function structChildren(node) {
+  if (!node || typeof node !== "object") return [];
+  if (Array.isArray(node.children)) return node.children;
+  if (Array.isArray(node.kids)) return node.kids;
+  if (Array.isArray(node.items)) return node.items;
+  return [];
+}
+
+function taggedHeadingLevel(role) {
+  const match = String(role || "").match(/(?:^|[.:#])H([1-3])$/i) || String(role || "").match(/^H([1-3])$/i);
+  return match ? Number(match[1]) - 1 : null;
+}
+
 async function buildAutomaticOutline(activeFingerprint) {
-  const candidates = [];
-  const documentFontSizes = [];
-  const pageLimit = Math.min(state.pageCount, 250);
+  const allLines = [];
+  const pageLimit = Math.min(state.pageCount, 350);
   for (let pageNo = 1; pageNo <= pageLimit; pageNo += 1) {
     if (activeFingerprint !== state.fingerprint) return [];
     const page = await state.pdf.getPage(pageNo);
     const content = await page.getTextContent();
     const viewport = page.getViewport({ scale: 1 });
-    const lines = extractOutlineLines(content.items || [], pageNo, viewport);
-    candidates.push(...lines.filter(isPotentialHeadingLine));
-    documentFontSizes.push(...lines.map((line) => line.fontSize));
+    allLines.push(...extractOutlineTextLines(content.items || [], pageNo, viewport));
   }
-  return rankAutomaticHeadings(candidates, {
-    bodyFontSize: median(documentFontSizes) || 10,
-    pageCount: pageLimit
-  }).slice(0, 80).map((item, index) => ({
-    id: `auto-outline-${index}`,
-    title: item.text,
-    page: item.page,
-    level: item.level
-  }));
+
+  const bodySize = detectBodyFontSize(allLines);
+  const repeatedText = repeatedOutlineTextKeys(allLines, pageLimit);
+  const headingStyles = detectHeadingStyles(allLines, { bodySize, repeatedText, pageLimit });
+  if (!headingStyles.keys.size) return [];
+
+  return collectStyledHeadings(allLines, { bodySize, repeatedText, headingStyles })
+    .slice(0, 180)
+    .map((item, index) => ({
+      id: `auto-outline-${index}`,
+      title: item.text,
+      page: item.page,
+      level: item.level
+    }));
 }
 
-function extractOutlineLines(items, pageNo, viewport) {
-  const textItems = items.map((item, index) => {
-    const text = String(item.str || "").trim().replace(/\s+/g, " ");
+function extractOutlineTextLines(items, pageNo, viewport) {
+  const glyphs = items.map((item, index) => {
+    const text = cleanOutlineTitle(item.str);
     if (!text) return null;
-    const fontSize = Math.max(1, Math.hypot(item.transform?.[2] || 0, item.transform?.[3] || 0) || Math.abs(item.transform?.[3] || 0));
-    const x = item.transform?.[4] || 0;
-    const y = item.transform?.[5] || 0;
+    const transform = item.transform || [];
+    const fontSize = Math.max(1, Math.hypot(transform[2] || 0, transform[3] || 0) || Math.abs(transform[3] || 0));
+    const x = Number(transform[4]) || 0;
+    const y = Number(transform[5]) || 0;
+    const width = Math.max(1, Math.abs(Number(item.width) || text.length * fontSize * 0.45));
     return {
       text,
+      index,
       x,
       y,
-      width: Math.max(1, Math.abs(item.width || 0)),
+      width,
       fontSize,
-      fontName: String(item.fontName || ""),
-      index
+      fontName: String(item.fontName || "")
     };
   }).filter(Boolean);
-  if (textItems.length < 3) return [];
+  if (!glyphs.length) return [];
 
-  const normalSize = median(textItems.map((item) => item.fontSize));
-  const lineTolerance = Math.max(2.5, normalSize * 0.45);
-  const lines = [];
-  for (const item of textItems.sort((a, b) => b.y - a.y || a.x - b.x)) {
-    let line = lines.find((entry) => Math.abs(entry.y - item.y) <= lineTolerance);
+  const medianSize = median(glyphs.map((item) => item.fontSize)) || 10;
+  const lineTolerance = Math.max(2.5, medianSize * 0.45);
+  const buckets = [];
+  for (const glyph of glyphs.sort((a, b) => b.y - a.y || a.x - b.x)) {
+    let line = buckets.find((entry) => Math.abs(entry.y - glyph.y) <= lineTolerance);
     if (!line) {
-      line = { y: item.y, items: [], fontSize: item.fontSize };
-      lines.push(line);
+      line = { y: glyph.y, glyphs: [] };
+      buckets.push(line);
     }
-    line.items.push(item);
-    line.fontSize = Math.max(line.fontSize, item.fontSize);
+    line.glyphs.push(glyph);
+    line.y = (line.y * (line.glyphs.length - 1) + glyph.y) / line.glyphs.length;
   }
 
-  const pageHeight = Math.max(1, viewport?.height || 792);
   const pageWidth = Math.max(1, viewport?.width || 612);
-  const orderedLines = lines
-    .map((line) => {
-      const ordered = line.items.sort((a, b) => a.index - b.index);
-      const text = cleanOutlineTitle(ordered.map((item) => item.text).join(" "));
-      const left = Math.min(...ordered.map((item) => item.x));
-      const right = Math.max(...ordered.map((item) => item.x + item.width));
-      const isBold = ordered.some((item) => /bold|black|heavy|demi/i.test(item.fontName));
-      return {
-        text,
-        page: pageNo,
-        fontSize: line.fontSize,
-        normalSize,
-        y: line.y,
-        topRatio: clamp(1 - (line.y / pageHeight), 0, 1),
-        leftRatio: clamp(left / pageWidth, 0, 1),
-        widthRatio: clamp((right - left) / pageWidth, 0, 1),
-        centered: Math.abs(((left + right) / 2) - (pageWidth / 2)) < pageWidth * 0.12,
-        isBold
-      };
-    })
-    .filter((line) => line.text)
+  const pageHeight = Math.max(1, viewport?.height || 792);
+  const lines = buckets.map((bucket) => outlineLineFromGlyphs(bucket.glyphs, bucket.y, pageNo, pageWidth, pageHeight))
+    .filter((line) => line && isReasonableOutlineLine(line))
     .sort((a, b) => a.page - b.page || a.topRatio - b.topRatio);
 
-  for (let index = 0; index < orderedLines.length; index += 1) {
-    const previous = orderedLines[index - 1];
-    const next = orderedLines[index + 1];
-    orderedLines[index].gapBefore = previous ? Math.max(0, orderedLines[index].topRatio - previous.topRatio) : 0.08;
-    orderedLines[index].gapAfter = next ? Math.max(0, next.topRatio - orderedLines[index].topRatio) : 0.08;
+  for (let index = 0; index < lines.length; index += 1) {
+    const previous = lines[index - 1];
+    const next = lines[index + 1];
+    lines[index].gapBefore = previous && previous.page === lines[index].page ? Math.max(0, lines[index].topRatio - previous.topRatio) : 0.08;
+    lines[index].gapAfter = next && next.page === lines[index].page ? Math.max(0, next.topRatio - lines[index].topRatio) : 0.08;
   }
-  return orderedLines;
+  return mergeWrappedHeadingLines(lines);
 }
 
-function isPotentialHeadingLine(line) {
-  if (!line.text || line.text.length < 3 || line.text.length > 120) return false;
-  if (/^[-\s.,;:()[\]{}]+$/.test(line.text)) return false;
-  if (/^\d{1,4}$/.test(line.text)) return false;
-  if (/https?:\/\/|www\.|@/.test(line.text)) return false;
-  if (digitRatio(line.text) > 0.45 && !hasHeadingNumbering(line.text)) return false;
-  if (/[.!?]$/.test(line.text) && line.text.length > 45 && !hasHeadingNumbering(line.text)) return false;
-  const fontRatio = line.fontSize / Math.max(1, line.normalSize);
-  return hasHeadingNumbering(line.text)
-    || fontRatio >= 1.12
-    || line.isBold
-    || (line.centered && line.text.length <= 70 && fontRatio >= 1.04);
+function outlineLineFromGlyphs(glyphs, y, page, pageWidth, pageHeight) {
+  const ordered = glyphs.sort((a, b) => a.index - b.index);
+  const text = cleanOutlineTitle(ordered.map((item) => item.text).join(" "));
+  if (!text) return null;
+  const left = Math.min(...ordered.map((item) => item.x));
+  const right = Math.max(...ordered.map((item) => item.x + item.width));
+  const sizes = ordered.map((item) => item.fontSize);
+  const fontSize = Math.max(...sizes);
+  const fontName = dominantValue(ordered.map((item) => normalizeFontName(item.fontName)));
+  const isBold = ordered.some((item) => /bold|black|heavy|demi|medium|semibold/i.test(item.fontName));
+  const isItalic = ordered.some((item) => /italic|oblique/i.test(item.fontName));
+  return {
+    text,
+    page,
+    y,
+    fontSize,
+    roundedSize: roundFontSize(fontSize),
+    fontName,
+    isBold,
+    isItalic,
+    styleKey: outlineStyleKey(fontSize, fontName, isBold, isItalic),
+    topRatio: clamp(1 - (y / pageHeight), 0, 1),
+    leftRatio: clamp(left / pageWidth, 0, 1),
+    widthRatio: clamp((right - left) / pageWidth, 0, 1),
+    centered: Math.abs(((left + right) / 2) - (pageWidth / 2)) < pageWidth * 0.12,
+    charCount: text.length
+  };
 }
 
-function rankAutomaticHeadings(candidates, context = {}) {
-  const bodyFontSize = context.bodyFontSize || median(candidates.map((item) => item.normalSize)) || 10;
-  const repeated = repeatedOutlineTexts(candidates, context.pageCount || state.pageCount || 1);
-  const seen = new Set();
-  const scored = [];
-  for (const item of candidates.sort((a, b) => a.page - b.page || a.topRatio - b.topRatio)) {
-    const textKey = normalizeOutlineKey(item.text);
-    const exactKey = `${item.page}:${textKey}`;
-    if (seen.has(exactKey)) continue;
-    seen.add(exactKey);
-    if (repeated.has(textKey) && (item.topRatio < 0.16 || item.topRatio > 0.88)) continue;
+function mergeWrappedHeadingLines(lines) {
+  const merged = [];
+  for (const line of lines) {
+    const previous = merged[merged.length - 1];
+    const canMerge = previous
+      && previous.page === line.page
+      && previous.styleKey === line.styleKey
+      && !endsLikeCompleteHeading(previous.text)
+      && line.topRatio - previous.topRatio < 0.045
+      && Math.abs(line.leftRatio - previous.leftRatio) < 0.08
+      && previous.text.length + line.text.length < 150;
+    if (canMerge) {
+      previous.text = cleanOutlineTitle(`${previous.text} ${line.text}`);
+      previous.widthRatio = Math.max(previous.widthRatio, line.widthRatio);
+      previous.gapAfter = line.gapAfter;
+      continue;
+    }
+    merged.push({ ...line });
+  }
+  return merged;
+}
 
-    const fontRatio = item.fontSize / Math.max(1, bodyFontSize);
-    const localRatio = item.fontSize / Math.max(1, item.normalSize);
-    const numbered = hasHeadingNumbering(item.text);
-    const semantic = hasHeadingKeyword(item.text);
-    const spacing = Math.max(item.gapBefore || 0, item.gapAfter || 0);
+function detectBodyFontSize(lines) {
+  const bySize = new Map();
+  for (const line of lines) {
+    if (!line.text || line.charCount < 8) continue;
+    const size = roundFontSize(line.fontSize);
+    bySize.set(size, (bySize.get(size) || 0) + line.charCount);
+  }
+  return [...bySize.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || median(lines.map((line) => line.fontSize)) || 10;
+}
+
+function detectHeadingStyles(lines, { bodySize, repeatedText, pageLimit }) {
+  const groups = new Map();
+  for (const line of lines) {
+    if (!isReasonableOutlineLine(line)) continue;
+    if (repeatedText.has(normalizeOutlineKey(line.text)) && isPageEdgeLine(line)) continue;
+    if (!groups.has(line.styleKey)) {
+      groups.set(line.styleKey, {
+        key: line.styleKey,
+        lines: [],
+        pages: new Set(),
+        chars: 0,
+        bold: 0,
+        centered: 0,
+        numbered: 0,
+        semantic: 0
+      });
+    }
+    const group = groups.get(line.styleKey);
+    group.lines.push(line);
+    group.pages.add(line.page);
+    group.chars += line.charCount;
+    if (line.isBold) group.bold += 1;
+    if (line.centered) group.centered += 1;
+    if (hasHeadingNumbering(line.text)) group.numbered += 1;
+    if (hasHeadingKeyword(line.text)) group.semantic += 1;
+  }
+
+  const bodyKey = [...groups.values()].sort((a, b) => b.chars - a.chars)[0]?.key;
+  const selected = [...groups.values()].map((group) => {
+    const count = Math.max(1, group.lines.length);
+    const avgSize = median(group.lines.map((line) => line.fontSize)) || bodySize;
+    const avgLength = group.chars / count;
+    const sizeRatio = avgSize / Math.max(1, bodySize);
+    const boldRatio = group.bold / count;
+    const centeredRatio = group.centered / count;
+    const numberedRatio = group.numbered / count;
+    const semanticRatio = group.semantic / count;
+    const pageCoverage = group.pages.size / Math.max(1, pageLimit);
+    const edgeRatio = group.lines.filter(isPageEdgeLine).length / count;
     let score = 0;
-    if (numbered) score += 4;
-    if (semantic) score += 3;
-    if (item.isBold) score += 1.8;
-    if (item.centered) score += 1;
-    if (fontRatio >= 1.55) score += 4;
-    else if (fontRatio >= 1.35) score += 3;
-    else if (fontRatio >= 1.18) score += 2;
-    else if (fontRatio >= 1.08) score += 1;
-    if (localRatio >= 1.2) score += 1.5;
-    if (spacing >= 0.035) score += 1;
-    if (item.text.length <= 70) score += 0.8;
-    if (item.topRatio > 0.92) score -= 2;
-    if (item.topRatio < 0.06 && !numbered && !semantic) score -= 1.5;
-    if (item.widthRatio > 0.9 && item.text.length > 75) score -= 1.5;
-    if (/[.!?]$/.test(item.text)) score -= 1;
+    if (sizeRatio >= 1.6) score += 6;
+    else if (sizeRatio >= 1.4) score += 5;
+    else if (sizeRatio >= 1.25) score += 4;
+    else if (sizeRatio >= 1.12) score += 2;
+    score += boldRatio * 2.5;
+    score += centeredRatio * 1.5;
+    score += numberedRatio * 4;
+    score += semanticRatio * 3;
+    if (avgLength <= 75) score += 1.2;
+    if (avgLength > 115) score -= 4;
+    if (group.key === bodyKey) score -= 7;
+    if (count < 2 && sizeRatio < 1.35 && numberedRatio < 1 && semanticRatio < 1) score -= 4;
+    if (sizeRatio < 1.12 && boldRatio < 0.9 && numberedRatio < 0.5 && semanticRatio < 0.5) score -= 5;
+    if (pageLimit >= 4 && pageCoverage > 0.55 && numberedRatio < 0.15) score -= 4;
+    if (pageLimit >= 4 && edgeRatio > 0.55 && pageCoverage > 0.12) score -= 5;
+    return { ...group, avgSize, score };
+  })
+    .filter((group) => group.score >= 5.5 && group.lines.length <= Math.max(120, pageLimit * 2))
+    .sort((a, b) => b.avgSize - a.avgSize || b.score - a.score)
+    .slice(0, 6);
 
-    if (score < 3.2) continue;
-    scored.push({
-      ...item,
-      score,
-      level: automaticHeadingLevel(item, fontRatio, numbered)
+  const levels = new Map();
+  const sizes = [...new Set(selected.map((group) => group.avgSize.toFixed(1)))]
+    .map(Number)
+    .sort((a, b) => b - a);
+  for (const group of selected) {
+    const level = sizes.findIndex((size) => Math.abs(size - group.avgSize) < 0.2);
+    levels.set(group.key, clamp(level, 0, 3));
+  }
+  return { keys: new Set(selected.map((group) => group.key)), levels };
+}
+
+function collectStyledHeadings(lines, { bodySize, repeatedText, headingStyles }) {
+  const result = [];
+  const seen = new Set();
+  for (const line of lines.sort((a, b) => a.page - b.page || a.topRatio - b.topRatio)) {
+    const key = normalizeOutlineKey(line.text);
+    if (!key || seen.has(`${line.page}:${key}`)) continue;
+    if (!isReasonableOutlineLine(line)) continue;
+    if (repeatedText.has(key) && isPageEdgeLine(line)) continue;
+    const styleHit = headingStyles.keys.has(line.styleKey);
+    if (!styleHit) continue;
+    if (line.widthRatio > 0.92 && line.charCount > 90) continue;
+    if (/[.!?]$/.test(line.text) && !hasHeadingNumbering(line.text)) continue;
+    seen.add(`${line.page}:${key}`);
+    result.push({
+      ...line,
+      level: styleHit ? headingStyles.levels.get(line.styleKey) || 0 : automaticHeadingLevel(line, line.fontSize / Math.max(1, bodySize))
     });
   }
-
-  return removeNearbyDuplicateHeadings(scored)
-    .sort((a, b) => a.page - b.page || a.topRatio - b.topRatio);
+  return normalizeOpeningHeadingLevels(removeAdjacentDuplicateHeadings(result));
 }
 
-function automaticHeadingLevel(item, fontRatio, numbered) {
-  const numberDepth = headingNumberDepth(item.text);
-  if (numbered && numberDepth > 1) return clamp(numberDepth - 1, 1, 3);
-  if (fontRatio >= 1.45 || item.centered) return 0;
-  if (fontRatio >= 1.22 || item.isBold) return 1;
-  return 2;
-}
-
-function repeatedOutlineTexts(candidates, pageCount) {
-  const pagesByText = new Map();
-  for (const item of candidates) {
-    const key = normalizeOutlineKey(item.text);
-    if (!key || item.text.length > 90) continue;
-    if (!pagesByText.has(key)) pagesByText.set(key, new Set());
-    pagesByText.get(key).add(item.page);
+function normalizeOpeningHeadingLevels(items) {
+  if (items.length < 2) return items;
+  const first = items[0];
+  if (first.page !== 1 || !first.isBold || first.charCount > 120) return items;
+  const firstStyle = first.styleKey;
+  first.level = 0;
+  for (let index = 1; index < items.length; index += 1) {
+    if (items[index].styleKey !== firstStyle && items[index].level === 0) {
+      items[index].level = 1;
+    }
   }
-  const repeated = new Set();
-  const threshold = Math.max(3, Math.ceil(pageCount * 0.12));
-  for (const [key, pages] of pagesByText) {
-    if (pages.size >= threshold) repeated.add(key);
-  }
-  return repeated;
+  return items;
 }
 
-function removeNearbyDuplicateHeadings(items) {
+function removeAdjacentDuplicateHeadings(items) {
   const result = [];
-  const lastByText = new Map();
-  for (const item of items.sort((a, b) => b.score - a.score)) {
-    const key = normalizeOutlineKey(item.text);
-    const previous = lastByText.get(key);
+  const lastByKey = new Map();
+  for (const item of items) {
+    const key = normalizeOutlineKey(item.text || item.title);
+    const previous = lastByKey.get(key);
     if (previous && Math.abs(previous.page - item.page) <= 1) continue;
-    lastByText.set(key, item);
+    lastByKey.set(key, item);
     result.push(item);
   }
   return result;
 }
 
+function isReasonableOutlineLine(line) {
+  return isReasonableOutlineTitle(line?.text);
+}
+
+function isReasonableOutlineTitle(title) {
+  const text = cleanOutlineTitle(title);
+  if (!text || text.length < 3 || text.length > 150) return false;
+  if (/^[-\s.,;:()[\]{}]+$/.test(text)) return false;
+  if (/^\d{1,4}$/.test(text)) return false;
+  if (/https?:\/\/|www\.|@/.test(text)) return false;
+  if (digitRatio(text) > 0.5 && !hasHeadingNumbering(text)) return false;
+  return true;
+}
+
+function isPageEdgeLine(line) {
+  return line.topRatio < 0.12 || line.topRatio > 0.9;
+}
+
+function endsLikeCompleteHeading(text) {
+  return /[.!?:]$/.test(String(text || "").trim());
+}
+
+function automaticHeadingLevel(line, fontRatio) {
+  const depth = headingNumberDepth(line.text);
+  if (depth > 1) return clamp(depth - 1, 1, 3);
+  if (fontRatio >= 1.45 || line.centered) return 0;
+  if (fontRatio >= 1.22 || line.isBold) return 1;
+  return 2;
+}
+
+function repeatedOutlineTextKeys(lines, pageCount) {
+  const pagesByText = new Map();
+  for (const line of lines) {
+    const key = normalizeOutlineKey(line.text);
+    if (!key || line.text.length > 100) continue;
+    if (!pagesByText.has(key)) pagesByText.set(key, new Set());
+    pagesByText.get(key).add(line.page);
+  }
+  const threshold = Math.max(3, Math.ceil(pageCount * 0.12));
+  return new Set([...pagesByText.entries()].filter(([, pages]) => pages.size >= threshold).map(([key]) => key));
+}
+
 function hasHeadingNumbering(text) {
   return /^(\d+(\.\d+)*|[A-Z]|[IVXLCDM]+)[.)]?\s+/.test(text)
-    || /^(chapter|section|part|appendix)\s+\w+/i.test(text)
-    || /^(ôø÷|çì÷|ùòø|ñòéó|ğñôç)\s+\S+/.test(text);
+    || /^(chapter|section|part|appendix)\s+\S+/i.test(text)
+    || /^(\u05E4\u05E8\u05E7|\u05D7\u05DC\u05E7|\u05E9\u05E2\u05E8|\u05E1\u05E2\u05D9\u05E3|\u05E0\u05E1\u05E4\u05D7)\s+\S+/.test(text);
 }
 
 function headingNumberDepth(text) {
-  const match = text.match(/^(\d+(?:\.\d+)*)/);
+  const match = String(text || "").match(/^(\d+(?:\.\d+)*)/);
   return match ? match[1].split(".").length : 1;
 }
 
 function hasHeadingKeyword(text) {
   return /^(chapter|section|part|appendix|introduction|summary|abstract|conclusion|references)\b/i.test(text)
-    || /^(ôø÷|çì÷|ùòø|ñòéó|ğñôç|îáåà|ñéëåí|ú÷öéø|î÷åøåú|úåëï òğééğéí)\b/.test(text);
+    || /^(\u05E4\u05E8\u05E7|\u05D7\u05DC\u05E7|\u05E9\u05E2\u05E8|\u05E1\u05E2\u05D9\u05E3|\u05E0\u05E1\u05E4\u05D7|\u05DE\u05D1\u05D5\u05D0|\u05E1\u05D9\u05DB\u05D5\u05DD|\u05EA\u05E7\u05E6\u05D9\u05E8|\u05DE\u05E7\u05D5\u05E8\u05D5\u05EA)\b/.test(text);
 }
 
 function normalizeOutlineKey(text) {
@@ -2219,16 +2436,46 @@ function digitRatio(text) {
   return (compact.match(/\d/g) || []).length / compact.length;
 }
 
+function dominantValue(values) {
+  const counts = new Map();
+  for (const value of values.filter(Boolean)) {
+    counts.set(value, (counts.get(value) || 0) + 1);
+  }
+  return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || "font";
+}
+
+function normalizeFontName(fontName) {
+  return String(fontName || "font")
+    .replace(/[A-Z]{6}\+/g, "")
+    .replace(/[-_ ]?(bold|black|heavy|demi|medium|semibold|regular|italic|oblique)$/i, "")
+    .toLowerCase();
+}
+
+function outlineStyleKey(fontSize, fontName, isBold, isItalic) {
+  return `${roundFontSize(fontSize)}|${fontName}|${isBold ? "b" : "r"}|${isItalic ? "i" : "n"}`;
+}
+
+function roundFontSize(size) {
+  return Math.round(Number(size || 0) * 2) / 2;
+}
+
 function cleanOutlineTitle(title) {
   return String(title || "").replace(/\s+/g, " ").trim();
 }
+
+function outlineSourceLabel(type) {
+  if (type === "pdf") return "\u05DE\u05EA\u05D5\u05DA \u05EA\u05D5\u05DB\u05DF \u05E2\u05E0\u05D9\u05D9\u05E0\u05D9\u05DD \u05DE\u05D5\u05D1\u05E0\u05D4";
+  if (type === "tagged") return "\u05DE\u05EA\u05D5\u05DA \u05EA\u05D2\u05D9\u05D5\u05EA H1-H3 \u05D1\u05DE\u05E1\u05DE\u05DA";
+  return "\u05D6\u05D5\u05D4\u05D4 \u05DC\u05E4\u05D9 \u05E1\u05D2\u05E0\u05D5\u05E0\u05D5\u05EA \u05DB\u05D5\u05EA\u05E8\u05EA";
+}
+
 function renderOutline() {
   if (!ui.outlineList) return;
   ui.outlineList.innerHTML = "";
   if (state.outline.loading) {
     const loading = document.createElement("div");
     loading.className = "outline-empty";
-    loading.textContent = state.outline.type === "auto-loading" ? "×™×•×¦×¨ ×ª×•×›×Ÿ ×¢× ×™×™× ×™× ××•×˜×•××˜×™..." : "×˜×•×¢×Ÿ ×ª×•×›×Ÿ ×¢× ×™×™× ×™×...";
+    loading.textContent = state.outline.type === "auto-loading" ? "\u05DE\u05D6\u05D4\u05D4 \u05DB\u05D5\u05EA\u05E8\u05D5\u05EA \u05DE\u05D5\u05D1\u05E0\u05D5\u05EA \u05D1\u05DE\u05E1\u05DE\u05DA..." : "\u05D8\u05D5\u05E2\u05DF \u05EA\u05D5\u05DB\u05DF \u05E2\u05E0\u05D9\u05D9\u05E0\u05D9\u05DD...";
     ui.outlineList.append(loading);
     return;
   }
@@ -2241,7 +2488,7 @@ function renderOutline() {
   }
   const source = document.createElement("div");
   source.className = "outline-source";
-  source.textContent = state.outline.type === "pdf" ? "××ª×•×š ×”××¡××š" : "×–×•×”×” ××•×˜×•××˜×™×ª";
+  source.textContent = outlineSourceLabel(state.outline.type);
   ui.outlineList.append(source);
   for (const item of state.outline.items) {
     const button = document.createElement("button");
