@@ -468,6 +468,10 @@ summary.panel-title::-webkit-details-marker {
   background: var(--accent-soft);
 }
 
+.tour-action {
+  margin-top: 4px;
+}
+
 .action-icon {
   display: inline-grid;
   place-items: center;
@@ -493,13 +497,15 @@ summary.panel-title::-webkit-details-marker {
 }
 
 .autofill-panel > .panel-title > span:first-child,
-.search-panel > .panel-title > span:first-child {
+.search-panel > .panel-title > span:first-child,
+.outline-panel > .panel-title > span:first-child {
   display: inline-flex;
   align-items: center;
   gap: 7px;
 }
 
-.search-panel > .panel-title {
+.search-panel > .panel-title,
+.outline-panel > .panel-title {
   justify-content: space-between;
 }
 
@@ -509,7 +515,8 @@ summary.panel-title::-webkit-details-marker {
 }
 
 .autofill-panel:not([open]) .panel-caret,
-.search-panel:not([open]) .panel-caret {
+.search-panel:not([open]) .panel-caret,
+.outline-panel:not([open]) .panel-caret {
   transform: rotate(90deg);
 }
 
@@ -812,6 +819,52 @@ summary.panel-title::-webkit-details-marker {
 
 .bookmark-item input {
   min-width: 0;
+}
+
+.outline-list {
+  display: grid;
+  gap: 6px;
+  max-height: 260px;
+  overflow: auto;
+  padding-inline-end: 2px;
+}
+
+.outline-source,
+.outline-empty {
+  padding: 6px 8px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.outline-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  min-height: 34px;
+  padding: 6px 8px;
+  padding-inline-start: calc(8px + (var(--outline-level, 0) * 14px));
+  border: 1px solid rgba(223, 229, 238, .9);
+  border-radius: 8px;
+  background: #fff;
+  text-align: right;
+}
+
+.outline-item:hover {
+  background: var(--surface-soft);
+  border-color: #cbd7e6;
+}
+
+.outline-item span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.outline-item small {
+  color: var(--muted);
+  font-size: 11px;
 }
 
 .icon-action {
@@ -1421,6 +1474,92 @@ dialog::backdrop {
   backdrop-filter: blur(3px);
 }
 
+.visual-tour {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  pointer-events: none;
+}
+
+.visual-tour[hidden] {
+  display: none;
+}
+
+.tour-spotlight {
+  position: fixed;
+  z-index: 81;
+  border: 3px solid #22c55e;
+  border-radius: 12px;
+  box-shadow: 0 0 0 9999px rgba(15, 23, 42, .58), 0 18px 44px rgba(15, 23, 42, .2);
+  pointer-events: none;
+  transition: left .2s ease, top .2s ease, width .2s ease, height .2s ease;
+}
+
+.tour-card {
+  position: fixed;
+  z-index: 82;
+  display: grid;
+  gap: 10px;
+  padding: 18px 18px 16px;
+  border: 1px solid rgba(203, 213, 225, .9);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 22px 58px rgba(15, 23, 42, .24);
+  pointer-events: auto;
+  transition: left .2s ease, top .2s ease;
+}
+
+.tour-card .dialog-close {
+  top: 8px;
+  left: 8px;
+}
+
+.tour-kicker {
+  width: max-content;
+  min-height: 24px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  color: var(--accent-strong);
+  background: var(--accent-soft);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.tour-card h2 {
+  margin: 0;
+  padding-inline-end: 32px;
+  font-size: 21px;
+}
+
+.tour-card p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.58;
+}
+
+.tour-card-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.tour-card-actions button {
+  min-width: 92px;
+}
+
+.primary-tour {
+  color: #fff;
+  border-color: var(--accent);
+  background: var(--accent);
+  font-weight: 700;
+}
+
+.primary-tour:hover {
+  border-color: var(--accent-strong);
+  background: var(--accent-strong);
+}
+
 .print-dialog {
   width: min(650px, calc(100vw - 24px));
   padding: 22px;
@@ -1631,6 +1770,7 @@ const state = {
   outline: { items: [], type: "empty", loading: false },
   profile: loadProfile(),
   installPrompt: null,
+  tourIndex: 0,
   spacePressed: false,
   suppressContextMenu: false,
   insertMenuPlacement: null
@@ -1669,6 +1809,14 @@ const ui = {
   zoomLabel: $("zoomLabel"),
   sidebar: $("sidebar"),
   helpDialog: $("helpDialog"),
+  tourOverlay: $("tourOverlay"),
+  tourSpotlight: $("tourSpotlight"),
+  tourCard: $("tourCard"),
+  tourProgress: $("tourProgress"),
+  tourTitle: $("tourTitle"),
+  tourText: $("tourText"),
+  tourPrev: $("tourPrev"),
+  tourNext: $("tourNext"),
   savedSignatureList: $("savedSignatureList"),
   statusMessage: $("statusMessage"),
   screenshotBtn: $("screenshotBtn"),
@@ -1679,6 +1827,46 @@ const ui = {
   printMenu: $("printMenu"),
   printDialog: $("printDialog")
 };
+
+const TOUR_STEPS = [
+  {
+    target: "#dropZone",
+    title: "פותחים PDF בלי סיפור",
+    text: "גוררים קובץ לכאן או לוחצים ובוחרים PDF. סימניות, הדגשות והמיקום האחרון נשמרים אצלך בדפדפן לפעם הבאה."
+  },
+  {
+    target: ".nav-panel",
+    title: "קפיצה מהירה בין עמודים",
+    text: "כאן עוברים לעמוד ראשון או אחרון, מקלידים מספר עמוד, או גוררים את הסליידר כשצריך להגיע מהר לאמצע המסמך."
+  },
+  {
+    target: ".toolbar .tool-group:first-child",
+    title: "שליטה בתצוגה",
+    text: "מלמעלה אפשר להגדיל ולהקטין, להתאים לרוחב, לראות דף מלא או לפתוח מסך מלא. זה החלק שמסדר את הקריאה בעיניים."
+  },
+  {
+    target: ".toolbar [aria-label='מצב קריאה']",
+    title: "קוראים כמו ספר אמיתי",
+    text: "אפשר לקרוא ברצף, דף בודד, או בתצוגת ספר של עמוד מול עמוד. יש מצב ספר מימין לשמאל למסמכים עבריים, וגם מצב ספר משמאל לימין למסמכים באנגלית."
+  },
+  {
+    target: ".search-panel",
+    open: ".search-panel",
+    title: "חיפוש, העתקה וסימון",
+    text: "פותחים את החיפוש, כותבים מילה, עוברים בין התוצאות, ואז אפשר להעתיק, להדגיש או לשמור קטע כתמונה."
+  },
+  {
+    target: ".autofill-panel",
+    open: ".autofill-panel",
+    title: "מילוי טפסים במהירות",
+    text: "שומרים פרטים כמו שם, כתובת, מייל וטלפון, ואז מכניסים אותם למסמך ברגע. קליק ימני במסמך מוסיף גם טקסט, הערה, חתימה והדגשה."
+  },
+  {
+    target: "#screenshotDropdown",
+    title: "שומרים ומשתפים רק מה שצריך",
+    text: "אפשר לשמור PDF עם ההוספות, לצלם עמוד או חלון, להעתיק ללוח ולהדפיס רק אזור מסומן. זה חוסך הרבה עבודה קטנה ומעצבנת."
+  }
+];
 
 const saveScrollMeta = debounce(() => saveMeta(false), 200);
 
@@ -1774,6 +1962,10 @@ function wireEvents() {
   $("restorePosition").addEventListener("click", restorePosition);
   $("installHelp").addEventListener("click", installOrShowHelp);
   $("closeHelp").addEventListener("click", () => ui.helpDialog.close());
+  $("tourGuide").addEventListener("click", openTourGuide);
+  $("closeTour").addEventListener("click", closeTourGuide);
+  ui.tourPrev.addEventListener("click", () => moveTour(-1));
+  ui.tourNext.addEventListener("click", () => moveTour(1));
 
   $("searchBtn").addEventListener("click", search);
   ui.searchInput.addEventListener("keydown", (event) => {
@@ -1883,6 +2075,10 @@ function wireEvents() {
       announce("חלון ההתקנה נסגר.");
       return;
     }
+    if (event.key === "Escape" && !ui.tourOverlay.hidden) {
+      closeTourGuide();
+      return;
+    }
     if (event.key === "Escape" && state.screenshotSelection.active) {
       stopScreenshotSelection();
       announce("בחירת הקטע בוטלה.");
@@ -1906,7 +2102,10 @@ function wireEvents() {
     if (!event.target.closest("#insertActionMenu")) hideInsertActionMenu();
     if (!event.target.closest(".field-box")) closeFieldMenus();
   });
-  window.addEventListener("resize", debounce(() => fitTo(state.fit), 150));
+  window.addEventListener("resize", debounce(() => {
+    fitTo(state.fit);
+    if (!ui.tourOverlay.hidden) positionTourStep();
+  }, 150));
 }
 
 function registerPwa() {
@@ -1957,6 +2156,86 @@ async function installOrShowHelp() {
   } else {
     announce("המשתמש ביטל את ההתקנה. ניתן לנסות שוב דרך הכפתור.");
   }
+}
+
+function openTourGuide() {
+  if (ui.helpDialog.open) ui.helpDialog.close();
+  if (ui.printDialog.open) closePrintDialog();
+  closeScreenshotMenu();
+  closePrintMenu();
+  hideSelectionActionMenu();
+  hideInsertActionMenu();
+  closeFieldMenus();
+  stopScreenshotSelection();
+  if (ui.sidebar.classList.contains("collapsed")) {
+    ui.sidebar.classList.remove("collapsed");
+    document.querySelector(".app-shell").classList.remove("sidebar-closed");
+  }
+  state.tourIndex = 0;
+  ui.tourOverlay.hidden = false;
+  document.body.classList.add("tour-active");
+  showTourStep();
+  announce("נפתח סיור ויזואלי קצר בתוכנה.");
+}
+
+function closeTourGuide() {
+  ui.tourOverlay.hidden = true;
+  document.body.classList.remove("tour-active");
+  ui.tourSpotlight.removeAttribute("style");
+  ui.tourCard.removeAttribute("style");
+  announce("הסיור הוויזואלי נסגר.");
+}
+
+function moveTour(direction) {
+  const nextIndex = state.tourIndex + direction;
+  if (nextIndex >= TOUR_STEPS.length) {
+    closeTourGuide();
+    return;
+  }
+  state.tourIndex = clamp(nextIndex, 0, TOUR_STEPS.length - 1);
+  showTourStep();
+}
+
+function showTourStep() {
+  const step = TOUR_STEPS[state.tourIndex];
+  const panel = step.open ? document.querySelector(step.open) : null;
+  if (panel?.tagName === "DETAILS") panel.open = true;
+  const target = document.querySelector(step.target) || ui.reader;
+  target.scrollIntoView?.({ block: "center", inline: "nearest", behavior: "smooth" });
+  ui.tourProgress.textContent = `${state.tourIndex + 1}/${TOUR_STEPS.length}`;
+  ui.tourTitle.textContent = step.title;
+  ui.tourText.textContent = step.text;
+  ui.tourPrev.disabled = state.tourIndex === 0;
+  ui.tourNext.textContent = state.tourIndex === TOUR_STEPS.length - 1 ? "סיום" : "הבא";
+  window.setTimeout(positionTourStep, 180);
+}
+
+function positionTourStep() {
+  if (ui.tourOverlay.hidden) return;
+  const step = TOUR_STEPS[state.tourIndex];
+  const target = document.querySelector(step.target) || ui.reader;
+  const rect = target.getBoundingClientRect();
+  const pad = 8;
+  const left = clamp(rect.left - pad, 10, window.innerWidth - 40);
+  const top = clamp(rect.top - pad, 10, window.innerHeight - 40);
+  const width = clamp(rect.width + pad * 2, 80, window.innerWidth - left - 10);
+  const height = clamp(rect.height + pad * 2, 48, window.innerHeight - top - 10);
+  ui.tourSpotlight.style.left = `${left}px`;
+  ui.tourSpotlight.style.top = `${top}px`;
+  ui.tourSpotlight.style.width = `${width}px`;
+  ui.tourSpotlight.style.height = `${height}px`;
+
+  const cardWidth = Math.min(360, window.innerWidth - 24);
+  const cardHeight = ui.tourCard.offsetHeight || 220;
+  const hasRoomLeft = rect.left > cardWidth + 26;
+  const hasRoomRight = window.innerWidth - rect.right > cardWidth + 26;
+  let cardLeft = hasRoomLeft ? rect.left - cardWidth - 18 : rect.right + 18;
+  if (!hasRoomLeft && !hasRoomRight) cardLeft = (window.innerWidth - cardWidth) / 2;
+  cardLeft = clamp(cardLeft, 12, window.innerWidth - cardWidth - 12);
+  const cardTop = clamp(rect.top, 12, window.innerHeight - cardHeight - 12);
+  ui.tourCard.style.width = `${cardWidth}px`;
+  ui.tourCard.style.left = `${cardLeft}px`;
+  ui.tourCard.style.top = `${cardTop}px`;
 }
 
 function initFileHandling() {
@@ -2381,6 +2660,7 @@ function addTextFieldWithValue(pageNo, x, y, text, options = {}) {
     w: options.w || 0.09,
     h: options.h || 0.032,
     fontSize: options.fontSize || 15,
+    scale: record.viewport.scale || state.scale || 1,
     type: options.type || "text",
     text
   };
@@ -3172,6 +3452,7 @@ function autosizeTextField(field, content, item, record, persist = true) {
 
   item.w = widthPx / record.viewport.width;
   item.h = heightPx / record.viewport.height;
+  item.scale = record.viewport.scale || state.scale || item.scale || 1;
   setNormRect(field, item, record.viewport.width, record.viewport.height);
   if (persist) saveMeta();
 }
@@ -3185,6 +3466,11 @@ function changeFieldFontSize(item, field, content, record, delta) {
 
 function getFieldFontSize(item) {
   return Number.isFinite(Number(item.fontSize)) ? Number(item.fontSize) : 15;
+}
+
+function getFieldPdfFontSize(item) {
+  const scale = Number(item.scale);
+  return getFieldFontSize(item) / (Number.isFinite(scale) && scale > 0 ? scale : (state.scale || 1));
 }
 
 function getSignatureStrokeWidth(item, pageWidth) {
@@ -4530,19 +4816,93 @@ async function ensurePrintablePage(pageNo) {
 }
 
 async function renderPrintablePage(pageNo, includeAnnotations = false) {
-  const record = await ensurePrintablePage(pageNo);
-  return window.html2canvas(record.shell, {
-    backgroundColor: "#ffffff",
-    scale: 1.45,
-    logging: false,
-    ignoreElements: (element) => Boolean(
-      element.closest?.(".screenshot-layer")
-      || element.closest?.(".annotation-controls")
-      || element.closest?.(".field-menu-button")
-      || element.closest?.(".field-menu")
-      || (!includeAnnotations && (element.closest?.(".annotation-layer") || element.closest?.(".object-layer")))
-    )
+  const page = await state.pdf.getPage(pageNo);
+  const viewport = page.getViewport({ scale: 2 });
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.ceil(viewport.width);
+  canvas.height = Math.ceil(viewport.height);
+  const context = canvas.getContext("2d");
+  context.fillStyle = "#ffffff";
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  await page.render({ canvasContext: context, viewport }).promise;
+  if (includeAnnotations) drawAnnotationsOnCanvas(context, pageNo, viewport);
+  return canvas;
+}
+
+function drawAnnotationsOnCanvas(context, pageNo, viewport) {
+  const width = viewport.width;
+  const height = viewport.height;
+
+  state.meta.highlights.filter((item) => item.page === pageNo).forEach((item) => {
+    context.save();
+    context.globalAlpha = 0.34;
+    context.fillStyle = "#ffd60a";
+    context.fillRect(item.x * width, item.y * height, item.w * width, item.h * height);
+    context.restore();
   });
+
+  state.meta.fields.filter((item) => item.page === pageNo && (item.text || item.type === "note")).forEach((item) => {
+    const x = item.x * width;
+    const y = item.y * height;
+    const w = item.w * width;
+    const h = item.h * height;
+    if (item.type === "note") {
+      context.save();
+      context.globalAlpha = 0.96;
+      context.fillStyle = "#fffbeb";
+      context.strokeStyle = "#d6a906";
+      context.lineWidth = Math.max(1, viewport.scale * 0.4);
+      context.fillRect(x, y, w, h);
+      context.strokeRect(x, y, w, h);
+      context.restore();
+    }
+    drawFieldTextOnCanvas(context, item, x, y, w, h, viewport);
+  });
+
+  state.meta.signatures.filter((item) => item.page === pageNo).forEach((item) => {
+    context.save();
+    context.strokeStyle = "#111827";
+    context.lineCap = "round";
+    context.lineJoin = "round";
+    context.lineWidth = getSignatureStrokeWidth(item, width);
+    getSignatureStrokes(item).forEach((stroke) => {
+      if (stroke.length < 2) return;
+      context.beginPath();
+      context.moveTo(stroke[0][0] * width, stroke[0][1] * height);
+      for (let index = 1; index < stroke.length; index += 1) {
+        context.lineTo(stroke[index][0] * width, stroke[index][1] * height);
+      }
+      context.stroke();
+    });
+    context.restore();
+  });
+}
+
+function drawFieldTextOnCanvas(context, item, x, y, width, height, viewport) {
+  const text = item.text || "";
+  if (!text) return;
+  const fontSize = getFieldPdfFontSize(item) * viewport.scale;
+  const paddingX = 4 * viewport.scale;
+  const paddingY = 2 * viewport.scale;
+  context.save();
+  context.beginPath();
+  context.rect(x, y, width, height);
+  context.clip();
+  context.fillStyle = "#111827";
+  context.font = `${fontSize}px Arial, sans-serif`;
+  context.textBaseline = "top";
+  context.direction = detectTextDirection(text);
+  context.textAlign = context.direction === "rtl" ? "right" : "left";
+  const textX = context.direction === "rtl" ? x + width - paddingX : x + paddingX;
+  const textY = y + paddingY;
+  String(text).split(/\r?\n/).forEach((line, index) => {
+    context.fillText(line, textX, textY + index * fontSize * 1.25, Math.max(1, width - paddingX * 2));
+  });
+  context.restore();
+}
+
+function detectTextDirection(text) {
+  return /[\u0590-\u08ff]/.test(String(text)) ? "rtl" : "ltr";
 }
 
 async function getStickerSourceCanvas(source, includeAnnotations = false) {
@@ -5296,28 +5656,30 @@ async function exportPdf() {
   const pdfDoc = await PDFDocument.load(state.fileBytes.slice(0));
   const pages = pdfDoc.getPages();
 
-  state.meta.highlights.forEach((item) => {
+  for (const item of state.meta.highlights) {
     const page = pages[item.page - 1];
-    const { width, height } = page.getSize();
+    if (!page) continue;
+    const rect = await pdfRectFromNormalized(item.page, item);
     page.drawRectangle({
-      x: item.x * width,
-      y: height - (item.y + item.h) * height,
-      width: item.w * width,
-      height: item.h * height,
+      x: rect.x,
+      y: rect.y,
+      width: rect.width,
+      height: rect.height,
       color: rgb(1, .86, .04),
       opacity: .34
     });
-  });
+  }
 
   for (const item of state.meta.fields) {
     const page = pages[item.page - 1];
-    const { width, height } = page.getSize();
+    if (!page) continue;
+    const rect = await pdfRectFromNormalized(item.page, item);
     if (item.type === "note") {
       page.drawRectangle({
-        x: item.x * width,
-        y: height - (item.y + item.h) * height,
-        width: item.w * width,
-        height: item.h * height,
+        x: rect.x,
+        y: rect.y,
+        width: rect.width,
+        height: rect.height,
         color: rgb(1, .98, .92),
         borderColor: rgb(.92, .7, .03),
         borderWidth: .8,
@@ -5326,38 +5688,66 @@ async function exportPdf() {
     }
     const imageBytes = await textToPng(
       item.text || "",
-      Math.max(80, item.w * width * 2),
-      Math.max(36, item.h * height * 2),
-      getFieldFontSize(item) * 2
+      Math.max(80, rect.width * 2),
+      Math.max(36, rect.height * 2),
+      getFieldPdfFontSize(item) * 2
     );
     const image = await pdfDoc.embedPng(imageBytes);
     page.drawImage(image, {
-      x: item.x * width,
-      y: height - (item.y + item.h) * height,
-      width: item.w * width,
-      height: item.h * height
+      x: rect.x,
+      y: rect.y,
+      width: rect.width,
+      height: rect.height
     });
   }
 
-  state.meta.signatures.forEach((item) => {
+  for (const item of state.meta.signatures) {
     const page = pages[item.page - 1];
-    const { width, height } = page.getSize();
+    if (!page) continue;
+    const viewport = await getPdfViewport(item.page);
     getSignatureStrokes(item).forEach((stroke) => {
       for (let i = 1; i < stroke.length; i += 1) {
         const [x1, y1] = stroke[i - 1];
         const [x2, y2] = stroke[i];
+        const start = viewport.convertToPdfPoint(x1 * viewport.width, y1 * viewport.height);
+        const end = viewport.convertToPdfPoint(x2 * viewport.width, y2 * viewport.height);
         page.drawLine({
-          start: { x: x1 * width, y: height - y1 * height },
-          end: { x: x2 * width, y: height - y2 * height },
-          thickness: clamp((Number(item.strokeWidth) || 0.0025) * width, 0.9, 1.8),
+          start: { x: start[0], y: start[1] },
+          end: { x: end[0], y: end[1] },
+          thickness: clamp((Number(item.strokeWidth) || 0.0025) * viewport.width, 0.9, 1.8),
           color: rgb(.06, .09, .16)
         });
       }
     });
-  });
+  }
 
   const bytes = await pdfDoc.save();
   downloadBlob(new Blob([bytes], { type: "application/pdf" }), `${baseName()}-signed.pdf`);
+}
+
+async function getPdfViewport(pageNo) {
+  const page = await state.pdf.getPage(pageNo);
+  return page.getViewport({ scale: 1 });
+}
+
+async function pdfRectFromNormalized(pageNo, item) {
+  const viewport = await getPdfViewport(pageNo);
+  const points = [
+    viewport.convertToPdfPoint(item.x * viewport.width, item.y * viewport.height),
+    viewport.convertToPdfPoint((item.x + item.w) * viewport.width, item.y * viewport.height),
+    viewport.convertToPdfPoint((item.x + item.w) * viewport.width, (item.y + item.h) * viewport.height),
+    viewport.convertToPdfPoint(item.x * viewport.width, (item.y + item.h) * viewport.height)
+  ];
+  const xs = points.map(([x]) => x);
+  const ys = points.map(([, y]) => y);
+  const x = Math.min(...xs);
+  const y = Math.min(...ys);
+  return {
+    x,
+    y,
+    width: Math.max(1, Math.max(...xs) - x),
+    height: Math.max(1, Math.max(...ys) - y)
+  };
 }
 
 function loadMeta() {
@@ -5602,17 +5992,19 @@ async function textToPng(text, width, height, fontSize = 30) {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.fillStyle = "#111827";
   ctx.font = `${Math.max(10, fontSize)}px Segoe UI, Arial, sans-serif`;
-  ctx.textAlign = "right";
-  ctx.textBaseline = "middle";
-  ctx.direction = "rtl";
-  wrapCanvasText(ctx, text, canvas.width - 14, canvas.height / 2, canvas.width - 18, Math.max(14, fontSize * 1.25));
+  ctx.direction = detectTextDirection(text);
+  ctx.textAlign = ctx.direction === "rtl" ? "right" : "left";
+  ctx.textBaseline = "top";
+  const padding = 8;
+  const x = ctx.direction === "rtl" ? canvas.width - padding : padding;
+  wrapCanvasText(ctx, text, x, padding / 2, canvas.width - padding * 2, Math.max(14, fontSize * 1.25), "top");
   const blob = canvas.convertToBlob
     ? await canvas.convertToBlob({ type: "image/png" })
     : await canvasToBlob(canvas);
   return new Uint8Array(await blob.arrayBuffer());
 }
 
-function wrapCanvasText(ctx, text, x, y, maxWidth, lineHeight) {
+function wrapCanvasText(ctx, text, x, y, maxWidth, lineHeight, verticalAlign = "middle") {
   const words = String(text).split(/\s+/);
   const lines = [];
   let line = "";
@@ -5626,7 +6018,7 @@ function wrapCanvasText(ctx, text, x, y, maxWidth, lineHeight) {
     }
   }
   if (line) lines.push(line);
-  const startY = y - ((lines.length - 1) * lineHeight) / 2;
+  const startY = verticalAlign === "top" ? y : y - ((lines.length - 1) * lineHeight) / 2;
   lines.forEach((entry, index) => ctx.fillText(entry, x, startY + index * lineHeight));
 }
 
@@ -5649,6 +6041,7 @@ function debounce(fn, wait) {
 function isTypingTarget(target) {
   return Boolean(target?.closest?.("input, textarea, [contenteditable='true'], button"));
 }
+
   </script>
 </head>
 <body>
@@ -5817,6 +6210,10 @@ function isTypingTarget(target) {
           <span class="action-icon"><svg><use href="#icon-monitor-down"></use></svg></span>
           <span>ברירת מחדל והתקנה</span>
         </button>
+        <button class="side-action tour-action" id="tourGuide" aria-haspopup="dialog" aria-controls="tourOverlay">
+          <span class="action-icon"><svg><use href="#icon-sparkles"></use></svg></span>
+          <span>סיור ויזואלי בתוכנה</span>
+        </button>
       </section>
     </aside>
 
@@ -5973,6 +6370,19 @@ function isTypingTarget(target) {
     <p>אם הדפדפן תומך ב-File Handling, ניתן לפתוח קובץ PDF ישירות מהמערכת אחרי התקנת האפליקציה.</p>
     <p>לאחר פתיחה ראשונה, קבצי האפליקציה נשמרים במטמון מקומי. ספריות חיצוניות נשמרות לאחר שהדפדפן טוען אותן פעם אחת.</p>
   </dialog>
+  <div id="tourOverlay" class="visual-tour" role="dialog" aria-modal="true" aria-labelledby="tourTitle" hidden>
+    <div class="tour-spotlight" id="tourSpotlight" aria-hidden="true"></div>
+    <section class="tour-card" id="tourCard">
+      <button class="dialog-close" id="closeTour" aria-label="סגור סיור">×</button>
+      <div class="tour-kicker" id="tourProgress">1/7</div>
+      <h2 id="tourTitle">סיור ויזואלי בתוכנה</h2>
+      <p id="tourText">נראה רגע איפה הדברים החשובים נמצאים, ואז אפשר להתחיל לעבוד בלי לחפש.</p>
+      <div class="tour-card-actions">
+        <button type="button" id="tourPrev">הקודם</button>
+        <button type="button" class="primary-tour" id="tourNext">הבא</button>
+      </div>
+    </section>
+  </div>
   <div id="statusMessage" class="status-message" aria-live="polite" aria-atomic="true"></div>
 </body>
 </html>

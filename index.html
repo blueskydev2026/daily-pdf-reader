@@ -189,6 +189,10 @@
           <span class="action-icon"><svg><use href="#icon-monitor-down"></use></svg></span>
           <span>ברירת מחדל והתקנה</span>
         </button>
+        <button class="side-action tour-action" id="tourGuide" aria-haspopup="dialog" aria-controls="tourOverlay">
+          <span class="action-icon"><svg><use href="#icon-sparkles"></use></svg></span>
+          <span>סיור ויזואלי בתוכנה</span>
+        </button>
       </section>
     </aside>
 
@@ -345,6 +349,20 @@
     <p>אם הדפדפן תומך ב-File Handling, ניתן לפתוח קובץ PDF ישירות מהמערכת אחרי התקנת האפליקציה.</p>
     <p>לאחר פתיחה ראשונה, קבצי האפליקציה נשמרים במטמון מקומי. ספריות חיצוניות נשמרות לאחר שהדפדפן טוען אותן פעם אחת.</p>
   </dialog>
+
+  <div id="tourOverlay" class="visual-tour" role="dialog" aria-modal="true" aria-labelledby="tourTitle" hidden>
+    <div class="tour-spotlight" id="tourSpotlight" aria-hidden="true"></div>
+    <section class="tour-card" id="tourCard">
+      <button class="dialog-close" id="closeTour" aria-label="סגור סיור">×</button>
+      <div class="tour-kicker" id="tourProgress">1/7</div>
+      <h2 id="tourTitle">סיור ויזואלי בתוכנה</h2>
+      <p id="tourText">נראה רגע איפה הדברים החשובים נמצאים, ואז אפשר להתחיל לעבוד בלי לחפש.</p>
+      <div class="tour-card-actions">
+        <button type="button" id="tourPrev">הקודם</button>
+        <button type="button" class="primary-tour" id="tourNext">הבא</button>
+      </div>
+    </section>
+  </div>
   <div id="statusMessage" class="status-message" aria-live="polite" aria-atomic="true"></div>
 </body>
 </html>
