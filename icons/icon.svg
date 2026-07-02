@@ -1,28 +1,23 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Modern PDF reader icon">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Daily PDF reader icon">
   <defs>
-    <linearGradient id="page" x1="112" y1="54" x2="402" y2="456" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#1d4ed8"/>
-      <stop offset=".52" stop-color="#0f766e"/>
-      <stop offset="1" stop-color="#134e4a"/>
+    <linearGradient id="bg" x1="70" y1="56" x2="442" y2="456" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#155e75"/>
+      <stop offset=".55" stop-color="#0f766e"/>
+      <stop offset="1" stop-color="#0f4f46"/>
     </linearGradient>
-    <linearGradient id="fold" x1="302" y1="58" x2="392" y2="166" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#93c5fd"/>
-      <stop offset="1" stop-color="#5eead4"/>
+    <linearGradient id="fold" x1="308" y1="110" x2="386" y2="190" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#bae6fd"/>
+      <stop offset="1" stop-color="#67e8f9"/>
     </linearGradient>
-    <linearGradient id="badge" x1="309" y1="337" x2="397" y2="409" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#f59e0b"/>
-      <stop offset="1" stop-color="#f97316"/>
-    </linearGradient>
-    <filter id="shadow" x="76" y="32" width="368" height="456" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse">
-      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#0f172a" flood-opacity=".28"/>
+    <filter id="softShadow" x="70" y="70" width="372" height="372" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="16" stdDeviation="18" flood-color="#082f49" flood-opacity=".28"/>
     </filter>
   </defs>
-  <path d="M139 58h169l80 80v276c0 25-19 44-44 44H139c-25 0-44-19-44-44V102c0-25 19-44 44-44z" fill="url(#page)" filter="url(#shadow)"/>
-  <path d="M308 58v77c0 14 10 24 24 24h56z" fill="url(#fold)" opacity=".96"/>
-  <path d="M135 184h190" stroke="#ecfeff" stroke-width="28" stroke-linecap="round"/>
-  <path d="M135 244h148" stroke="#bfdbfe" stroke-width="22" stroke-linecap="round" opacity=".94"/>
-  <path d="M135 296h174" stroke="#99f6e4" stroke-width="22" stroke-linecap="round" opacity=".86"/>
-  <path d="M138 377c47-47 78-49 105-8 23 35 59 29 116-27" fill="none" stroke="#fef3c7" stroke-width="23" stroke-linecap="round" stroke-linejoin="round"/>
-  <circle cx="359" cy="357" r="42" fill="url(#badge)"/>
-  <path d="M340 357h38m-19-19v38" stroke="#fff7ed" stroke-width="13" stroke-linecap="round"/>
+  <rect x="56" y="56" width="400" height="400" rx="92" fill="url(#bg)"/>
+  <path d="M168 110h140l76 76v216c0 22-18 40-40 40H168c-22 0-40-18-40-40V150c0-22 18-40 40-40z" fill="#f8fafc" filter="url(#softShadow)"/>
+  <path d="M308 110v58c0 16 12 28 28 28h48z" fill="url(#fold)"/>
+  <path d="M177 242h154" stroke="#0f766e" stroke-width="28" stroke-linecap="round"/>
+  <path d="M177 304h118" stroke="#155e75" stroke-width="24" stroke-linecap="round" opacity=".9"/>
+  <circle cx="352" cy="352" r="62" fill="#f97316"/>
+  <path d="m322 353 22 22 40-48" fill="none" stroke="#fff7ed" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>

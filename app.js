@@ -1,6 +1,6 @@
-import * as pdfjsLib from "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs";
+import * as pdfjsLib from "./vendor/pdf.min.mjs";
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs";
+pdfjsLib.GlobalWorkerOptions.workerSrc = "./vendor/pdf.worker.min.mjs";
 
 const $ = (id) => document.getElementById(id);
 const PAGE_RENDER_NEIGHBORS = 2;
@@ -63,7 +63,8 @@ const state = {
   tourIndex: 0,
   spacePressed: false,
   suppressContextMenu: false,
-  insertMenuPlacement: null
+  insertMenuPlacement: null,
+  mobileSidebarPrepared: false
 };
 
 function emptyMeta() {
@@ -161,6 +162,7 @@ const TOUR_STEPS = [
 const saveScrollMeta = debounce(() => saveMeta(false), 200);
 
 wireEvents();
+prepareMobileSidebar();
 initProfileControls();
 registerPwa();
 initFileHandling();
@@ -208,8 +210,15 @@ function wireEvents() {
   $("fitPage").addEventListener("click", () => fitTo("page"));
   $("fullscreenBtn").addEventListener("click", () => document.documentElement.requestFullscreen?.());
   $("toggleSidebar").addEventListener("click", () => {
+    state.mobileSidebarPrepared = true;
     ui.sidebar.classList.toggle("collapsed");
     document.querySelector(".app-shell").classList.toggle("sidebar-closed", ui.sidebar.classList.contains("collapsed"));
+  });
+  $("closeSidebar")?.addEventListener("click", closeMobileSidebar);
+  ui.sidebar.addEventListener("click", maybeCloseSidebarAfterAction);
+
+  document.querySelectorAll("[data-mobile-panel]").forEach((button) => {
+    button.addEventListener("click", () => openMobileSidebarPanel(button.dataset.mobilePanel));
   });
 
   document.querySelectorAll("[data-mode]").forEach((button) => {
@@ -393,9 +402,49 @@ function wireEvents() {
     if (!event.target.closest(".field-box")) closeFieldMenus();
   });
   window.addEventListener("resize", debounce(() => {
+    prepareMobileSidebar();
     fitTo(state.fit);
     if (!ui.tourOverlay.hidden) positionTourStep();
   }, 150));
+}
+
+function prepareMobileSidebar() {
+  if (state.mobileSidebarPrepared || !window.matchMedia("(max-width: 720px)").matches) return;
+  ui.sidebar.classList.add("collapsed");
+  document.querySelector(".app-shell").classList.add("sidebar-closed");
+  state.mobileSidebarPrepared = true;
+}
+
+function isMobileSidebarMode() {
+  return window.matchMedia("(max-width: 720px)").matches;
+}
+
+function closeMobileSidebar() {
+  if (!isMobileSidebarMode()) return;
+  state.mobileSidebarPrepared = true;
+  ui.sidebar.classList.add("collapsed");
+  document.querySelector(".app-shell").classList.add("sidebar-closed");
+}
+
+function maybeCloseSidebarAfterAction(event) {
+  if (!isMobileSidebarMode() || ui.sidebar.classList.contains("collapsed")) return;
+  const target = event.target;
+  if (target.closest(".mobile-side-rail, .mobile-sidebar-close, summary, input, select, textarea, .bookmark-item input")) return;
+  const action = target.closest("button, .open-drop");
+  if (!action || action.disabled) return;
+  window.setTimeout(closeMobileSidebar, 80);
+}
+
+function openMobileSidebarPanel(selector) {
+  const shell = document.querySelector(".app-shell");
+  const panel = document.querySelector(selector);
+  state.mobileSidebarPrepared = true;
+  ui.sidebar.classList.remove("collapsed");
+  shell.classList.remove("sidebar-closed");
+  if (panel?.tagName === "DETAILS") panel.open = true;
+  window.setTimeout(() => {
+    panel?.scrollIntoView({ block: "center", inline: "nearest", behavior: "smooth" });
+  }, 80);
 }
 
 function registerPwa() {

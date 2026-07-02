@@ -1,0 +1,29 @@
+{
+  "manifest_version": 3,
+  "name": "קורא PDF יומי",
+  "short_name": "PDF יומי",
+  "version": "0.1.0",
+  "description": "קורא PDF עברי עם סימניות, חיפוש, הדגשות, מילוי טפסים, חתימה ושמירת עותק PDF.",
+  "minimum_chrome_version": "109",
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
+  "action": {
+    "default_title": "פתח את קורא PDF יומי",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png",
+      "48": "icons/icon-48.png",
+      "128": "icons/icon-128.png"
+    }
+  },
+  "background": {
+    "service_worker": "extension/background.js"
+  },
+  "permissions": [
+    "contextMenus"
+  ]
+}

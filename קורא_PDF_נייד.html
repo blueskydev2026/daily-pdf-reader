@@ -1704,13 +1704,13 @@ dialog::backdrop {
 }
 
   </style>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs" type="module"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="vendor/pdf.min.mjs" type="module"></script>
+  <script src="vendor/pdf-lib.min.js"></script>
+  <script src="vendor/html2canvas.min.js"></script>
   <script type="module">
-import * as pdfjsLib from "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs";
+import * as pdfjsLib from "./vendor/pdf.min.mjs";
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs";
+pdfjsLib.GlobalWorkerOptions.workerSrc = "./vendor/pdf.worker.min.mjs";
 
 const $ = (id) => document.getElementById(id);
 const PAGE_RENDER_NEIGHBORS = 2;
@@ -6267,7 +6267,7 @@ function isTypingTarget(target) {
 
       <div class="reader" id="reader">
         <div class="empty-state" id="emptyState">
-          <strong>קורא PDF מהיר, עברי ונוח ליום-יום</strong>
+          <strong>קורא PDF עברי, מהיר ונוח לשימוש יומיומי</strong>
           <span>פתח קובץ כדי להתחיל. אפשר לבחור טקסט ולהעתיק, לקרוא ברצף או כספר, לסמן, למלא שדות ולחתום.</span>
         </div>
         <div class="pages" id="pages"></div>

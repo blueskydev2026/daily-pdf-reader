@@ -1,4 +1,4 @@
-const CACHE_NAME = "daily-pdf-reader-v15";
+const CACHE_NAME = "daily-pdf-reader-v16";
 
 const APP_SHELL = [
   "./",
@@ -7,14 +7,15 @@ const APP_SHELL = [
   "./app.js",
   "./manifest.webmanifest",
   "./icons/icon.svg",
-  "./icons/maskable.svg"
-];
-
-const CDN_ASSETS = [
-  "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs",
-  "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs",
-  "https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js",
-  "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"
+  "./icons/maskable.svg",
+  "./icons/icon-16.png",
+  "./icons/icon-32.png",
+  "./icons/icon-48.png",
+  "./icons/icon-128.png",
+  "./vendor/pdf.min.mjs",
+  "./vendor/pdf.worker.min.mjs",
+  "./vendor/pdf-lib.min.js",
+  "./vendor/html2canvas.min.js"
 ];
 
 self.addEventListener("install", (event) => {
@@ -43,7 +44,7 @@ self.addEventListener("fetch", (event) => {
   }
 
   const url = new URL(request.url);
-  if (url.origin === self.location.origin || CDN_ASSETS.includes(request.url)) {
+  if (url.origin === self.location.origin) {
     event.respondWith(staleWhileRevalidate(request));
   }
 });

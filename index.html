@@ -8,9 +8,9 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="styles.css">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs" type="module"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="vendor/pdf.min.mjs" type="module"></script>
+  <script src="vendor/pdf-lib.min.js"></script>
+  <script src="vendor/html2canvas.min.js"></script>
   <script src="app.js" type="module"></script>
 </head>
 <body>
@@ -79,6 +79,39 @@
   </svg>
   <div class="app-shell">
     <aside class="sidebar" id="sidebar">
+      <button class="mobile-sidebar-close" id="closeSidebar" type="button" aria-label="סגור סרגל צד" title="סגור">
+        ×
+      </button>
+      <nav class="mobile-side-rail" aria-label="פעולות צד מהירות">
+        <label class="rail-action" for="fileInput" title="פתח PDF">
+          <span class="rail-icon"><svg><use href="#icon-file-plus"></use></svg></span>
+          <span>פתח</span>
+        </label>
+        <button class="rail-action" type="button" data-mobile-panel=".nav-panel" title="ניווט">
+          <span class="rail-icon"><svg><use href="#icon-navigation"></use></svg></span>
+          <span>ניווט</span>
+        </button>
+        <button class="rail-action" type="button" data-mobile-panel=".outline-panel" title="תוכן עניינים">
+          <span class="rail-icon"><svg><use href="#icon-bookmark"></use></svg></span>
+          <span>תוכן</span>
+        </button>
+        <button class="rail-action" type="button" data-mobile-panel=".search-panel" title="חיפוש">
+          <span class="rail-icon"><svg><use href="#icon-search"></use></svg></span>
+          <span>חיפוש</span>
+        </button>
+        <button class="rail-action" type="button" data-mobile-panel=".bookmark-panel" title="סימניות">
+          <span class="rail-icon"><svg><use href="#icon-bookmark-plus"></use></svg></span>
+          <span>סימניות</span>
+        </button>
+        <button class="rail-action" type="button" data-mobile-panel=".autofill-panel" title="מילוי מהיר">
+          <span class="rail-icon"><svg><use href="#icon-pen-line"></use></svg></span>
+          <span>מילוי</span>
+        </button>
+        <button class="rail-action" type="button" data-mobile-panel=".quick-actions-panel" title="פעולות מהירות">
+          <span class="rail-icon"><svg><use href="#icon-sparkles"></use></svg></span>
+          <span>פעולות</span>
+        </button>
+      </nav>
       <div class="brand">
         <div class="brand-mark">PDF</div>
         <div>
@@ -141,7 +174,7 @@
         </div>
       </details>
 
-      <section class="panel">
+      <section class="panel bookmark-panel">
         <div class="panel-title"><span class="panel-icon"><svg><use href="#icon-bookmark"></use></svg></span> סימניות</div>
         <button class="side-action" id="addBookmark">
           <span class="action-icon"><svg><use href="#icon-bookmark-plus"></use></svg></span>
@@ -174,7 +207,7 @@
         </div>
       </details>
 
-      <section class="panel">
+      <section class="panel quick-actions-panel">
         <div class="panel-title"><span class="panel-icon"><svg><use href="#icon-sparkles"></use></svg></span> פעולות מהירות</div>
         <button class="side-action" id="savePosition">
           <span class="action-icon"><svg><use href="#icon-map-pin"></use></svg></span>
@@ -246,7 +279,7 @@
 
       <div class="reader" id="reader">
         <div class="empty-state" id="emptyState">
-          <strong>קורא PDF מהיר, עברי ונוח ליום-יום</strong>
+          <strong>קורא PDF עברי, מהיר ונוח לשימוש יומיומי</strong>
           <span>פתח קובץ כדי להתחיל. אפשר לבחור טקסט ולהעתיק, לקרוא ברצף או כספר, לסמן, למלא שדות ולחתום.</span>
         </div>
         <div class="pages" id="pages"></div>
