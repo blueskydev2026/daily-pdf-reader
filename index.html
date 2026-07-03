@@ -8,7 +8,6 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="styles.css">
-  <script src="vendor/pdf.min.mjs" type="module"></script>
   <script src="vendor/pdf-lib.min.js"></script>
   <script src="vendor/html2canvas.min.js"></script>
   <script src="web-app-config.js"></script>
@@ -235,11 +234,20 @@
       <header class="toolbar">
         <div class="tool-group">
           <button id="toggleSidebar" title="הצג או הסתר את סרגל הצד" aria-label="הצג או הסתר סרגל צד">☰</button>
-          <button id="fitWidth" title="התאם את העמוד לרוחב החלון" aria-label="התאם לרוחב">רוחב</button>
-          <button id="fitPage" title="הצג את כל העמוד במסך" aria-label="התאם לדף מלא">דף מלא</button>
-          <button id="zoomOut" title="הקטן תצוגה" aria-label="הקטן תצוגה">−</button>
-          <output id="zoomLabel">100%</output>
-          <button id="zoomIn" title="הגדל תצוגה" aria-label="הגדל תצוגה">+</button>
+          <div class="segmented fit-segmented" aria-label="התאמת תצוגה">
+            <button id="fitWidth" class="active" title="התאם את העמוד לרוחב החלון" aria-label="התאם לרוחב עמוד">רוחב עמוד</button>
+            <button id="fitPage" title="הצג את כל העמוד במסך" aria-label="התאם לעמוד שלם">עמוד שלם</button>
+          </div>
+          <div class="zoom-control" aria-label="שליטת זום">
+            <button id="zoomOut" class="zoom-step" title="הקטן תצוגה" aria-label="הקטן תצוגה">−</button>
+            <input id="zoomSlider" class="zoom-slider" type="range" min="35" max="350" step="1" value="125" aria-label="זום">
+            <label class="zoom-percent">
+              <input id="zoomInput" type="number" min="35" max="350" step="1" value="125" inputmode="numeric" aria-label="אחוז זום">
+              <span>%</span>
+            </label>
+            <output id="zoomLabel" class="visually-hidden">125%</output>
+            <button id="zoomIn" class="zoom-step" title="הגדל תצוגה" aria-label="הגדל תצוגה">+</button>
+          </div>
           <button id="fullscreenBtn" title="פתח במסך מלא" aria-label="פתח במסך מלא">מסך מלא</button>
         </div>
 

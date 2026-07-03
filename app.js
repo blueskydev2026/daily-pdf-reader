@@ -1,6 +1,7 @@
-import * as pdfjsLib from "./vendor/pdf.min.mjs";
+// Use .js copies: some static hosts serve .mjs as text/plain, which blocks module loading.
+import * as pdfjsLib from "./vendor/pdf.min.js";
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = "./vendor/pdf.worker.min.mjs";
+pdfjsLib.GlobalWorkerOptions.workerSrc = "./vendor/pdf.worker.min.js";
 
 const $ = (id) => document.getElementById(id);
 const PAGE_RENDER_NEIGHBORS = 2;
@@ -105,6 +106,8 @@ const ui = {
   searchCase: $("searchCase"),
   searchWhole: $("searchWhole"),
   searchCount: $("searchCount"),
+  zoomSlider: $("zoomSlider"),
+  zoomInput: $("zoomInput"),
   zoomLabel: $("zoomLabel"),
   sidebar: $("sidebar"),
   helpDialog: $("helpDialog"),
@@ -213,8 +216,24 @@ function wireEvents() {
     goToPage(Number(ui.pageSlider.value));
   });
 
+  const setZoomFromPercent = debounce((percent) => setScale(percent / 100), 80);
   $("zoomIn").addEventListener("click", () => setScale(state.scale + 0.15));
   $("zoomOut").addEventListener("click", () => setScale(state.scale - 0.15));
+  ui.zoomSlider?.addEventListener("input", () => {
+    ui.zoomInput.value = ui.zoomSlider.value;
+    setZoomFromPercent(Number(ui.zoomSlider.value));
+  });
+  ui.zoomInput?.addEventListener("change", () => {
+    const percent = clamp(Number(ui.zoomInput.value) || 100, 35, 350);
+    ui.zoomInput.value = String(Math.round(percent));
+    setScale(percent / 100);
+  });
+  ui.zoomInput?.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      ui.zoomInput.blur();
+    }
+  });
   $("fitWidth").addEventListener("click", () => fitTo("width"));
   $("fitPage").addEventListener("click", () => fitTo("page"));
   $("fullscreenBtn").addEventListener("click", () => document.documentElement.requestFullscreen?.());
@@ -2931,7 +2950,22 @@ function updateStatus() {
   ui.reader.classList.toggle("empty-file-target", !state.pdf);
   ui.pageInput.value = state.currentPage || 1;
   ui.pageTotal.textContent = `/ ${state.pageCount || 0}`;
-  ui.zoomLabel.textContent = `${Math.round(state.scale * 100)}%`;
+  const zoomPercent = Math.round(state.scale * 100);
+  if (ui.zoomSlider) {
+    const min = Number(ui.zoomSlider.min) || 35;
+    const max = Number(ui.zoomSlider.max) || 350;
+    ui.zoomSlider.value = String(zoomPercent);
+    const sliderProgress = clamp(((zoomPercent - min) / (max - min)) * 100, 0, 100);
+    ui.zoomSlider.style.setProperty("--slider-progress", `${sliderProgress}%`);
+  }
+  if (ui.zoomInput && document.activeElement !== ui.zoomInput) {
+    ui.zoomInput.value = String(zoomPercent);
+  }
+  if (ui.zoomLabel) {
+    ui.zoomLabel.textContent = `${zoomPercent}%`;
+  }
+  $("fitWidth")?.classList.toggle("active", state.fit === "width");
+  $("fitPage")?.classList.toggle("active", state.fit === "page");
   const savePositionButton = $("savePosition");
   const hasSavedPosition = Number(state.meta.savedReadingPosition) > 0;
   savePositionButton?.classList.toggle("has-saved-position", hasSavedPosition);
@@ -2963,6 +2997,7 @@ function updateStatus() {
 
 async function fitTo(kind) {
   state.fit = kind;
+  updateStatus();
   if (!state.pdf) return;
   const page = await state.pdf.getPage(state.currentPage);
   const viewport = page.getViewport({ scale: 1 });
