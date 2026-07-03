@@ -210,15 +210,26 @@
 
       <section class="panel quick-actions-panel">
         <div class="panel-title"><span class="panel-icon"><svg><use href="#icon-sparkles"></use></svg></span> פעולות מהירות</div>
-        <button class="side-action" id="savePosition">
-          <span class="action-icon"><svg><use href="#icon-map-pin"></use></svg></span>
-          <span>שמור מיקום</span>
-          <span class="saved-position-indicator" aria-hidden="true">✓ נשמר</span>
-        </button>
-        <button class="side-action" id="restorePosition">
-          <span class="action-icon"><svg><use href="#icon-history"></use></svg></span>
-          <span>חזור למיקום האחרון</span>
-        </button>
+        <div class="side-split-action" id="pinPageAction">
+          <button class="side-action split-main" id="savePosition" type="button">
+            <span class="action-icon"><svg><use href="#icon-map-pin"></use></svg></span>
+            <span>שמור מיקום</span>
+          </button>
+          <button class="side-action split-secondary" id="goPinnedPage" type="button">
+            <span>למיקום שנשמר</span>
+            <span class="saved-position-indicator" aria-hidden="true"></span>
+          </button>
+        </div>
+        <div class="dropdown side-action-dropdown" id="recentPagesDropdown">
+          <button class="side-action" id="recentPagesButton" type="button" aria-haspopup="menu" aria-expanded="false">
+            <span class="action-icon"><svg><use href="#icon-history"></use></svg></span>
+            <span class="recent-pages-label">עמודים אחרונים</span>
+            <svg class="action-caret" aria-hidden="true"><use href="#icon-chevron-down"></use></svg>
+          </button>
+          <div class="dropdown-menu recent-pages-menu" id="recentPagesMenu" role="menu" hidden>
+            <div class="recent-pages-empty">אין עדיין עמודים אחרונים</div>
+          </div>
+        </div>
         <button class="side-action" id="installHelp" aria-haspopup="dialog" aria-controls="helpDialog">
           <span class="action-icon"><svg><use href="#icon-monitor-down"></use></svg></span>
           <span>התקן כאפליקציה</span>

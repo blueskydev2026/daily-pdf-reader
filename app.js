@@ -6,6 +6,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = "./vendor/pdf.worker.min.js";
 const $ = (id) => document.getElementById(id);
 const PAGE_RENDER_NEIGHBORS = 2;
 const PAGE_OBSERVER_MARGIN = "900px 0px";
+const RECENT_PAGE_LIMIT = 6;
 const PDF_LOAD_OPTIONS = {
   disableFontFace: true,
   useSystemFonts: false
@@ -81,6 +82,7 @@ function emptyMeta() {
     readingOffset: 0,
     savedReadingPosition: null,
     savedReadingOffset: 0,
+    recentPages: [],
     updatedAt: Date.now()
   };
 }
@@ -128,7 +130,10 @@ const ui = {
   insertActionMenu: $("insertActionMenu"),
   printBtn: $("printBtn"),
   printMenu: $("printMenu"),
-  printDialog: $("printDialog")
+  printDialog: $("printDialog"),
+  goPinnedPage: $("goPinnedPage"),
+  recentPagesButton: $("recentPagesButton"),
+  recentPagesMenu: $("recentPagesMenu")
 };
 
 const TOUR_STEPS = [
@@ -286,7 +291,8 @@ function wireEvents() {
 
   $("addBookmark").addEventListener("click", addBookmark);
   $("savePosition").addEventListener("click", savePosition);
-  $("restorePosition").addEventListener("click", restorePosition);
+  ui.goPinnedPage?.addEventListener("click", restorePosition);
+  ui.recentPagesButton?.addEventListener("click", toggleRecentPagesMenu);
   ui.installButtons.forEach((button) => button.addEventListener("click", installOrShowHelp));
   document.querySelectorAll("[data-install-help]").forEach((button) => {
     button.addEventListener("click", showInstallHelp);
@@ -427,6 +433,7 @@ function wireEvents() {
   document.addEventListener("pointerdown", (event) => {
     if (!event.target.closest("#screenshotDropdown")) closeScreenshotMenu();
     if (!event.target.closest("#printDropdown")) closePrintMenu();
+    if (!event.target.closest("#recentPagesDropdown")) closeRecentPagesMenu();
     if (!event.target.closest("#selectionActionMenu") && !event.target.closest(".screenshot-layer")) {
       hideSelectionActionMenu();
     }
@@ -720,6 +727,7 @@ async function openFile(file, options = {}) {
   state.fingerprint = fingerprintForFile(file);
   state.meta = loadMeta();
   state.currentPage = clamp(state.meta.readingPosition || 1, 1, state.pageCount);
+  rememberRecentPage(state.currentPage, state.meta.readingOffset || 0, false);
   state.search = { term: "", hits: [], index: -1 };
   state.outline = { items: [], type: "loading", loading: true };
   state.renderedPages.clear();
@@ -2825,6 +2833,46 @@ function restorePosition() {
   goToPage(page, { offset: offset || 0, save: false });
 }
 
+function rememberRecentPage(page, offset = 0, persist = true) {
+  const pageNo = clamp(Math.round(Number(page) || 1), 1, state.pageCount || 1);
+  const entry = { page: pageNo, offset: clamp(Number(offset) || 0, 0, 1), visitedAt: Date.now() };
+  const recent = Array.isArray(state.meta.recentPages) ? state.meta.recentPages : [];
+  state.meta.recentPages = [
+    entry,
+    ...recent.filter((item) => Number(item.page) !== pageNo)
+  ].slice(0, RECENT_PAGE_LIMIT);
+  if (persist) saveMeta(false);
+  renderRecentPagesMenu();
+}
+
+function renderRecentPagesMenu() {
+  if (!ui.recentPagesMenu) return;
+  ui.recentPagesMenu.innerHTML = "";
+  const pages = (Array.isArray(state.meta.recentPages) ? state.meta.recentPages : [])
+    .filter((item) => Number(item.page) >= 1 && Number(item.page) <= state.pageCount)
+    .slice(0, RECENT_PAGE_LIMIT);
+  if (!pages.length) {
+    const empty = document.createElement("div");
+    empty.className = "recent-pages-empty";
+    empty.textContent = state.pdf ? "עדיין אין היסטוריית עמודים" : "פתח PDF כדי לראות עמודים אחרונים";
+    ui.recentPagesMenu.append(empty);
+    return;
+  }
+  for (const item of pages) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.role = "menuitem";
+    button.className = "recent-page-item";
+    button.classList.toggle("active", Number(item.page) === Number(state.currentPage));
+    button.innerHTML = `<span>עמוד ${item.page}</span>${Number(item.page) === Number(state.currentPage) ? "<small>נוכחי</small>" : ""}`;
+    button.addEventListener("click", () => {
+      closeRecentPagesMenu();
+      goToPage(item.page, { offset: item.offset || 0 });
+    });
+    ui.recentPagesMenu.append(button);
+  }
+}
+
 async function goToPage(pageNo, options = {}) {
   if (!state.pdf) return;
   const { offset = 0, save = true, scroll = true } = options;
@@ -2832,6 +2880,7 @@ async function goToPage(pageNo, options = {}) {
   if (save) {
     state.meta.readingPosition = state.currentPage;
     state.meta.readingOffset = clamp(offset, 0, 1);
+    rememberRecentPage(state.currentPage, state.meta.readingOffset, false);
     saveMeta(false);
   }
   let target = document.querySelector(`[data-page="${state.currentPage}"]`);
@@ -2855,6 +2904,7 @@ function onScroll() {
   if (!position.page) return;
   if (position.page !== state.currentPage) {
     state.currentPage = position.page;
+    rememberRecentPage(position.page, position.offset, false);
     cancelActivePageRender(position.page);
     queueNearbyContent(position.page, state.renderId);
     updateStatus();
@@ -2968,13 +3018,29 @@ function updateStatus() {
   $("fitPage")?.classList.toggle("active", state.fit === "page");
   const savePositionButton = $("savePosition");
   const hasSavedPosition = Number(state.meta.savedReadingPosition) > 0;
-  savePositionButton?.classList.toggle("has-saved-position", hasSavedPosition);
+  const savePositionText = savePositionButton?.querySelector("span:not(.action-icon):not(.saved-position-indicator)");
+  if (savePositionText) {
+    savePositionText.textContent = "שמור מיקום";
+  }
   savePositionButton?.setAttribute(
     "aria-label",
-    hasSavedPosition
-      ? `שמור מיקום. קיים מיקום שמור בעמוד ${state.meta.savedReadingPosition}`
-      : "שמור מיקום"
+    hasSavedPosition ? `שמור מיקום. המיקום השמור כרגע בעמוד ${state.meta.savedReadingPosition}` : "שמור מיקום"
   );
+  savePositionButton?.toggleAttribute("disabled", !state.pdf);
+  ui.goPinnedPage?.toggleAttribute("disabled", !hasSavedPosition);
+  ui.goPinnedPage?.classList.toggle("has-saved-position", hasSavedPosition);
+  const goPinnedPageText = ui.goPinnedPage?.querySelector("span");
+  if (goPinnedPageText) goPinnedPageText.textContent = "למיקום שנשמר";
+  const savedPositionIndicator = ui.goPinnedPage?.querySelector(".saved-position-indicator");
+  if (savedPositionIndicator) {
+    savedPositionIndicator.textContent = hasSavedPosition ? `עמוד ${state.meta.savedReadingPosition}` : "";
+  }
+  ui.goPinnedPage?.setAttribute(
+    "aria-label",
+    hasSavedPosition ? `למיקום שנשמר, עמוד ${state.meta.savedReadingPosition}` : "אין עדיין מיקום שמור"
+  );
+  ui.recentPagesButton?.toggleAttribute("disabled", !state.pdf);
+  renderRecentPagesMenu();
   const progress = state.pageCount ? (state.currentPage / state.pageCount) * 100 : 0;
   if (ui.pageSlider) {
     ui.pageSlider.min = "1";
@@ -3116,6 +3182,20 @@ function closeScreenshotMenu() {
   if (!ui.screenshotMenu) return;
   ui.screenshotMenu.hidden = true;
   ui.screenshotBtn?.setAttribute("aria-expanded", "false");
+}
+
+function toggleRecentPagesMenu(event) {
+  event.stopPropagation();
+  renderRecentPagesMenu();
+  const isOpen = !ui.recentPagesMenu.hidden;
+  ui.recentPagesMenu.hidden = isOpen;
+  ui.recentPagesButton?.setAttribute("aria-expanded", String(!isOpen));
+}
+
+function closeRecentPagesMenu() {
+  if (!ui.recentPagesMenu) return;
+  ui.recentPagesMenu.hidden = true;
+  ui.recentPagesButton?.setAttribute("aria-expanded", "false");
 }
 
 function togglePrintMenu(event) {
@@ -4234,8 +4314,27 @@ function normalizeMeta(meta) {
     readingPosition: Number.isFinite(Number(meta.readingPosition)) ? Number(meta.readingPosition) : 1,
     readingOffset: Number.isFinite(Number(meta.readingOffset)) ? clamp(Number(meta.readingOffset), 0, 1) : 0,
     savedReadingPosition: Number.isFinite(Number(meta.savedReadingPosition)) ? Number(meta.savedReadingPosition) : null,
-    savedReadingOffset: Number.isFinite(Number(meta.savedReadingOffset)) ? clamp(Number(meta.savedReadingOffset), 0, 1) : 0
+    savedReadingOffset: Number.isFinite(Number(meta.savedReadingOffset)) ? clamp(Number(meta.savedReadingOffset), 0, 1) : 0,
+    recentPages: normalizeRecentPages(meta.recentPages)
   };
+}
+
+function normalizeRecentPages(recentPages) {
+  if (!Array.isArray(recentPages)) return [];
+  const seen = new Set();
+  const normalized = [];
+  for (const item of recentPages) {
+    const page = Number(item?.page ?? item);
+    if (!Number.isFinite(page) || page < 1 || seen.has(page)) continue;
+    seen.add(page);
+    normalized.push({
+      page: Math.round(page),
+      offset: Number.isFinite(Number(item?.offset)) ? clamp(Number(item.offset), 0, 1) : 0,
+      visitedAt: Number.isFinite(Number(item?.visitedAt)) ? Number(item.visitedAt) : 0
+    });
+    if (normalized.length >= RECENT_PAGE_LIMIT) break;
+  }
+  return normalized;
 }
 
 function saveMeta(renderTime = true) {
