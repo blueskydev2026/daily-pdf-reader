@@ -951,6 +951,10 @@ summary.panel-title::-webkit-details-marker {
   cursor: grab;
 }
 
+.reader.empty-file-target {
+  cursor: pointer;
+}
+
 .saved-position-indicator {
   display: none;
   color: #0f766e;

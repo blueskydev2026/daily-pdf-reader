@@ -345,6 +345,7 @@ function wireEvents() {
   });
 
   ui.reader.addEventListener("scroll", onScroll, { passive: true });
+  ui.reader.addEventListener("click", openFileFromEmptyReader);
   syncSinglePageWheel();
   ui.reader.addEventListener("pointerdown", startReaderPan);
   ui.reader.addEventListener("pointermove", moveReaderPan);
@@ -595,6 +596,13 @@ async function openFileFromHandle(fileHandle) {
   }
 }
 
+function openFileFromEmptyReader(event) {
+  if (state.pdf || event.defaultPrevented || event.button !== 0) return;
+  if (event.target.closest("button, input, textarea, select, a, [contenteditable='true']")) return;
+  ui.fileInput.value = "";
+  ui.fileInput.click();
+}
+
 function isPdfFile(file) {
   return file?.type === "application/pdf" || /\.pdf$/i.test(file?.name || "");
 }
@@ -617,6 +625,7 @@ async function openFile(file, options = {}) {
   state.renderedPages.clear();
   ui.fileName.textContent = file.name;
   ui.emptyState.hidden = true;
+  ui.reader.classList.remove("empty-file-target");
   renderOutline();
   rememberActiveSessionFile(state.fingerprint);
   if (remember) rememberOpenFile(file, state.fileBytes, state.fingerprint);
@@ -2838,6 +2847,7 @@ function getVisibleReadingPosition() {
 }
 
 function updateStatus() {
+  ui.reader.classList.toggle("empty-file-target", !state.pdf);
   ui.pageInput.value = state.currentPage || 1;
   ui.pageTotal.textContent = `/ ${state.pageCount || 0}`;
   ui.zoomLabel.textContent = `${Math.round(state.scale * 100)}%`;
