@@ -31,7 +31,7 @@ Outputs:
 - `dist/web-app` - upload this folder to the HTTPS host.
 - `dist/daily-pdf-reader-extension.zip` - upload this ZIP to Chrome Web Store / Edge Add-ons.
 
-If this repository is published to GitHub, `.github/workflows/deploy-pwa.yml` can deploy `dist/web-app` to GitHub Pages. After GitHub Pages gives you the final URL, run `tools\build-release.ps1` again with that URL so the extension points to the hosted PWA.
+If this repository is published to GitHub, `.github/workflows/deploy-pwa.yml` builds `dist/web-app` and publishes it to the `gh-pages` branch. In GitHub Pages settings, use `Deploy from a branch`, choose `gh-pages`, and choose `/root`.
 
 ## Local test
 
