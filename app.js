@@ -518,7 +518,7 @@ async function installOrShowHelp() {
 
   if (!state.installPrompt) {
     showInstallHelp();
-    announce("אם הדפדפן לא מציג חלון התקנה, השתמש בהסבר להתקנה ידנית ולבחירת ברירת מחדל.");
+    announce("נפתח הסבר קצר להתקנה כאפליקציה ולהגדרה כקורא ברירת מחדל.");
     return;
   }
 
@@ -560,15 +560,15 @@ function normalizeWebAppUrl(url) {
 function updateInstallSupportStatus() {
   if (!ui.installSupportStatus) return;
   if (isStandaloneApp()) {
-    ui.installSupportStatus.textContent = "האפליקציה כבר פועלת כחלון מותקן. השלב הבא הוא לבחור אותה ידנית כקורא PDF ברירת מחדל ב-Windows.";
+    ui.installSupportStatus.textContent = "האפליקציה כבר מותקנת. עכשיו אפשר לבחור אותה כקורא ברירת המחדל לקבצי PDF.";
   } else if (state.installPrompt) {
-    ui.installSupportStatus.textContent = "הדפדפן מאפשר התקנה עכשיו. סגור חלון זה ולחץ על כפתור התקן כאפליקציה.";
+    ui.installSupportStatus.textContent = "הדפדפן מוכן להתקנה. סגור את החלון ולחץ על התקן כאפליקציה.";
   } else if (isExtensionPage() && WEB_APP_URL) {
-    ui.installSupportStatus.textContent = "כעת הקורא פתוח מתוך התוסף. לחץ על התקן כאפליקציה כדי לפתוח את גרסת ה-Web, ושם הדפדפן יציע התקנה כאפליקציה.";
+    ui.installSupportStatus.textContent = "הקורא פתוח מתוך התוסף. לחץ על התקן כאפליקציה כדי לפתוח את גרסת ה-Web ולהתקין משם.";
   } else if (isExtensionPage()) {
-    ui.installSupportStatus.textContent = "כעת הקורא פתוח מתוך התוסף. כדי לקבל התקנה ישירה והצעת התקנה מהדפדפן, צריך להגדיר כתובת Web בקובץ web-app-config.js ולפרסם את הקורא כ-PWA.";
+    ui.installSupportStatus.textContent = "כאן הקורא פתוח מתוך התוסף. להתקנה מלאה צריך לפתוח את גרסת ה-Web של האפליקציה.";
   } else {
-    ui.installSupportStatus.textContent = "אם כפתור ההתקנה לא מופיע, השתמש בתפריט Chrome/Edge ובחר התקן אפליקציה. בחלק מהדפדפנים האפשרות מופיעה רק אחרי טעינת האתר דרך http או https.";
+    ui.installSupportStatus.textContent = "אם לא נפתח חלון התקנה, השתמש בתפריט Chrome/Edge ובחר התקן אפליקציה.";
   }
 }
 
@@ -587,11 +587,11 @@ function updateInstallUi() {
       button.title = "התקן את קורא PDF יומי כאפליקציה";
       button.setAttribute("aria-label", "התקן כאפליקציה");
     } else if (isExtensionPage() && WEB_APP_URL) {
-      label.textContent = "פתח התקנה";
+      label.textContent = "התקן כאפליקציה";
       button.title = "פתח את גרסת ה-Web כדי להתקין כאפליקציה";
       button.setAttribute("aria-label", "פתח את גרסת ה-Web להתקנה כאפליקציה");
     } else {
-      label.textContent = button.id === "installHelp" ? "ברירת מחדל והתקנה" : "התקן כאפליקציה";
+      label.textContent = "התקן כאפליקציה";
       button.title = "הצג הסבר להתקנה כאפליקציה ולבחירת ברירת מחדל";
       button.setAttribute("aria-label", "הצג הסבר להתקנה כאפליקציה");
     }

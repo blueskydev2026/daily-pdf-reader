@@ -221,7 +221,7 @@
         </button>
         <button class="side-action" id="installHelp" aria-haspopup="dialog" aria-controls="helpDialog">
           <span class="action-icon"><svg><use href="#icon-monitor-down"></use></svg></span>
-          <span>ברירת מחדל והתקנה</span>
+          <span>התקן כאפליקציה</span>
         </button>
         <button class="side-action tour-action" id="tourGuide" aria-haspopup="dialog" aria-controls="tourOverlay">
           <span class="action-icon"><svg><use href="#icon-sparkles"></use></svg></span>
@@ -386,20 +386,18 @@
 
   <dialog id="helpDialog" role="dialog" aria-modal="true" aria-labelledby="helpDialogTitle">
     <button class="dialog-close" id="closeHelp" aria-label="סגור חלון עזרה">×</button>
-    <h2 id="helpDialogTitle">התקנה כאפליקציית ווב</h2>
+    <h2 id="helpDialogTitle">התקן כאפליקציה</h2>
     <p id="installSupportStatus" class="install-support-status"></p>
-    <p>ב-Chrome או Edge אפשר להתקין את קורא ה-PDF כאפליקציה דרך כפתור ההתקנה, או דרך תפריט הדפדפן: התקן אפליקציה.</p>
-    <p>לאחר ההתקנה היא תיפתח בחלון עצמאי עם אייקון. פתיחת קבצי PDF כברירת מחדל תלויה בתמיכת הדפדפן והמערכת ב-File Handling, ותמיד מתבצעת בבחירה ואישור של המשתמש.</p>
-    <p>אם הדפדפן תומך ב-File Handling, ניתן לבחור את האפליקציה לפתיחת קבצי PDF ישירות מהמערכת ואף להגדיר אותה כבחירת ברירת מחדל.</p>
-    <p>לאחר פתיחה ראשונה, קבצי האפליקציה נשמרים במטמון מקומי. ספריות חיצוניות נשמרות לאחר שהדפדפן טוען אותן פעם אחת.</p>
+    <p>אפשר להתקין את הקורא כמו אפליקציה רגילה: חלון נקי, אייקון במחשב, ופתיחה מהירה בלי לחפש את האתר.</p>
+    <p>אחרי ההתקנה אפשר לבחור את האפליקציה כקורא ברירת המחדל לקבצי PDF מתוך Windows.</p>
     <section class="install-guide" aria-label="שלבי התקנה וברירת מחדל">
-      <h3>הדרך המומלצת</h3>
+      <h3>איך עושים את זה</h3>
       <ol>
-        <li>לוחצים על <strong>התקן כאפליקציה</strong>. אם לא מופיע חלון התקנה, פותחים את תפריט Chrome/Edge ובוחרים <strong>התקן אפליקציה</strong>.</li>
-        <li>אחרי ההתקנה פותחים קובץ PDF פעם אחת דרך האפליקציה, או בוחרים אותה דרך <strong>פתח באמצעות</strong>.</li>
-        <li>ב-Windows בוחרים קובץ PDF, קליק ימני, <strong>פתח באמצעות</strong>, <strong>בחר אפליקציה אחרת</strong>, מסמנים <strong>השתמש תמיד</strong>, ובוחרים את האפליקציה המותקנת.</li>
+        <li>לוחצים על <strong>התקן כאפליקציה</strong>. אם לא נפתח חלון התקנה, פותחים את תפריט Chrome/Edge ובוחרים <strong>התקן אפליקציה</strong>.</li>
+        <li>לאחר ההתקנה פותחים קובץ PDF עם <strong>פתח באמצעות</strong> ובוחרים את האפליקציה.</li>
+        <li>כדי להפוך אותה לברירת מחדל מסמנים <strong>השתמש תמיד</strong>, או נכנסים להגדרות Windows ובוחרים אותה עבור קבצי PDF.</li>
       </ol>
-      <p class="install-note">האפשרות להפוך לברירת מחדל תלויה בתמיכת Chrome/Edge ו-Windows ב-File Handling. האפליקציה כבר כוללת רישום PDF דרך manifest, והבחירה הסופית נשארת בידי המשתמש.</p>
+      <p class="install-note">אם האפליקציה לא מופיעה ברשימה, פתח אותה פעם אחת אחרי ההתקנה ונסה שוב.</p>
     </section>
   </dialog>
 
