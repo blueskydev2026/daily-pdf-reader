@@ -203,6 +203,10 @@ input {
   color: #0f766e;
 }
 
+#installAppTop {
+  display: none !important;
+}
+
 .install-app-button {
   border-color: rgba(13, 148, 136, .32);
   background: #ecfeff;

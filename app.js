@@ -68,6 +68,8 @@ const state = {
   mobileSidebarPrepared: false
 };
 
+removeTopInstallButton();
+
 function emptyMeta() {
   return {
     bookmarks: [],
@@ -80,6 +82,10 @@ function emptyMeta() {
     savedReadingOffset: 0,
     updatedAt: Date.now()
   };
+}
+
+function removeTopInstallButton() {
+  $("installAppTop")?.remove();
 }
 
 const ui = {

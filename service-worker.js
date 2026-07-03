@@ -1,4 +1,4 @@
-const CACHE_NAME = "daily-pdf-reader-v16";
+const CACHE_NAME = "daily-pdf-reader-v18";
 
 const APP_SHELL = [
   "./",
