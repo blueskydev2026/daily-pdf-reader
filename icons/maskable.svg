@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Daily PDF reader icon">
+  <defs>
+    <linearGradient id="bg" x1="70" y1="56" x2="442" y2="456" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#155e75"/>
+      <stop offset=".55" stop-color="#0f766e"/>
+      <stop offset="1" stop-color="#0f4f46"/>
+    </linearGradient>
+    <linearGradient id="fold" x1="308" y1="110" x2="386" y2="190" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#bae6fd"/>
+      <stop offset="1" stop-color="#67e8f9"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <path d="M168 110h140l76 76v216c0 22-18 40-40 40H168c-22 0-40-18-40-40V150c0-22 18-40 40-40z" fill="#f8fafc"/>
+  <path d="M308 110v58c0 16 12 28 28 28h48z" fill="url(#fold)"/>
+  <path d="M177 242h154" stroke="#0f766e" stroke-width="28" stroke-linecap="round"/>
+  <path d="M177 304h118" stroke="#155e75" stroke-width="24" stroke-linecap="round" opacity=".9"/>
+  <circle cx="352" cy="352" r="62" fill="#f97316"/>
+  <path d="m322 353 22 22 40-48" fill="none" stroke="#fff7ed" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

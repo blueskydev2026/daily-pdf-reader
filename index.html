@@ -1,0 +1,413 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#111827">
+  <title>קורא PDF יומי</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+  <script src="vendor/pdf.min.mjs" type="module"></script>
+  <script src="vendor/pdf-lib.min.js"></script>
+  <script src="vendor/html2canvas.min.js"></script>
+  <script src="web-app-config.js"></script>
+  <script src="app.js" type="module"></script>
+</head>
+<body>
+  <svg class="icon-sprite" aria-hidden="true" focusable="false">
+    <symbol id="icon-file-plus" viewBox="0 0 24 24">
+      <path d="M14 3.5H7.5A2.5 2.5 0 0 0 5 6v12a2.5 2.5 0 0 0 2.5 2.5h9A2.5 2.5 0 0 0 19 18V8.5L14 3.5Z"/>
+      <path d="M14 3.5v4A1.5 1.5 0 0 0 15.5 9H19"/>
+      <path d="M12 12.5v5M9.5 15h5"/>
+    </symbol>
+    <symbol id="icon-navigation" viewBox="0 0 24 24">
+      <path d="M12 4.5v15"/>
+      <path d="m8 8.5 4-4 4 4"/>
+      <path d="m8 15.5 4 4 4-4"/>
+    </symbol>
+    <symbol id="icon-search" viewBox="0 0 24 24">
+      <circle cx="11" cy="11" r="5.5"/>
+      <path d="m15.5 15.5 4 4"/>
+    </symbol>
+    <symbol id="icon-bookmark" viewBox="0 0 24 24">
+      <path d="M7 5.5A2.5 2.5 0 0 1 9.5 3h5A2.5 2.5 0 0 1 17 5.5v15l-5-3-5 3v-15Z"/>
+    </symbol>
+    <symbol id="icon-bookmark-plus" viewBox="0 0 24 24">
+      <path d="M7 5.5A2.5 2.5 0 0 1 9.5 3h5A2.5 2.5 0 0 1 17 5.5v15l-5-3-5 3v-15Z"/>
+      <path d="M12 7.5v5M9.5 10h5"/>
+    </symbol>
+    <symbol id="icon-pen-line" viewBox="0 0 24 24">
+      <path d="M4.5 19.5h15"/>
+      <path d="m7 16 2.2-.45L17.8 7a2.1 2.1 0 0 0-3-3L6.45 12.8 6 15l1 1Z"/>
+    </symbol>
+    <symbol id="icon-sparkles" viewBox="0 0 24 24">
+      <path d="M13.5 4.5 15 8l3.5 1.5L15 11l-1.5 3.5L12 11 8.5 9.5 12 8l1.5-3.5Z"/>
+      <path d="M6.5 13.5 7.4 16l2.1.9-2.1.9-.9 2.2-.9-2.2-2.1-.9 2.1-.9.9-2.5Z"/>
+    </symbol>
+    <symbol id="icon-map-pin" viewBox="0 0 24 24">
+      <path d="M12 21s6-5.2 6-11a6 6 0 1 0-12 0c0 5.8 6 11 6 11Z"/>
+      <circle cx="12" cy="10" r="2"/>
+    </symbol>
+    <symbol id="icon-history" viewBox="0 0 24 24">
+      <path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3L4.5 8.9"/>
+      <path d="M4.5 4.8v4.1h4.1"/>
+      <path d="M12 8v4.2l2.7 1.6"/>
+    </symbol>
+    <symbol id="icon-monitor-down" viewBox="0 0 24 24">
+      <rect x="4" y="4.5" width="16" height="11" rx="2"/>
+      <path d="M12 8v5"/>
+      <path d="m9.7 10.8 2.3 2.3 2.3-2.3"/>
+      <path d="M9 20h6"/>
+      <path d="M12 15.5V20"/>
+    </symbol>
+    <symbol id="icon-chevron-up" viewBox="0 0 24 24">
+      <path d="m7 14 5-5 5 5"/>
+    </symbol>
+    <symbol id="icon-chevron-down" viewBox="0 0 24 24">
+      <path d="m7 10 5 5 5-5"/>
+    </symbol>
+    <symbol id="icon-page-first" viewBox="0 0 24 24">
+      <path d="M6 5v14"/>
+      <path d="m18 7-5 5 5 5"/>
+      <path d="m12 7-5 5 5 5"/>
+    </symbol>
+    <symbol id="icon-page-last" viewBox="0 0 24 24">
+      <path d="M18 5v14"/>
+      <path d="m6 7 5 5-5 5"/>
+      <path d="m12 7 5 5-5 5"/>
+    </symbol>
+  </svg>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <button class="mobile-sidebar-close" id="closeSidebar" type="button" aria-label="סגור סרגל צד" title="סגור">
+        <span aria-hidden="true">×</span>
+        <strong>סגור חלון צד</strong>
+      </button>
+      <nav class="mobile-side-rail" aria-label="פעולות צד מהירות">
+        <label class="rail-action" for="fileInput" title="פתח PDF">
+          <span class="rail-icon"><svg><use href="#icon-file-plus"></use></svg></span>
+          <span>פתח</span>
+        </label>
+        <button class="rail-action" type="button" data-mobile-panel=".nav-panel" title="ניווט">
+          <span class="rail-icon"><svg><use href="#icon-navigation"></use></svg></span>
+          <span>ניווט</span>
+        </button>
+        <button class="rail-action" type="button" data-mobile-panel=".outline-panel" title="תוכן עניינים">
+          <span class="rail-icon"><svg><use href="#icon-bookmark"></use></svg></span>
+          <span>תוכן</span>
+        </button>
+        <button class="rail-action" type="button" data-mobile-panel=".search-panel" title="חיפוש">
+          <span class="rail-icon"><svg><use href="#icon-search"></use></svg></span>
+          <span>חיפוש</span>
+        </button>
+        <button class="rail-action" type="button" data-mobile-panel=".bookmark-panel" title="סימניות">
+          <span class="rail-icon"><svg><use href="#icon-bookmark-plus"></use></svg></span>
+          <span>סימניות</span>
+        </button>
+        <button class="rail-action" type="button" data-mobile-panel=".autofill-panel" title="מילוי מהיר">
+          <span class="rail-icon"><svg><use href="#icon-pen-line"></use></svg></span>
+          <span>מילוי</span>
+        </button>
+        <button class="rail-action" type="button" data-mobile-panel=".quick-actions-panel" title="פעולות מהירות">
+          <span class="rail-icon"><svg><use href="#icon-sparkles"></use></svg></span>
+          <span>פעולות</span>
+        </button>
+      </nav>
+      <div class="brand">
+        <div class="brand-mark">PDF</div>
+        <div>
+          <h1>קורא PDF יומי</h1>
+          <p id="fileName">לא נפתח קובץ</p>
+        </div>
+      </div>
+
+      <label class="open-drop" for="fileInput" id="dropZone">
+        <span><span class="drop-icon"><svg><use href="#icon-file-plus"></use></svg></span> פתח או גרור PDF לכאן</span>
+        <small>הסימניות, ההדגשות והמיקום נשמרים בדפדפן</small>
+      </label>
+      <input id="fileInput" type="file" accept="application/pdf,.pdf">
+
+      <section class="panel nav-panel">
+        <div class="panel-title"><span class="panel-icon"><svg><use href="#icon-navigation"></use></svg></span> ניווט</div>
+        <div class="jump-row">
+          <button class="nav-arrow" id="firstPage" title="עמוד ראשון" aria-label="עמוד ראשון"><svg><use href="#icon-page-first"></use></svg></button>
+          <label class="page-pill">
+            <span>עמוד</span>
+            <input id="pageInput" inputmode="numeric" aria-label="מספר עמוד" value="1">
+            <span id="pageTotal">/ 0</span>
+          </label>
+          <button class="nav-arrow" id="lastPage" title="עמוד אחרון" aria-label="עמוד אחרון"><svg><use href="#icon-page-last"></use></svg></button>
+        </div>
+        <div class="page-slider-row">
+          <input id="pageSlider" class="page-slider" type="range" min="1" max="1" value="1" step="1" aria-label="דפדוף מהיר בין עמודים">
+        </div>
+      </section>
+
+      <details class="panel outline-panel" open>
+        <summary class="panel-title">
+          <span><span class="panel-icon"><svg><use href="#icon-bookmark"></use></svg></span> תוכן עניינים</span>
+          <span class="panel-caret">▾</span>
+        </summary>
+        <div class="outline-list" id="outlineList">
+          <div class="outline-empty">פתח PDF כדי להציג תוכן עניינים.</div>
+        </div>
+      </details>
+
+      <details class="panel search-panel">
+        <summary class="panel-title">
+          <span><span class="panel-icon"><svg><use href="#icon-search"></use></svg></span> חיפוש והעתקה</span>
+          <span class="panel-caret">▾</span>
+        </summary>
+        <div class="search-body">
+          <div class="search-row">
+            <input id="searchInput" placeholder="חיפוש טקסט">
+            <button class="icon-btn small" id="searchBtn" title="חפש" aria-label="חפש"><svg><use href="#icon-search"></use></svg></button>
+          </div>
+          <div class="search-options">
+            <label><input id="searchCase" type="checkbox"> Aa</label>
+            <label><input id="searchWhole" type="checkbox"> מילה שלמה</label>
+          </div>
+          <div class="result-row">
+            <button class="icon-btn small" id="prevResult" title="תוצאה קודמת" aria-label="תוצאה קודמת"><svg><use href="#icon-chevron-up"></use></svg></button>
+            <span id="searchCount">0/0</span>
+            <button class="icon-btn small" id="nextResult" title="תוצאה הבאה" aria-label="תוצאה הבאה"><svg><use href="#icon-chevron-down"></use></svg></button>
+          </div>
+        </div>
+      </details>
+
+      <section class="panel bookmark-panel">
+        <div class="panel-title"><span class="panel-icon"><svg><use href="#icon-bookmark"></use></svg></span> סימניות</div>
+        <button class="side-action" id="addBookmark">
+          <span class="action-icon"><svg><use href="#icon-bookmark-plus"></use></svg></span>
+          <span>הוסף סימניה לעמוד הנוכחי</span>
+        </button>
+        <div class="bookmark-list" id="bookmarkList"></div>
+      </section>
+
+      <details class="panel autofill-panel">
+        <summary class="panel-title">
+          <span><span class="panel-icon"><svg><use href="#icon-pen-line"></use></svg></span> מילוי מהיר</span>
+          <span class="panel-caret">▾</span>
+        </summary>
+        <div class="autofill-body">
+          <div class="autofill-grid">
+            <input id="profileName" placeholder="שם מלא" autocomplete="name">
+            <input id="profileAddress" placeholder="כתובת" autocomplete="street-address">
+            <input id="profileEmail" placeholder="מייל" autocomplete="email">
+            <input id="profilePhone" placeholder="טלפון" autocomplete="tel">
+          </div>
+          <div class="quick-fill-grid">
+            <button data-fill="name" title="הכנס שם">שם</button>
+            <button data-fill="address" title="הכנס כתובת">כתובת</button>
+            <button data-fill="email" title="הכנס מייל">מייל</button>
+            <button data-fill="phone" title="הכנס טלפון">טלפון</button>
+            <button data-fill="date" title="הכנס תאריך היום">תאריך</button>
+            <button data-fill="check" title="הכנס סימון V">✓</button>
+            <button data-fill="cross" title="הכנס סימון X">✕</button>
+          </div>
+        </div>
+      </details>
+
+      <section class="panel quick-actions-panel">
+        <div class="panel-title"><span class="panel-icon"><svg><use href="#icon-sparkles"></use></svg></span> פעולות מהירות</div>
+        <button class="side-action" id="savePosition">
+          <span class="action-icon"><svg><use href="#icon-map-pin"></use></svg></span>
+          <span>שמור מיקום</span>
+          <span class="saved-position-indicator" aria-hidden="true">✓ נשמר</span>
+        </button>
+        <button class="side-action" id="restorePosition">
+          <span class="action-icon"><svg><use href="#icon-history"></use></svg></span>
+          <span>חזור למיקום האחרון</span>
+        </button>
+        <button class="side-action" id="installHelp" aria-haspopup="dialog" aria-controls="helpDialog">
+          <span class="action-icon"><svg><use href="#icon-monitor-down"></use></svg></span>
+          <span>ברירת מחדל והתקנה</span>
+        </button>
+        <button class="side-action tour-action" id="tourGuide" aria-haspopup="dialog" aria-controls="tourOverlay">
+          <span class="action-icon"><svg><use href="#icon-sparkles"></use></svg></span>
+          <span>סיור ויזואלי בתוכנה</span>
+        </button>
+      </section>
+    </aside>
+
+    <main class="workspace">
+      <header class="toolbar">
+        <div class="tool-group">
+          <button id="toggleSidebar" title="הצג או הסתר את סרגל הצד" aria-label="הצג או הסתר סרגל צד">☰</button>
+          <button id="fitWidth" title="התאם את העמוד לרוחב החלון" aria-label="התאם לרוחב">רוחב</button>
+          <button id="fitPage" title="הצג את כל העמוד במסך" aria-label="התאם לדף מלא">דף מלא</button>
+          <button id="zoomOut" title="הקטן תצוגה" aria-label="הקטן תצוגה">−</button>
+          <output id="zoomLabel">100%</output>
+          <button id="zoomIn" title="הגדל תצוגה" aria-label="הגדל תצוגה">+</button>
+          <button id="fullscreenBtn" title="פתח במסך מלא" aria-label="פתח במסך מלא">מסך מלא</button>
+        </div>
+
+        <div class="tool-group segmented" aria-label="מצב קריאה">
+          <button data-mode="continuous" class="active" title="גלילה רציפה בין עמודים" aria-label="מצב קריאה רציף">רציף</button>
+          <button data-mode="single" title="הצג עמוד אחד בכל פעם" aria-label="מצב עמוד יחיד">דף</button>
+          <button data-mode="book-rtl" title="תצוגת ספר מימין לשמאל" aria-label="מצב ספר מימין לשמאל">ספר RTL</button>
+          <button data-mode="book-ltr" title="תצוגת ספר משמאל לימין" aria-label="מצב ספר משמאל לימין">ספר LTR</button>
+        </div>
+
+        <div class="tool-group segmented" aria-label="כלי עריכה">
+          <button data-tool="select" title="בחר טקסט או סמן אזור" aria-label="כלי בחירה">בחירה</button>
+          <button data-tool="pan" class="active" title="גרור את המסמך לתנועה" aria-label="כלי גרירה">גרירה</button>
+        </div>
+
+        <div class="tool-group">
+          <div class="dropdown action-dropdown" id="screenshotDropdown">
+            <button id="screenshotBtn" aria-haspopup="true" aria-expanded="false" title="פתח אפשרויות לשמירת עמוד, חלון התצוגה או קטע מסומן כתמונה" aria-label="שמור כתמונה: בחר אם לשמור עמוד מלא, חלון תצוגה או קטע מסומן">שמור כתמונה</button>
+            <div class="dropdown-menu" id="screenshotMenu" role="menu" hidden>
+              <button type="button" id="screenshotPageBtn" role="menuitem" title="שמור מיד את העמוד הנוכחי כולו כתמונה">שמור עמוד מלא</button>
+              <button type="button" id="screenshotWindowBtn" role="menuitem" title="שמור רק את מה שנראה עכשיו בחלון הקריאה">שמור חלון</button>
+              <button type="button" id="screenshotSelectAreaBtn" role="menuitem" title="סמן קטע במסמך ואז שמור אותו כתמונה">סמן קטע</button>
+              <button type="button" id="copyScreenshotPageBtn" role="menuitem" title="העתק את העמוד הנוכחי כתמונה ללוח">העתק עמוד מלא ללוח</button>
+              <button type="button" id="copyScreenshotWindowBtn" role="menuitem" title="העתק את מה שנראה עכשיו בחלון הקריאה ללוח">העתק חלון ללוח</button>
+            </div>
+          </div>
+          <button id="downloadBtn" title="שמור עותק PDF חדש שכולל את ההוספות, ההדגשות, שדות הטקסט והחתימות" aria-label="שמור PDF עם ההוספות">שמור PDF</button>
+          <div class="dropdown action-dropdown" id="printDropdown">
+            <button id="printBtn" aria-haspopup="true" aria-expanded="false" title="פתח אפשרויות הדפסה" aria-label="אפשרויות הדפסה">הדפסה</button>
+            <div class="dropdown-menu" id="printMenu" role="menu" hidden>
+              <button type="button" id="quickPrintBtn" role="menuitem" title="הדפס מיד את העמוד הנוכחי">⚡ הדפס עמוד נוכחי</button>
+              <button type="button" id="printSelectAreaBtn" role="menuitem" title="בחר אזור במסמך להדפסה">סמן קטע להדפסה</button>
+              <button type="button" id="printOptionsBtn" role="menuitem" title="פתח הגדרות הדפסה מלאות">אפשרויות הדפסה…</button>
+            </div>
+          </div>
+          <button id="clearAnnotationsBtn" title="מחק את כל ההוספות מהמסמך" aria-label="נקה הוספות">נקה הוספות</button>
+        </div>
+      </header>
+
+      <div class="reader" id="reader">
+        <div class="empty-state" id="emptyState">
+          <strong>קורא PDF עברי, מהיר ונוח לשימוש יומיומי</strong>
+          <span>פתח קובץ כדי להתחיל. אפשר לבחור טקסט ולהעתיק, לקרוא ברצף או כספר, לסמן, למלא שדות ולחתום.</span>
+        </div>
+        <div class="pages" id="pages"></div>
+      </div>
+    </main>
+  </div>
+
+  <div class="selection-action-menu" id="selectionActionMenu" hidden>
+    <button type="button" id="copySelectionShot">העתק</button>
+    <button type="button" id="highlightSelection">הדגשה</button>
+    <button type="button" id="printSelectionStickers">העבר להדפסה</button>
+    <button type="button" id="saveSelectionShot">שמור כתמונה</button>
+  </div>
+
+  <div class="insert-action-menu" id="insertActionMenu" hidden>
+    <div class="insert-action-title">אפשרויות בחירה</div>
+    <button type="button" data-insert-action="select-area">בחר איזור</button>
+    <button type="button" data-insert-action="select-text">בחר טקסט</button>
+    <div class="insert-action-separator" aria-hidden="true"></div>
+    <div class="insert-action-title">הוסף באיזור זה</div>
+    <button type="button" data-insert-action="text">טקסט</button>
+    <button type="button" data-insert-action="note">הערה</button>
+    <button type="button" data-insert-action="signature">חתימה</button>
+    <button type="button" data-insert-action="highlight">הדגשה</button>
+  </div>
+
+  <dialog id="printDialog" class="print-dialog" role="dialog" aria-modal="true" aria-labelledby="printDialogTitle">
+    <button class="dialog-close" id="closePrint" aria-label="סגור חלון הדפסה">×</button>
+    <div class="print-dialog-heading">
+      <span class="print-dialog-icon">⎙</span>
+      <div>
+        <h2 id="printDialogTitle">הדפסה חכמה</h2>
+        <p>בוחרים מה להדפיס ואיך לסדר אותו על הדף.</p>
+      </div>
+    </div>
+
+    <div class="print-mode-tabs" role="tablist" aria-label="סוג הדפסה">
+      <button type="button" class="active" data-print-mode="document">עמודים מהמסמך</button>
+      <button type="button" data-print-mode="stickers">עותקים בדף אחד</button>
+    </div>
+
+    <form id="printForm">
+      <section class="print-options" data-print-panel="document">
+        <fieldset>
+          <legend>מה להדפיס?</legend>
+          <label><input type="radio" name="printScope" value="current" checked> העמוד הנוכחי <strong id="printCurrentPage">1</strong></label>
+          <label id="printSelectionScope"><input type="radio" name="printScope" value="selection"> הקטע המסומן</label>
+          <label><input type="radio" name="printScope" value="all"> כל המסמך</label>
+          <label class="print-range-option"><input type="radio" name="printScope" value="range"> טווח
+            <input id="printRange" type="text" inputmode="numeric" placeholder="למשל 1-4, 7, 10-12" aria-label="טווח עמודים">
+          </label>
+        </fieldset>
+        <label class="print-select-label">עמודים בכל גיליון
+          <select id="pagesPerSheet">
+            <option value="1">עמוד אחד</option>
+            <option value="2">2 עמודים</option>
+            <option value="4">4 עמודים</option>
+            <option value="6">6 עמודים</option>
+            <option value="9">9 עמודים</option>
+            <option value="16">16 עמודים</option>
+          </select>
+        </label>
+      </section>
+
+      <section class="print-options" data-print-panel="stickers" hidden>
+        <fieldset>
+          <legend>מה לשכפל?</legend>
+          <label><input type="radio" name="stickerSource" value="page" checked> העמוד הנוכחי</label>
+          <label><input type="radio" name="stickerSource" value="window"> החלון הנראה כרגע</label>
+          <label id="stickerSelectionOption"><input type="radio" name="stickerSource" value="selection"> הקטע הנבחר</label>
+        </fieldset>
+        <label class="print-select-label">כמה עותקים בדף?
+          <select id="stickerCopies">
+            <option value="2">2</option><option value="4">4</option><option value="6" selected>6</option>
+            <option value="8">8</option><option value="12">12</option><option value="16">16</option><option value="24">24</option>
+          </select>
+        </label>
+      </section>
+
+      <div class="print-common-options">
+        <label>כיוון הדף
+          <select id="printOrientation"><option value="portrait">לאורך</option><option value="landscape">לרוחב</option></select>
+        </label>
+        <label class="print-check"><input id="printAnnotations" type="checkbox"> כלול הוספות משתמש</label>
+        <label class="print-check"><input id="printCutGuides" type="checkbox"> קווי חיתוך</label>
+      </div>
+      <div class="print-summary" id="printSummary">עמוד 1 · גיליון אחד</div>
+      <div class="print-dialog-actions">
+        <button type="button" id="cancelPrint">ביטול</button>
+        <button type="submit" class="primary-print" id="startPrint">הדפס עכשיו</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="helpDialog" role="dialog" aria-modal="true" aria-labelledby="helpDialogTitle">
+    <button class="dialog-close" id="closeHelp" aria-label="סגור חלון עזרה">×</button>
+    <h2 id="helpDialogTitle">התקנה כאפליקציית ווב</h2>
+    <p id="installSupportStatus" class="install-support-status"></p>
+    <p>ב-Chrome או Edge אפשר להתקין את קורא ה-PDF כאפליקציה דרך כפתור ההתקנה, או דרך תפריט הדפדפן: התקן אפליקציה.</p>
+    <p>לאחר ההתקנה היא תיפתח בחלון עצמאי עם אייקון. פתיחת קבצי PDF כברירת מחדל תלויה בתמיכת הדפדפן והמערכת ב-File Handling, ותמיד מתבצעת בבחירה ואישור של המשתמש.</p>
+    <p>אם הדפדפן תומך ב-File Handling, ניתן לבחור את האפליקציה לפתיחת קבצי PDF ישירות מהמערכת ואף להגדיר אותה כבחירת ברירת מחדל.</p>
+    <p>לאחר פתיחה ראשונה, קבצי האפליקציה נשמרים במטמון מקומי. ספריות חיצוניות נשמרות לאחר שהדפדפן טוען אותן פעם אחת.</p>
+    <section class="install-guide" aria-label="שלבי התקנה וברירת מחדל">
+      <h3>הדרך המומלצת</h3>
+      <ol>
+        <li>לוחצים על <strong>התקן כאפליקציה</strong>. אם לא מופיע חלון התקנה, פותחים את תפריט Chrome/Edge ובוחרים <strong>התקן אפליקציה</strong>.</li>
+        <li>אחרי ההתקנה פותחים קובץ PDF פעם אחת דרך האפליקציה, או בוחרים אותה דרך <strong>פתח באמצעות</strong>.</li>
+        <li>ב-Windows בוחרים קובץ PDF, קליק ימני, <strong>פתח באמצעות</strong>, <strong>בחר אפליקציה אחרת</strong>, מסמנים <strong>השתמש תמיד</strong>, ובוחרים את האפליקציה המותקנת.</li>
+      </ol>
+      <p class="install-note">האפשרות להפוך לברירת מחדל תלויה בתמיכת Chrome/Edge ו-Windows ב-File Handling. האפליקציה כבר כוללת רישום PDF דרך manifest, והבחירה הסופית נשארת בידי המשתמש.</p>
+    </section>
+  </dialog>
+
+  <div id="tourOverlay" class="visual-tour" role="dialog" aria-modal="true" aria-labelledby="tourTitle" hidden>
+    <div class="tour-spotlight" id="tourSpotlight" aria-hidden="true"></div>
+    <section class="tour-card" id="tourCard">
+      <button class="dialog-close" id="closeTour" aria-label="סגור סיור">×</button>
+      <div class="tour-kicker" id="tourProgress">1/7</div>
+      <h2 id="tourTitle">סיור ויזואלי בתוכנה</h2>
+      <p id="tourText">נראה רגע איפה הדברים החשובים נמצאים, ואז אפשר להתחיל לעבוד בלי לחפש.</p>
+      <div class="tour-card-actions">
+        <button type="button" id="tourPrev">הקודם</button>
+        <button type="button" class="primary-tour" id="tourNext">הבא</button>
+      </div>
+    </section>
+  </div>
+  <div id="statusMessage" class="status-message" aria-live="polite" aria-atomic="true"></div>
+</body>
+</html>

@@ -1,0 +1,4473 @@
+import * as pdfjsLib from "./vendor/pdf.min.mjs";
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = "./vendor/pdf.worker.min.mjs";
+
+const $ = (id) => document.getElementById(id);
+const PAGE_RENDER_NEIGHBORS = 2;
+const PAGE_OBSERVER_MARGIN = "900px 0px";
+const PDF_LOAD_OPTIONS = {
+  disableFontFace: true,
+  useSystemFonts: false
+};
+const SESSION_FILE_KEY = "daily-pdf-reader:active-file";
+const FILE_DB_NAME = "daily-pdf-reader-files";
+const FILE_STORE_NAME = "files";
+const WEB_APP_URL = normalizeWebAppUrl(globalThis.DAILY_PDF_READER_WEB_APP_URL);
+
+const state = {
+  pdf: null,
+  file: null,
+  fileBytes: null,
+  fingerprint: "",
+  pageCount: 0,
+  currentPage: 1,
+  scale: 1.25,
+  mode: "continuous",
+  fit: "width",
+  tool: "pan",
+  meta: emptyMeta(),
+  renderedPages: new Map(),
+  pageShells: [],
+  pageObserver: null,
+  pageRenderQueue: [],
+  isProcessingPageQueue: false,
+  activePageRenderTask: null,
+  activePageNo: null,
+  search: { term: "", hits: [], index: -1 },
+  drawing: null,
+  panning: null,
+  renderId: 0,
+  isRendering: false,
+  isAdjustingScroll: false,
+  scrollLockId: 0,
+  pageWheelDelta: 0,
+  pageWheelLockedUntil: 0,
+  isSinglePageWheelActive: false,
+  selectedFieldId: null,
+  signatureSessionId: null,
+  screenshotSelection: {
+    active: false,
+    mode: "area",
+    dragging: false,
+    pointerId: null,
+    pageNo: null,
+    box: null,
+    textHighlights: [],
+    rect: null,
+    startX: 0,
+    startY: 0
+  },
+  printMode: "document",
+  outline: { items: [], type: "empty", loading: false },
+  profile: loadProfile(),
+  installPrompt: null,
+  tourIndex: 0,
+  spacePressed: false,
+  suppressContextMenu: false,
+  insertMenuPlacement: null,
+  mobileSidebarPrepared: false
+};
+
+removeTopInstallButton();
+
+function emptyMeta() {
+  return {
+    bookmarks: [],
+    highlights: [],
+    fields: [],
+    signatures: [],
+    readingPosition: 1,
+    readingOffset: 0,
+    savedReadingPosition: null,
+    savedReadingOffset: 0,
+    updatedAt: Date.now()
+  };
+}
+
+function removeTopInstallButton() {
+  $("installAppTop")?.remove();
+}
+
+const ui = {
+  fileInput: $("fileInput"),
+  fileName: $("fileName"),
+  dropZone: $("dropZone"),
+  pages: $("pages"),
+  reader: $("reader"),
+  emptyState: $("emptyState"),
+  installButtons: [...document.querySelectorAll("[data-install-app]"), $("installHelp")].filter(Boolean),
+  pageInput: $("pageInput"),
+  pageTotal: $("pageTotal"),
+  pageSlider: $("pageSlider"),
+  outlineList: $("outlineList"),
+  bookmarkList: $("bookmarkList"),
+  searchInput: $("searchInput"),
+  searchCase: $("searchCase"),
+  searchWhole: $("searchWhole"),
+  searchCount: $("searchCount"),
+  zoomLabel: $("zoomLabel"),
+  sidebar: $("sidebar"),
+  helpDialog: $("helpDialog"),
+  installSupportStatus: $("installSupportStatus"),
+  tourOverlay: $("tourOverlay"),
+  tourSpotlight: $("tourSpotlight"),
+  tourCard: $("tourCard"),
+  tourProgress: $("tourProgress"),
+  tourTitle: $("tourTitle"),
+  tourText: $("tourText"),
+  tourPrev: $("tourPrev"),
+  tourNext: $("tourNext"),
+  savedSignatureList: $("savedSignatureList"),
+  statusMessage: $("statusMessage"),
+  screenshotBtn: $("screenshotBtn"),
+  screenshotMenu: $("screenshotMenu"),
+  selectionActionMenu: $("selectionActionMenu"),
+  insertActionMenu: $("insertActionMenu"),
+  printBtn: $("printBtn"),
+  printMenu: $("printMenu"),
+  printDialog: $("printDialog")
+};
+
+const TOUR_STEPS = [
+  {
+    target: "#dropZone",
+    title: "פותחים PDF בלי סיפור",
+    text: "גוררים קובץ לכאן או לוחצים ובוחרים PDF. סימניות, הדגשות והמיקום האחרון נשמרים אצלך בדפדפן לפעם הבאה."
+  },
+  {
+    target: ".nav-panel",
+    title: "קפיצה מהירה בין עמודים",
+    text: "כאן עוברים לעמוד ראשון או אחרון, מקלידים מספר עמוד, או גוררים את הסליידר כשצריך להגיע מהר לאמצע המסמך."
+  },
+  {
+    target: ".toolbar .tool-group:first-child",
+    title: "שליטה בתצוגה",
+    text: "מלמעלה אפשר להגדיל ולהקטין, להתאים לרוחב, לראות דף מלא או לפתוח מסך מלא. זה החלק שמסדר את הקריאה בעיניים."
+  },
+  {
+    target: ".toolbar [aria-label='מצב קריאה']",
+    title: "קוראים כמו ספר אמיתי",
+    text: "אפשר לקרוא ברצף, דף בודד, או בתצוגת ספר של עמוד מול עמוד. יש מצב ספר מימין לשמאל למסמכים עבריים, וגם מצב ספר משמאל לימין למסמכים באנגלית."
+  },
+  {
+    target: ".search-panel",
+    open: ".search-panel",
+    title: "חיפוש, העתקה וסימון",
+    text: "פותחים את החיפוש, כותבים מילה, עוברים בין התוצאות, ואז אפשר להעתיק, להדגיש או לשמור קטע כתמונה."
+  },
+  {
+    target: ".autofill-panel",
+    open: ".autofill-panel",
+    title: "מילוי טפסים במהירות",
+    text: "שומרים פרטים כמו שם, כתובת, מייל וטלפון, ואז מכניסים אותם למסמך ברגע. קליק ימני במסמך מוסיף גם טקסט, הערה, חתימה והדגשה."
+  },
+  {
+    target: "#screenshotDropdown",
+    title: "שומרים ומשתפים רק מה שצריך",
+    text: "אפשר לשמור PDF עם ההוספות, לצלם עמוד או חלון, להעתיק ללוח ולהדפיס רק אזור מסומן. זה חוסך הרבה עבודה קטנה ומעצבנת."
+  }
+];
+
+const saveScrollMeta = debounce(() => saveMeta(false), 200);
+
+wireEvents();
+prepareMobileSidebar();
+initProfileControls();
+registerPwa();
+initFileHandling();
+restoreActiveSessionFile();
+updateStatus();
+
+function wireEvents() {
+  ui.fileInput.addEventListener("change", (event) => {
+    const [file] = event.target.files;
+    if (file && isPdfFile(file)) openFile(file);
+  });
+
+  ["dragenter", "dragover"].forEach((name) => {
+    ui.dropZone.addEventListener(name, (event) => {
+      event.preventDefault();
+      ui.dropZone.classList.add("dragover");
+    });
+  });
+
+  ["dragleave", "drop"].forEach((name) => {
+    ui.dropZone.addEventListener(name, () => ui.dropZone.classList.remove("dragover"));
+  });
+
+  ui.dropZone.addEventListener("drop", (event) => {
+    event.preventDefault();
+    const [file] = event.dataTransfer.files;
+    if (file && isPdfFile(file)) openFile(file);
+  });
+
+  $("firstPage").addEventListener("click", () => goToPage(1));
+  $("lastPage").addEventListener("click", () => goToPage(state.pageCount));
+  ui.pageInput.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") goToPage(Number(ui.pageInput.value));
+  });
+  ui.pageSlider.addEventListener("input", () => {
+    ui.pageInput.value = ui.pageSlider.value;
+  });
+  ui.pageSlider.addEventListener("change", () => {
+    goToPage(Number(ui.pageSlider.value));
+  });
+
+  $("zoomIn").addEventListener("click", () => setScale(state.scale + 0.15));
+  $("zoomOut").addEventListener("click", () => setScale(state.scale - 0.15));
+  $("fitWidth").addEventListener("click", () => fitTo("width"));
+  $("fitPage").addEventListener("click", () => fitTo("page"));
+  $("fullscreenBtn").addEventListener("click", () => document.documentElement.requestFullscreen?.());
+  $("toggleSidebar").addEventListener("click", () => {
+    state.mobileSidebarPrepared = true;
+    ui.sidebar.classList.toggle("collapsed");
+    document.querySelector(".app-shell").classList.toggle("sidebar-closed", ui.sidebar.classList.contains("collapsed"));
+  });
+  $("closeSidebar")?.addEventListener("click", closeMobileSidebar);
+  ui.sidebar.addEventListener("click", maybeCloseSidebarAfterAction);
+
+  document.querySelectorAll("[data-mobile-panel]").forEach((button) => {
+    button.addEventListener("click", () => openMobileSidebarPanel(button.dataset.mobilePanel));
+  });
+
+  document.querySelectorAll("[data-mode]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      document.querySelectorAll("[data-mode]").forEach((btn) => btn.classList.remove("active"));
+      button.classList.add("active");
+      state.mode = button.dataset.mode;
+      syncSinglePageWheel();
+      normalizeBookStart();
+      if (state.mode.startsWith("book")) {
+        await fitTo("width");
+      } else {
+        render();
+      }
+    });
+  });
+
+  document.querySelectorAll("[data-tool]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const nextTool = button.dataset.tool;
+      const wasSignatureTool = state.tool === "signature";
+      document.querySelectorAll("[data-tool]").forEach((btn) => btn.classList.remove("active"));
+      button.classList.add("active");
+      state.tool = nextTool;
+      stopScreenshotSelection();
+      if (state.tool === "signature" && !wasSignatureTool) {
+        state.signatureSessionId = crypto.randomUUID();
+      } else if (state.tool !== "signature") {
+        removeEmptySignatureDraft(state.signatureSessionId);
+        state.signatureSessionId = null;
+      }
+      updateToolLayers();
+      renderVisibleAnnotations();
+      renderSavedSignatures();
+    });
+  });
+
+  $("addBookmark").addEventListener("click", addBookmark);
+  $("savePosition").addEventListener("click", savePosition);
+  $("restorePosition").addEventListener("click", restorePosition);
+  ui.installButtons.forEach((button) => button.addEventListener("click", installOrShowHelp));
+  document.querySelectorAll("[data-install-help]").forEach((button) => {
+    button.addEventListener("click", showInstallHelp);
+  });
+  $("closeHelp").addEventListener("click", () => ui.helpDialog.close());
+  $("tourGuide").addEventListener("click", openTourGuide);
+  $("closeTour").addEventListener("click", closeTourGuide);
+  ui.tourPrev.addEventListener("click", () => moveTour(-1));
+  ui.tourNext.addEventListener("click", () => moveTour(1));
+
+  $("searchBtn").addEventListener("click", search);
+  ui.searchInput.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      if (state.search.term === ui.searchInput.value.trim() && state.search.hits.length) {
+        moveSearch(event.shiftKey ? -1 : 1);
+      } else {
+        search();
+      }
+    }
+  });
+  ui.searchCase.addEventListener("change", search);
+  ui.searchWhole.addEventListener("change", search);
+  $("nextResult").addEventListener("click", () => moveSearch(1));
+  $("prevResult").addEventListener("click", () => moveSearch(-1));
+
+  ui.screenshotBtn.addEventListener("click", toggleScreenshotMenu);
+  $("screenshotPageBtn").addEventListener("click", () => {
+    closeScreenshotMenu();
+    stopScreenshotSelection();
+    takeScreenshot();
+  });
+  $("screenshotWindowBtn").addEventListener("click", () => {
+    closeScreenshotMenu();
+    stopScreenshotSelection();
+    saveReaderWindowScreenshot();
+  });
+  $("copyScreenshotPageBtn").addEventListener("click", () => {
+    closeScreenshotMenu();
+    stopScreenshotSelection();
+    copyCurrentPageScreenshot();
+  });
+  $("copyScreenshotWindowBtn").addEventListener("click", () => {
+    closeScreenshotMenu();
+    stopScreenshotSelection();
+    copyReaderWindowScreenshot();
+  });
+  $("screenshotSelectAreaBtn").addEventListener("click", () => {
+    closeScreenshotMenu();
+    startScreenshotSelection();
+  });
+  $("saveSelectionShot").addEventListener("click", () => saveSelectionScreenshot());
+  $("copySelectionShot").addEventListener("click", () => copySelectionScreenshot());
+  $("highlightSelection").addEventListener("click", () => highlightCurrentSelection());
+  $("printSelectionStickers").addEventListener("click", () => openPrintDialog("document", "selection"));
+  ui.insertActionMenu?.querySelectorAll("[data-insert-action]").forEach((button) => {
+    button.addEventListener("click", () => runInsertAction(button.dataset.insertAction));
+  });
+  ui.printBtn.addEventListener("click", togglePrintMenu);
+  $("quickPrintBtn").addEventListener("click", () => {
+    closePrintMenu();
+    runPrint({ mode: "document", scope: "current", perSheet: 1, orientation: "portrait", cutGuides: false });
+  });
+  $("printSelectAreaBtn").addEventListener("click", () => {
+    closePrintMenu();
+    startScreenshotSelection();
+  });
+  $("printOptionsBtn").addEventListener("click", () => {
+    closePrintMenu();
+    openPrintDialog();
+  });
+  $("closePrint").addEventListener("click", closePrintDialog);
+  $("cancelPrint").addEventListener("click", closePrintDialog);
+  $("printForm").addEventListener("submit", submitPrintOptions);
+  document.querySelectorAll("[data-print-mode]").forEach((button) => {
+    button.addEventListener("click", () => setPrintMode(button.dataset.printMode));
+  });
+  $("printForm").addEventListener("input", updatePrintSummary);
+  $("printForm").addEventListener("change", updatePrintSummary);
+  $("downloadBtn").addEventListener("click", exportPdf);
+  $("clearAnnotationsBtn").addEventListener("click", clearAllAnnotations);
+
+  document.querySelectorAll("[data-fill]").forEach((button) => {
+    button.addEventListener("pointerdown", (event) => {
+      event.preventDefault();
+    });
+    button.addEventListener("click", () => applyQuickFill(button.dataset.fill));
+  });
+
+  ui.reader.addEventListener("scroll", onScroll, { passive: true });
+  ui.reader.addEventListener("click", openFileFromEmptyReader);
+  syncSinglePageWheel();
+  ui.reader.addEventListener("pointerdown", startReaderPan);
+  ui.reader.addEventListener("pointermove", moveReaderPan);
+  ui.reader.addEventListener("pointerup", stopReaderPan);
+  ui.reader.addEventListener("pointercancel", stopReaderPan);
+  ui.reader.addEventListener("contextmenu", (event) => {
+    if (state.suppressContextMenu) {
+      event.preventDefault();
+      state.suppressContextMenu = false;
+      return;
+    }
+    showInsertActionMenu(event);
+  });
+  window.addEventListener("keydown", (event) => {
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "p") {
+      event.preventDefault();
+      openPrintDialog();
+      return;
+    }
+    if ((event.key === "Delete" || event.key === "Backspace") && state.selectedFieldId && !isTypingTarget(event.target)) {
+      deleteSelectedField();
+      event.preventDefault();
+      return;
+    }
+    if (event.key === "Escape" && ui.helpDialog.open) {
+      ui.helpDialog.close();
+      announce("חלון ההתקנה נסגר.");
+      return;
+    }
+    if (event.key === "Escape" && !ui.tourOverlay.hidden) {
+      closeTourGuide();
+      return;
+    }
+    if (event.key === "Escape" && state.screenshotSelection.active) {
+      stopScreenshotSelection();
+      announce("בחירת הקטע בוטלה.");
+      return;
+    }
+    if (handleSinglePageKey(event)) return;
+    if (event.code === "Space" && !isTypingTarget(event.target)) {
+      state.spacePressed = true;
+      event.preventDefault();
+    }
+  });
+  window.addEventListener("keyup", (event) => {
+    if (event.code === "Space") state.spacePressed = false;
+  });
+  document.addEventListener("pointerdown", (event) => {
+    if (!event.target.closest("#screenshotDropdown")) closeScreenshotMenu();
+    if (!event.target.closest("#printDropdown")) closePrintMenu();
+    if (!event.target.closest("#selectionActionMenu") && !event.target.closest(".screenshot-layer")) {
+      hideSelectionActionMenu();
+    }
+    if (!event.target.closest("#insertActionMenu")) hideInsertActionMenu();
+    if (!event.target.closest(".field-box")) closeFieldMenus();
+  });
+  window.addEventListener("resize", debounce(() => {
+    prepareMobileSidebar();
+    fitTo(state.fit);
+    if (!ui.tourOverlay.hidden) positionTourStep();
+  }, 150));
+}
+
+function prepareMobileSidebar() {
+  if (state.mobileSidebarPrepared || !window.matchMedia("(max-width: 720px)").matches) return;
+  ui.sidebar.classList.add("collapsed");
+  document.querySelector(".app-shell").classList.add("sidebar-closed");
+  state.mobileSidebarPrepared = true;
+}
+
+function isMobileSidebarMode() {
+  return window.matchMedia("(max-width: 720px)").matches;
+}
+
+function closeMobileSidebar() {
+  if (!isMobileSidebarMode()) return;
+  state.mobileSidebarPrepared = true;
+  ui.sidebar.classList.add("collapsed");
+  document.querySelector(".app-shell").classList.add("sidebar-closed");
+}
+
+function maybeCloseSidebarAfterAction(event) {
+  if (!isMobileSidebarMode() || ui.sidebar.classList.contains("collapsed")) return;
+  const target = event.target;
+  if (target.closest(".mobile-side-rail, .mobile-sidebar-close, summary, input, select, textarea, .bookmark-item input")) return;
+  const action = target.closest("button, .open-drop");
+  if (!action || action.disabled) return;
+  window.setTimeout(closeMobileSidebar, 80);
+}
+
+function openMobileSidebarPanel(selector) {
+  const shell = document.querySelector(".app-shell");
+  const panel = document.querySelector(selector);
+  state.mobileSidebarPrepared = true;
+  ui.sidebar.classList.remove("collapsed");
+  shell.classList.remove("sidebar-closed");
+  if (panel?.tagName === "DETAILS") panel.open = true;
+  window.setTimeout(() => {
+    panel?.scrollIntoView({ block: "center", inline: "nearest", behavior: "smooth" });
+  }, 80);
+}
+
+function registerPwa() {
+  const canUsePwaFeatures = ["http:", "https:"].includes(window.location.protocol);
+  updateInstallUi();
+
+  if (canUsePwaFeatures && "serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("./service-worker.js").catch((error) => {
+        console.warn("Service worker registration failed:", error);
+        announce("התקנת השירות האופי לא הצליחה. האפליקציה עדיין תעבוד, אך ללא מטמון מלא.");
+      });
+    });
+  }
+
+  window.addEventListener("beforeinstallprompt", (event) => {
+    event.preventDefault();
+    state.installPrompt = event;
+    updateInstallUi();
+    announce("האפליקציה מוכנה להתקנה. לחץ על התקן כאפליקציה.");
+  });
+
+  window.addEventListener("appinstalled", () => {
+    state.installPrompt = null;
+    updateInstallUi();
+    showInstallHelp();
+    announce("האפליקציה הותקנה בהצלחה. עכשיו אפשר לבחור אותה ידנית כקורא PDF ברירת מחדל.");
+  });
+
+  window.matchMedia("(display-mode: standalone)").addEventListener?.("change", updateInstallUi);
+}
+
+async function installOrShowHelp() {
+  if (!state.installPrompt && isExtensionPage() && WEB_APP_URL) {
+    window.open(WEB_APP_URL, "_blank", "noopener");
+    announce("נפתחה גרסת ה-Web להתקנה כאפליקציה. שם הדפדפן יוכל להציע התקנה.");
+    return;
+  }
+
+  if (!state.installPrompt) {
+    showInstallHelp();
+    announce("אם הדפדפן לא מציג חלון התקנה, השתמש בהסבר להתקנה ידנית ולבחירת ברירת מחדל.");
+    return;
+  }
+
+  const promptEvent = state.installPrompt;
+  state.installPrompt = null;
+  promptEvent.prompt();
+  const choice = await promptEvent.userChoice;
+  if (choice.outcome === "accepted") {
+    announce("התקנת האפליקציה החלה. המתן לאישור בדפדפן.");
+  } else {
+    announce("המשתמש ביטל את ההתקנה. ניתן לנסות שוב דרך הכפתור.");
+  }
+  updateInstallUi();
+}
+
+function showInstallHelp() {
+  updateInstallSupportStatus();
+  if (!ui.helpDialog.open) ui.helpDialog.showModal();
+}
+
+function isStandaloneApp() {
+  return window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+}
+
+function isExtensionPage() {
+  return window.location.protocol === "chrome-extension:";
+}
+
+function normalizeWebAppUrl(url) {
+  if (!url || typeof url !== "string") return "";
+  try {
+    const parsed = new URL(url);
+    return ["https:", "http:"].includes(parsed.protocol) ? parsed.href : "";
+  } catch {
+    return "";
+  }
+}
+
+function updateInstallSupportStatus() {
+  if (!ui.installSupportStatus) return;
+  if (isStandaloneApp()) {
+    ui.installSupportStatus.textContent = "האפליקציה כבר פועלת כחלון מותקן. השלב הבא הוא לבחור אותה ידנית כקורא PDF ברירת מחדל ב-Windows.";
+  } else if (state.installPrompt) {
+    ui.installSupportStatus.textContent = "הדפדפן מאפשר התקנה עכשיו. סגור חלון זה ולחץ על כפתור התקן כאפליקציה.";
+  } else if (isExtensionPage() && WEB_APP_URL) {
+    ui.installSupportStatus.textContent = "כעת הקורא פתוח מתוך התוסף. לחץ על התקן כאפליקציה כדי לפתוח את גרסת ה-Web, ושם הדפדפן יציע התקנה כאפליקציה.";
+  } else if (isExtensionPage()) {
+    ui.installSupportStatus.textContent = "כעת הקורא פתוח מתוך התוסף. כדי לקבל התקנה ישירה והצעת התקנה מהדפדפן, צריך להגדיר כתובת Web בקובץ web-app-config.js ולפרסם את הקורא כ-PWA.";
+  } else {
+    ui.installSupportStatus.textContent = "אם כפתור ההתקנה לא מופיע, השתמש בתפריט Chrome/Edge ובחר התקן אפליקציה. בחלק מהדפדפנים האפשרות מופיעה רק אחרי טעינת האתר דרך http או https.";
+  }
+}
+
+function updateInstallUi() {
+  const installed = isStandaloneApp();
+  ui.installButtons.forEach((button) => {
+    button.classList.toggle("install-ready", Boolean(state.installPrompt) && !installed);
+    button.classList.toggle("is-installed", installed);
+    const label = button.querySelector("span:last-child") || button;
+    if (installed) {
+      label.textContent = button.id === "installHelp" ? "האפליקציה מותקנת" : "האפליקציה מותקנת";
+      button.title = "הצג הסבר לבחירת קורא PDF ברירת מחדל";
+      button.setAttribute("aria-label", "האפליקציה מותקנת. הצג הסבר לבחירת ברירת מחדל");
+    } else if (state.installPrompt) {
+      label.textContent = "התקן כאפליקציה";
+      button.title = "התקן את קורא PDF יומי כאפליקציה";
+      button.setAttribute("aria-label", "התקן כאפליקציה");
+    } else if (isExtensionPage() && WEB_APP_URL) {
+      label.textContent = "פתח התקנה";
+      button.title = "פתח את גרסת ה-Web כדי להתקין כאפליקציה";
+      button.setAttribute("aria-label", "פתח את גרסת ה-Web להתקנה כאפליקציה");
+    } else {
+      label.textContent = button.id === "installHelp" ? "ברירת מחדל והתקנה" : "התקן כאפליקציה";
+      button.title = "הצג הסבר להתקנה כאפליקציה ולבחירת ברירת מחדל";
+      button.setAttribute("aria-label", "הצג הסבר להתקנה כאפליקציה");
+    }
+  });
+}
+
+function openTourGuide() {
+  if (ui.helpDialog.open) ui.helpDialog.close();
+  if (ui.printDialog.open) closePrintDialog();
+  closeScreenshotMenu();
+  closePrintMenu();
+  hideSelectionActionMenu();
+  hideInsertActionMenu();
+  closeFieldMenus();
+  stopScreenshotSelection();
+  if (ui.sidebar.classList.contains("collapsed")) {
+    ui.sidebar.classList.remove("collapsed");
+    document.querySelector(".app-shell").classList.remove("sidebar-closed");
+  }
+  state.tourIndex = 0;
+  ui.tourOverlay.hidden = false;
+  document.body.classList.add("tour-active");
+  showTourStep();
+  announce("נפתח סיור ויזואלי קצר בתוכנה.");
+}
+
+function closeTourGuide() {
+  ui.tourOverlay.hidden = true;
+  document.body.classList.remove("tour-active");
+  ui.tourSpotlight.removeAttribute("style");
+  ui.tourCard.removeAttribute("style");
+  announce("הסיור הוויזואלי נסגר.");
+}
+
+function moveTour(direction) {
+  const nextIndex = state.tourIndex + direction;
+  if (nextIndex >= TOUR_STEPS.length) {
+    closeTourGuide();
+    return;
+  }
+  state.tourIndex = clamp(nextIndex, 0, TOUR_STEPS.length - 1);
+  showTourStep();
+}
+
+function showTourStep() {
+  const step = TOUR_STEPS[state.tourIndex];
+  const panel = step.open ? document.querySelector(step.open) : null;
+  if (panel?.tagName === "DETAILS") panel.open = true;
+  const target = document.querySelector(step.target) || ui.reader;
+  target.scrollIntoView?.({ block: "center", inline: "nearest", behavior: "smooth" });
+  ui.tourProgress.textContent = `${state.tourIndex + 1}/${TOUR_STEPS.length}`;
+  ui.tourTitle.textContent = step.title;
+  ui.tourText.textContent = step.text;
+  ui.tourPrev.disabled = state.tourIndex === 0;
+  ui.tourNext.textContent = state.tourIndex === TOUR_STEPS.length - 1 ? "סיום" : "הבא";
+  window.setTimeout(positionTourStep, 180);
+}
+
+function positionTourStep() {
+  if (ui.tourOverlay.hidden) return;
+  const step = TOUR_STEPS[state.tourIndex];
+  const target = document.querySelector(step.target) || ui.reader;
+  const rect = target.getBoundingClientRect();
+  const pad = 8;
+  const left = clamp(rect.left - pad, 10, window.innerWidth - 40);
+  const top = clamp(rect.top - pad, 10, window.innerHeight - 40);
+  const width = clamp(rect.width + pad * 2, 80, window.innerWidth - left - 10);
+  const height = clamp(rect.height + pad * 2, 48, window.innerHeight - top - 10);
+  ui.tourSpotlight.style.left = `${left}px`;
+  ui.tourSpotlight.style.top = `${top}px`;
+  ui.tourSpotlight.style.width = `${width}px`;
+  ui.tourSpotlight.style.height = `${height}px`;
+
+  const cardWidth = Math.min(360, window.innerWidth - 24);
+  const cardHeight = ui.tourCard.offsetHeight || 220;
+  const hasRoomLeft = rect.left > cardWidth + 26;
+  const hasRoomRight = window.innerWidth - rect.right > cardWidth + 26;
+  let cardLeft = hasRoomLeft ? rect.left - cardWidth - 18 : rect.right + 18;
+  if (!hasRoomLeft && !hasRoomRight) cardLeft = (window.innerWidth - cardWidth) / 2;
+  cardLeft = clamp(cardLeft, 12, window.innerWidth - cardWidth - 12);
+  const cardTop = clamp(rect.top, 12, window.innerHeight - cardHeight - 12);
+  ui.tourCard.style.width = `${cardWidth}px`;
+  ui.tourCard.style.left = `${cardLeft}px`;
+  ui.tourCard.style.top = `${cardTop}px`;
+}
+
+function initFileHandling() {
+  if (!("launchQueue" in window)) return;
+
+  window.launchQueue.setConsumer((launchParams) => {
+    const [fileHandle] = launchParams.files || [];
+    if (fileHandle) openFileFromHandle(fileHandle);
+  });
+}
+
+async function openFileFromHandle(fileHandle) {
+  try {
+    const file = await fileHandle.getFile();
+    if (isPdfFile(file)) await openFile(file);
+  } catch (error) {
+    console.warn("Could not open launched file:", error);
+  }
+}
+
+function openFileFromEmptyReader(event) {
+  if (state.pdf || event.defaultPrevented || event.button !== 0) return;
+  if (event.target.closest("button, input, textarea, select, a, [contenteditable='true']")) return;
+  ui.fileInput.value = "";
+  ui.fileInput.click();
+}
+
+function isPdfFile(file) {
+  return file?.type === "application/pdf" || /\.pdf$/i.test(file?.name || "");
+}
+
+async function openFile(file, options = {}) {
+  const { remember = true } = options;
+  stopScreenshotSelection();
+  state.file = file;
+  state.fileBytes = await file.arrayBuffer();
+  state.pdf = await pdfjsLib.getDocument({
+    data: state.fileBytes.slice(0),
+    ...PDF_LOAD_OPTIONS
+  }).promise;
+  state.pageCount = state.pdf.numPages;
+  state.fingerprint = fingerprintForFile(file);
+  state.meta = loadMeta();
+  state.currentPage = clamp(state.meta.readingPosition || 1, 1, state.pageCount);
+  state.search = { term: "", hits: [], index: -1 };
+  state.outline = { items: [], type: "loading", loading: true };
+  state.renderedPages.clear();
+  ui.fileName.textContent = file.name;
+  ui.emptyState.hidden = true;
+  ui.reader.classList.remove("empty-file-target");
+  renderOutline();
+  rememberActiveSessionFile(state.fingerprint);
+  if (remember) rememberOpenFile(file, state.fileBytes, state.fingerprint);
+  buildOutline();
+  await fitTo("width");
+  renderBookmarks();
+}
+
+function fingerprintForFile(file) {
+  return `${file.name}:${file.size}:${file.lastModified}`;
+}
+
+async function render() {
+  if (!state.pdf) return;
+  const renderId = ++state.renderId;
+  const scrollLockId = lockScrollTracking();
+  state.isRendering = true;
+  state.pageRenderQueue = [];
+  state.renderedPages.clear();
+  state.pageShells = [];
+  disconnectPageObserver();
+  ui.pages.innerHTML = "";
+  updateStatus();
+
+  const fragment = document.createDocumentFragment();
+  if (state.mode === "continuous" || state.mode === "single") {
+    for (let pageNo = 1; pageNo <= state.pageCount; pageNo += 1) {
+      if (renderId !== state.renderId) return;
+      const pageElement = await createPage(pageNo);
+      if (renderId !== state.renderId) return;
+      fragment.append(pageElement);
+    }
+  } else {
+    for (const spreadPages of getBookSpreads()) {
+      const spread = document.createElement("div");
+      spread.className = state.mode === "book-rtl" ? "spread spread-rtl" : "spread spread-ltr";
+      for (const pageNo of spreadPages) {
+        if (renderId !== state.renderId) return;
+        const pageElement = await createPage(pageNo);
+        if (renderId !== state.renderId) return;
+        spread.append(pageElement);
+      }
+      fragment.append(spread);
+    }
+  }
+  ui.pages.append(fragment);
+
+  if (renderId !== state.renderId) return;
+  paintSearchHits();
+  updateToolLayers();
+  scrollCurrentIntoView(scrollLockId);
+  observePages(renderId);
+  queueNearbyContent(state.currentPage, renderId);
+}
+
+function createPage(pageNo) {
+  const viewport = getFallbackViewport();
+  const shell = document.createElement("section");
+  shell.className = "page-shell";
+  shell.dataset.page = String(pageNo);
+  shell.style.width = `${viewport.width}px`;
+  shell.style.height = `${viewport.height}px`;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.ceil(viewport.width);
+  canvas.height = Math.ceil(viewport.height);
+  canvas.style.width = `${viewport.width}px`;
+  canvas.style.height = `${viewport.height}px`;
+  shell.append(canvas);
+
+  const textLayer = document.createElement("div");
+  textLayer.className = "text-layer";
+  shell.append(textLayer);
+
+  const searchLayer = document.createElement("div");
+  searchLayer.className = "search-layer";
+  shell.append(searchLayer);
+
+  const annotationLayer = document.createElement("div");
+  annotationLayer.className = "annotation-layer";
+  shell.append(annotationLayer);
+  wireAnnotationLayer(annotationLayer, pageNo);
+
+  const objectLayer = document.createElement("div");
+  objectLayer.className = "object-layer";
+  shell.append(objectLayer);
+
+  const screenshotLayer = document.createElement("div");
+  screenshotLayer.className = "screenshot-layer";
+  shell.append(screenshotLayer);
+  wireScreenshotLayer(screenshotLayer, pageNo);
+
+  state.renderedPages.set(pageNo, {
+    shell,
+    page: null,
+    viewport,
+    canvas,
+    textLayer,
+    annotationLayer,
+    objectLayer,
+    screenshotLayer,
+    searchLayer,
+    contentRendered: false,
+    contentRendering: false
+  });
+  state.pageShells[pageNo - 1] = shell;
+  renderAnnotationsForPage(pageNo);
+  return shell;
+}
+
+function getFallbackViewport() {
+  const width = 612 * state.scale;
+  const height = 792 * state.scale;
+  return { width, height, scale: state.scale };
+}
+
+function queuePageContent(pageNo, renderId, priority = false) {
+  const record = state.renderedPages.get(pageNo);
+  if (!record || record.contentRendered || record.contentRendering) return;
+  state.pageRenderQueue = state.pageRenderQueue.filter((item) => item.pageNo !== pageNo);
+  const item = { pageNo, renderId };
+  if (priority) {
+    state.pageRenderQueue.unshift(item);
+  } else {
+    state.pageRenderQueue.push(item);
+  }
+  processPageRenderQueue();
+}
+
+function queueNearbyContent(pageNo, renderId) {
+  const current = clamp(pageNo || state.currentPage || 1, 1, state.pageCount || 1);
+  const pages = [current];
+  for (let distance = 1; distance <= PAGE_RENDER_NEIGHBORS; distance += 1) {
+    const before = current - distance;
+    const after = current + distance;
+    if (before >= 1) pages.push(before);
+    if (after <= state.pageCount) pages.push(after);
+  }
+  for (let index = pages.length - 1; index >= 0; index -= 1) {
+    queuePageContent(pages[index], renderId, true);
+  }
+}
+
+function queueDocumentContent(renderId) {
+  const current = clamp(state.currentPage || 1, 1, state.pageCount || 1);
+  queuePageContent(current, renderId, true);
+  for (let distance = 1; distance <= state.pageCount; distance += 1) {
+    const before = current - distance;
+    const after = current + distance;
+    if (before >= 1) queuePageContent(before, renderId);
+    if (after <= state.pageCount) queuePageContent(after, renderId);
+  }
+}
+
+function cancelActivePageRender(nextPageNo) {
+  if (!state.activePageRenderTask || state.activePageNo === nextPageNo) return;
+  state.activePageRenderTask.cancel?.();
+}
+
+function observePages(renderId) {
+  if (!("IntersectionObserver" in window)) {
+    queueDocumentContent(renderId);
+    return;
+  }
+
+  state.pageObserver = new IntersectionObserver((entries) => {
+    for (const entry of entries) {
+      if (!entry.isIntersecting) continue;
+      queueNearbyContent(Number(entry.target.dataset.page), renderId);
+    }
+  }, {
+    root: ui.reader,
+    rootMargin: PAGE_OBSERVER_MARGIN,
+    threshold: 0.01
+  });
+
+  for (const shell of state.pageShells) {
+    if (shell) state.pageObserver.observe(shell);
+  }
+}
+
+function disconnectPageObserver() {
+  state.pageObserver?.disconnect();
+  state.pageObserver = null;
+}
+
+async function processPageRenderQueue() {
+  if (state.isProcessingPageQueue) return;
+  state.isProcessingPageQueue = true;
+  try {
+    while (state.pageRenderQueue.length) {
+      const { pageNo, renderId } = state.pageRenderQueue.shift();
+      if (renderId !== state.renderId) continue;
+      try {
+        await renderPageContent(pageNo, renderId);
+      } catch (error) {
+        if (error?.name === "RenderingCancelledException") continue;
+        console.warn(`Could not render page ${pageNo}:`, error);
+      }
+    }
+  } finally {
+    state.isProcessingPageQueue = false;
+  }
+}
+
+async function renderPageContent(pageNo, renderId) {
+  const record = state.renderedPages.get(pageNo);
+  if (!record || record.contentRendered || record.contentRendering) return;
+  record.contentRendering = true;
+  try {
+    const page = await state.pdf.getPage(pageNo);
+    if (renderId !== state.renderId) return;
+    const viewport = page.getViewport({ scale: state.scale });
+    record.page = page;
+    record.viewport = viewport;
+    record.shell.style.width = `${viewport.width}px`;
+    record.shell.style.height = `${viewport.height}px`;
+    record.canvas.width = Math.ceil(viewport.width);
+    record.canvas.height = Math.ceil(viewport.height);
+    record.canvas.style.width = `${viewport.width}px`;
+    record.canvas.style.height = `${viewport.height}px`;
+    record.textLayer.style.setProperty("--scale-factor", viewport.scale);
+    renderAnnotationsForPage(pageNo);
+    const renderTask = page.render({ canvasContext: record.canvas.getContext("2d"), viewport });
+    state.activePageRenderTask = renderTask;
+    state.activePageNo = pageNo;
+    await renderTask.promise;
+    if (renderId !== state.renderId) return;
+    await renderTextLayer(page, viewport, record.textLayer, pageNo);
+    record.contentRendered = true;
+    paintSearchHits();
+    if (pageNo === state.currentPage) {
+      scrollCurrentIntoView();
+    }
+  } finally {
+    if (state.activePageNo === pageNo) {
+      state.activePageRenderTask = null;
+      state.activePageNo = null;
+    }
+    record.contentRendering = false;
+  }
+}
+
+async function renderTextLayer(page, viewport, layer, pageNo) {
+  layer.innerHTML = "";
+  const content = await page.getTextContent();
+  if (pdfjsLib.TextLayer) {
+    const textLayer = new pdfjsLib.TextLayer({
+      textContentSource: content,
+      container: layer,
+      viewport
+    });
+    await textLayer.render();
+  }
+  const record = state.renderedPages.get(pageNo) || {};
+  record.text = content.items.map((item) => item.str).join(" ");
+  record.textItems = content.items.map((item) => getViewportTextItem(item, viewport)).filter(Boolean);
+  state.renderedPages.set(pageNo, record);
+}
+
+function getViewportTextItem(item, viewport) {
+  const text = String(item.str || "").trim();
+  if (!text) return null;
+  const transform = pdfjsLib.Util.transform(viewport.transform, item.transform);
+  const fontHeight = Math.max(1, Math.hypot(transform[2], transform[3]) || Math.abs(transform[3]) || item.height * viewport.scale);
+  const rawWidth = item.width * viewport.scale;
+  const width = Math.max(1, Math.abs(rawWidth));
+  const x = Math.min(transform[4], transform[4] + rawWidth);
+  const y = transform[5] - fontHeight;
+  return {
+    text,
+    dir: item.dir || "ltr",
+    x,
+    y,
+    w: width,
+    h: fontHeight
+  };
+}
+
+function wireAnnotationLayer(layer, pageNo) {
+  layer.addEventListener("pointerdown", (event) => {
+    if (event.button !== 0) return;
+    if (event.target.closest(".field-box")) return;
+    if (state.tool === "text") {
+      addTextField(pageNo, event.offsetX, event.offsetY);
+      return;
+    }
+    if (state.tool !== "highlight" && state.tool !== "signature") return;
+    layer.setPointerCapture(event.pointerId);
+    state.drawing = {
+      pageNo,
+      startX: event.offsetX,
+      startY: event.offsetY,
+      points: [[event.offsetX, event.offsetY]],
+      lastX: event.offsetX,
+      lastY: event.offsetY,
+      strokeWidth: 1.8,
+      preview: document.createElement(state.tool === "signature" ? "svg" : "div")
+    };
+    state.drawing.preview.className = state.tool === "signature" ? "ink-box" : "highlight-box";
+    if (state.tool === "signature") {
+      state.drawing.preview.setAttribute("width", "100%");
+      state.drawing.preview.setAttribute("height", "100%");
+      state.drawing.preview.setAttribute("viewBox", `0 0 ${layer.clientWidth} ${layer.clientHeight}`);
+      state.drawing.line = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      state.drawing.line.setAttribute("fill", "none");
+      state.drawing.line.setAttribute("stroke", "#111827");
+      state.drawing.line.setAttribute("stroke-width", String(state.drawing.strokeWidth));
+      state.drawing.line.setAttribute("stroke-linecap", "round");
+      state.drawing.line.setAttribute("stroke-linejoin", "round");
+      state.drawing.preview.append(state.drawing.line);
+    }
+    layer.append(state.drawing.preview);
+  });
+
+  layer.addEventListener("pointermove", (event) => {
+    if (!state.drawing) return;
+    if (state.tool === "signature") event.preventDefault();
+    const x = event.offsetX;
+    const y = event.offsetY;
+    if (state.tool === "signature") {
+      const distance = Math.hypot(x - state.drawing.lastX, y - state.drawing.lastY);
+      if (distance < 1.4) return;
+      state.drawing.points.push([x, y]);
+      state.drawing.lastX = x;
+      state.drawing.lastY = y;
+      state.drawing.line.setAttribute("d", pointsToSmoothPath(state.drawing.points));
+    } else {
+      positionBox(state.drawing.preview, state.drawing.startX, state.drawing.startY, x, y);
+    }
+  });
+
+  layer.addEventListener("pointerup", finishDrawing);
+  layer.addEventListener("pointercancel", () => {
+    state.drawing?.preview.remove();
+    state.drawing = null;
+  });
+}
+
+function finishDrawing(event) {
+  if (!state.drawing) return;
+  const record = state.renderedPages.get(state.drawing.pageNo);
+  const width = record.viewport.width;
+  const height = record.viewport.height;
+  if (state.tool === "highlight") {
+    const box = normalizedBox(state.drawing.startX, state.drawing.startY, event.offsetX, event.offsetY, width, height);
+    state.drawing.preview.remove();
+    if (box.w > 0.01 && box.h > 0.005) {
+      state.meta.highlights.push({ id: crypto.randomUUID(), page: state.drawing.pageNo, ...box });
+      setTransientInsertTool("pan");
+    }
+  } else if (state.tool === "signature") {
+    const points = state.drawing.points.map(([x, y]) => [x / width, y / height]);
+    state.drawing.preview.remove();
+    if (points.length > 2) {
+      const signature = getActiveSignature(state.drawing.pageNo);
+      getSignatureStrokes(signature).push(points);
+      delete signature.draftBox;
+      signature.strokeWidth = state.drawing.strokeWidth / width;
+    }
+  }
+  state.drawing = null;
+  saveMeta();
+  renderAnnotationsForPage(record.shell.dataset.page);
+  renderSavedSignatures();
+}
+
+function addTextField(pageNo, x, y) {
+  addTextFieldWithValue(pageNo, x, y, "");
+}
+
+function addTextFieldWithValue(pageNo, x, y, text, options = {}) {
+  const record = state.renderedPages.get(pageNo);
+  const id = crypto.randomUUID();
+  const field = {
+    id,
+    page: pageNo,
+    x: x / record.viewport.width,
+    y: y / record.viewport.height,
+    w: options.w || 0.09,
+    h: options.h || 0.032,
+    fontSize: options.fontSize || 15,
+    scale: record.viewport.scale || state.scale || 1,
+    type: options.type || "text",
+    text
+  };
+  state.meta.fields.push(field);
+  state.selectedFieldId = id;
+  saveMeta();
+  renderAnnotationsForPage(pageNo);
+  requestAnimationFrame(() => {
+    const content = record.objectLayer.querySelector(`[data-field-id="${CSS.escape(id)}"] .field-content`);
+    content?.focus();
+    const box = record.objectLayer.querySelector(`[data-field-id="${CSS.escape(id)}"]`);
+    if (box && content) autosizeTextField(box, content, field, record);
+  });
+  return field;
+}
+
+function renderAnnotationsForPage(pageNo) {
+  pageNo = Number(pageNo);
+  const record = state.renderedPages.get(pageNo);
+  if (!record) return;
+  const layer = record.annotationLayer;
+  const objectLayer = record.objectLayer;
+  layer.innerHTML = "";
+  objectLayer.innerHTML = "";
+  const w = record.viewport.width;
+  const h = record.viewport.height;
+
+  state.meta.highlights.filter((item) => item.page === pageNo).forEach((item) => {
+    const box = document.createElement("div");
+    box.className = "highlight-box movable-annotation";
+    setNormRect(box, item, w, h);
+    box.title = "גרור להזזה";
+    wireRectAnnotationDrag(box, item, record);
+    box.append(createAnnotationControls({
+      label: "הדגשה",
+      compact: true,
+      onDelete: () => removeAnnotation("highlights", item.id, pageNo)
+    }));
+    layer.append(box);
+  });
+
+  state.meta.fields.filter((item) => item.page === pageNo).forEach((item) => {
+    const field = document.createElement("div");
+    field.className = "field-box";
+    field.classList.toggle("note-field", item.type === "note");
+    field.dataset.fieldId = item.id;
+    field.addEventListener("pointerdown", (event) => {
+      state.selectedFieldId = item.id;
+      markSelectedField(pageNo);
+      event.stopPropagation();
+    });
+    field.classList.toggle("selected", state.selectedFieldId === item.id);
+    setNormRect(field, item, w, h);
+
+    const content = document.createElement("div");
+    content.className = "field-content";
+    content.contentEditable = "true";
+    content.dir = "auto";
+    content.style.fontSize = `${getFieldFontSize(item)}px`;
+    content.textContent = item.text;
+    content.addEventListener("input", () => {
+      item.text = content.textContent;
+      autosizeTextField(field, content, item, record);
+    });
+    content.addEventListener("blur", () => {
+      if (!content.textContent.trim()) {
+        removeAnnotation("fields", item.id, pageNo);
+      }
+    });
+    content.addEventListener("pointerdown", (event) => {
+      state.selectedFieldId = item.id;
+      markSelectedField(pageNo);
+      event.stopPropagation();
+    });
+
+    const menuButton = document.createElement("button");
+    menuButton.className = "field-menu-button";
+    menuButton.type = "button";
+    menuButton.textContent = "⋯";
+    menuButton.title = item.type === "note" ? "אפשרויות הערה" : "אפשרויות טקסט";
+    menuButton.setAttribute("aria-label", item.type === "note" ? "אפשרויות הערה" : "אפשרויות טקסט");
+    menuButton.addEventListener("pointerdown", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+    });
+    menuButton.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      state.selectedFieldId = item.id;
+      markSelectedField(pageNo);
+      field.classList.toggle("menu-open");
+    });
+
+    const menu = document.createElement("div");
+    menu.className = "field-menu";
+    menu.setAttribute("role", "menu");
+
+    const handle = createFieldMenuButton("↕", "הזז", "גרור כדי להזיז");
+    handle.classList.add("field-drag-action");
+    handle.addEventListener("pointerdown", (event) => {
+      state.selectedFieldId = item.id;
+      markSelectedField(pageNo);
+      event.stopPropagation();
+    });
+
+    const smaller = createFieldMenuButton("A−", "הקטן", "הקטן טקסט");
+    smaller.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      changeFieldFontSize(item, field, content, record, -1);
+    });
+
+    const larger = createFieldMenuButton("A+", "הגדל", "הגדל טקסט");
+    larger.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      changeFieldFontSize(item, field, content, record, 1);
+    });
+
+    const fill = createFieldFillMenu(item, field, content, record);
+
+    const del = createFieldMenuButton("×", "מחק", "מחק שדה");
+    del.classList.add("danger");
+    del.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      removeAnnotation("fields", item.id, pageNo);
+    });
+
+    menu.append(handle, smaller, larger, fill, del);
+
+    wireFieldDrag(handle, field, item, record);
+    field.append(menuButton, menu, content);
+    objectLayer.append(field);
+    requestAnimationFrame(() => autosizeTextField(field, content, item, record, false));
+  });
+
+  state.meta.signatures.filter((item) => item.page === pageNo).forEach((item) => {
+    const strokes = getSignatureStrokes(item).filter((stroke) => stroke.length > 1);
+    const isActiveSignature = state.tool === "signature" && item.sessionId === state.signatureSessionId;
+    if (!strokes.length && !isActiveSignature) return;
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.classList.add("ink-box");
+    svg.setAttribute("viewBox", `0 0 ${w} ${h}`);
+    svg.style.inset = "0";
+    const paths = strokes.map((stroke) => {
+      const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      path.setAttribute("fill", "none");
+      path.setAttribute("stroke", "#111827");
+      path.setAttribute("stroke-width", String(getSignatureStrokeWidth(item, w)));
+      path.setAttribute("stroke-linecap", "round");
+      path.setAttribute("stroke-linejoin", "round");
+      path.setAttribute("d", pointsToSmoothPath(stroke.map(([x, y]) => [x * w, y * h])));
+      svg.append(path);
+      return path;
+    });
+    layer.append(svg);
+
+    const box = document.createElement("div");
+    box.className = "signature-move-box movable-annotation";
+    box.classList.toggle("signing-pad", isActiveSignature);
+    box.title = "גרור להזזה";
+    setSignatureMoveBox(box, item, w, h, isActiveSignature);
+    wireSignatureDrag(box, item, record, paths);
+    box.append(createAnnotationControls({
+      label: "חתימה",
+      onCommit: isActiveSignature ? () => commitActiveSignature() : null,
+      onSave: () => saveSignatureToProfile(item),
+      onDelete: () => removeAnnotation("signatures", item.id, pageNo)
+    }));
+    layer.append(box);
+  });
+}
+
+function removeAnnotation(type, id, pageNo) {
+  state.meta[type] = state.meta[type].filter((item) => item.id !== id);
+  if (type === "fields" && state.selectedFieldId === id) state.selectedFieldId = null;
+  saveMeta();
+  renderAnnotationsForPage(pageNo);
+}
+
+function markSelectedField(pageNo) {
+  const record = state.renderedPages.get(Number(pageNo));
+  if (!record) return;
+  document.querySelectorAll(".field-box").forEach((field) => {
+    field.classList.remove("selected");
+    if (field.dataset.fieldId !== state.selectedFieldId) field.classList.remove("menu-open");
+  });
+  if (!state.selectedFieldId) return;
+  record.objectLayer.querySelector(`[data-field-id="${CSS.escape(state.selectedFieldId)}"]`)?.classList.add("selected");
+}
+
+function deleteSelectedField() {
+  const field = state.meta.fields.find((item) => item.id === state.selectedFieldId);
+  if (!field) {
+    state.selectedFieldId = null;
+    return;
+  }
+  removeAnnotation("fields", field.id, field.page);
+}
+
+function createFieldMenuButton(icon, label, title) {
+  const button = document.createElement("button");
+  button.className = "field-menu-action";
+  button.type = "button";
+  button.innerHTML = `<span>${icon}</span><small>${label}</small>`;
+  button.title = title;
+  button.setAttribute("aria-label", title);
+  button.addEventListener("pointerdown", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+  });
+  return button;
+}
+
+function createFieldFillMenu(item, field, content, record) {
+  const wrap = document.createElement("div");
+  wrap.className = "field-fill-menu";
+
+  const trigger = createFieldMenuButton("▾", "מילוי", "מילוי מהיר");
+  trigger.classList.add("field-fill-trigger");
+  trigger.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    wrap.classList.toggle("open");
+  });
+
+  const list = document.createElement("div");
+  list.className = "field-fill-list";
+  list.setAttribute("role", "menu");
+
+  [
+    ["name", "שם"],
+    ["address", "כתובת"],
+    ["email", "מייל"],
+    ["phone", "טלפון"],
+    ["date", "תאריך"],
+    ["check", "✓"],
+    ["cross", "✕"]
+  ].forEach(([type, label]) => {
+    const option = document.createElement("button");
+    option.type = "button";
+    option.textContent = label;
+    option.addEventListener("pointerdown", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+    });
+    option.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const value = getQuickFillValue(type);
+      if (!value) return;
+      setFieldText(item, value);
+      wrap.classList.remove("open");
+      field.classList.remove("menu-open");
+      content.focus();
+    });
+    list.append(option);
+  });
+
+  wrap.append(trigger, list);
+  return wrap;
+}
+
+function closeFieldMenus() {
+  document.querySelectorAll(".field-box.menu-open").forEach((field) => field.classList.remove("menu-open"));
+  document.querySelectorAll(".field-fill-menu.open").forEach((menu) => menu.classList.remove("open"));
+}
+
+function clearAllAnnotations() {
+  if (!state.pdf) return;
+  const count = (state.meta.highlights?.length || 0)
+    + (state.meta.fields?.length || 0)
+    + (state.meta.signatures?.length || 0);
+  if (!count) return;
+  if (!confirm(`למחוק את כל ההוספות במסמך הזה? (${count})`)) return;
+  state.meta.highlights = [];
+  state.meta.fields = [];
+  state.meta.signatures = [];
+  state.selectedFieldId = null;
+  saveMeta();
+  for (const pageNo of state.renderedPages.keys()) {
+    renderAnnotationsForPage(pageNo);
+  }
+}
+
+function initProfileControls() {
+  const fields = {
+    name: $("profileName"),
+    address: $("profileAddress"),
+    email: $("profileEmail"),
+    phone: $("profilePhone")
+  };
+
+  Object.entries(fields).forEach(([key, input]) => {
+    if (!input) return;
+    input.value = state.profile[key] || "";
+    input.addEventListener("input", () => {
+      state.profile[key] = input.value;
+      saveProfile();
+    });
+  });
+  renderSavedSignatures();
+}
+
+function renderSavedSignatures() {
+  let wrap = ui.savedSignatureList;
+  if (!wrap) {
+    wrap = document.createElement("div");
+    wrap.className = "saved-signatures";
+    wrap.id = "savedSignatureList";
+    document.querySelector(".autofill-body")?.append(wrap);
+    ui.savedSignatureList = wrap;
+  }
+  if (!wrap) return;
+  wrap.innerHTML = "";
+
+  const current = getCurrentSignatureForSaving();
+  const saveCurrent = document.createElement("button");
+  saveCurrent.type = "button";
+  saveCurrent.className = "save-signature-action";
+  saveCurrent.textContent = "שמור חתימה נוכחית";
+  saveCurrent.disabled = !current;
+  saveCurrent.title = current ? "שמור את החתימה שצוירה כעת" : "צייר חתימה ואז שמור אותה";
+  saveCurrent.addEventListener("click", () => {
+    const signature = getCurrentSignatureForSaving();
+    if (signature) saveSignatureToProfile(signature);
+  });
+  wrap.append(saveCurrent);
+
+  const saved = getSavedSignatures();
+  if (!saved.length) {
+    const empty = document.createElement("div");
+    empty.className = "saved-signature-empty";
+    empty.textContent = "אין חתימות שמורות";
+    wrap.append(empty);
+    return;
+  }
+
+  saved.forEach((signature) => {
+    const row = document.createElement("div");
+    row.className = "saved-signature-row";
+
+    const insert = document.createElement("button");
+    insert.type = "button";
+    insert.textContent = signature.name || "חתימה";
+    insert.title = "הכנס חתימה למסמך";
+    insert.addEventListener("click", () => insertSavedSignature(signature.id));
+
+    const del = document.createElement("button");
+    del.type = "button";
+    del.className = "danger";
+    del.textContent = "×";
+    del.title = "מחק חתימה שמורה";
+    del.addEventListener("click", () => removeSavedSignature(signature.id));
+
+    row.append(insert, del);
+    wrap.append(row);
+  });
+}
+
+function getSavedSignatures() {
+  if (!Array.isArray(state.profile.signatures)) state.profile.signatures = [];
+  return state.profile.signatures;
+}
+
+function getCurrentSignatureForSaving() {
+  if (!state.signatureSessionId) return null;
+  return state.meta.signatures.find((item) => (
+    item.sessionId === state.signatureSessionId && hasSignatureContent(item)
+  )) || null;
+}
+
+function hasSignatureContent(item) {
+  return getSignatureStrokes(item).some((stroke) => stroke.length > 1);
+}
+
+function commitActiveSignature() {
+  const active = getCurrentSignatureForSaving();
+  if (!active) return;
+  setTransientInsertTool("pan");
+  saveMeta();
+  renderVisibleAnnotations();
+  renderSavedSignatures();
+}
+
+function saveSignatureToProfile(item) {
+  const saved = serializeSavedSignature(item);
+  if (!saved) return;
+  const signatures = getSavedSignatures();
+  saved.name = `חתימה ${signatures.length + 1}`;
+  signatures.push(saved);
+  saveProfile();
+  renderSavedSignatures();
+}
+
+function serializeSavedSignature(item) {
+  const strokes = getSignatureStrokes(item).filter((stroke) => stroke.length > 1);
+  if (!strokes.length) return null;
+  const bounds = getSignatureBounds({ strokes });
+  const contentW = bounds.maxX - bounds.minX;
+  const contentH = bounds.maxY - bounds.minY;
+  if (contentW <= 0 || contentH <= 0) return null;
+  return {
+    id: crypto.randomUUID(),
+    name: "",
+    createdAt: Date.now(),
+    aspect: contentW / contentH,
+    strokeWidthRatio: (Number(item.strokeWidth) || 0.0025) / contentW,
+    strokes: strokes.map((stroke) => stroke.map(([x, y]) => [
+      (x - bounds.minX) / contentW,
+      (y - bounds.minY) / contentH
+    ]))
+  };
+}
+
+function insertSavedSignature(id) {
+  if (!state.pdf) return;
+  const saved = getSavedSignatures().find((item) => item.id === id);
+  if (!saved?.strokes?.length) return;
+  const placement = getDefaultSignaturePlacement();
+  const record = state.renderedPages.get(placement.pageNo);
+  if (!record) return;
+  const targetWidthPx = clamp(record.viewport.width * 0.28, 140, 260);
+  const targetHeightPx = clamp(targetWidthPx / clamp(Number(saved.aspect) || 3, 1, 6), 42, 120);
+  const left = clamp(placement.x - targetWidthPx / 2, 8, Math.max(8, record.viewport.width - targetWidthPx - 8));
+  const top = clamp(placement.y - targetHeightPx / 2, 8, Math.max(8, record.viewport.height - targetHeightPx - 8));
+  const targetWidth = targetWidthPx / record.viewport.width;
+  const targetHeight = targetHeightPx / record.viewport.height;
+  const signature = {
+    id: crypto.randomUUID(),
+    sessionId: null,
+    page: placement.pageNo,
+    strokes: saved.strokes.map((stroke) => stroke.map(([x, y]) => [
+      (left / record.viewport.width) + x * targetWidth,
+      (top / record.viewport.height) + y * targetHeight
+    ])),
+    strokeWidth: Math.max(0.0015, (Number(saved.strokeWidthRatio) || 0.012) * targetWidth)
+  };
+  state.meta.signatures.push(signature);
+  saveMeta();
+  renderAnnotationsForPage(placement.pageNo);
+}
+
+function removeSavedSignature(id) {
+  state.profile.signatures = getSavedSignatures().filter((item) => item.id !== id);
+  saveProfile();
+  renderSavedSignatures();
+}
+
+function removeEmptySignatureDraft(sessionId) {
+  if (!sessionId) return;
+  const next = state.meta.signatures.filter((item) => (
+    item.sessionId !== sessionId || hasSignatureContent(item)
+  ));
+  if (next.length !== state.meta.signatures.length) {
+    state.meta.signatures = next;
+    saveMeta();
+  }
+}
+
+function applyQuickFill(type) {
+  if (!state.pdf) return;
+  const value = getQuickFillValue(type);
+  if (!value) return;
+  const selected = getActiveTextField();
+  if (selected) {
+    setFieldText(selected, value);
+    return;
+  }
+  const placement = getDefaultFieldPlacement();
+  addTextFieldWithValue(placement.pageNo, placement.x, placement.y, value);
+}
+
+function getActiveTextField() {
+  const activeField = document.activeElement?.closest?.(".field-box");
+  const id = activeField?.dataset.fieldId || state.selectedFieldId;
+  return state.meta.fields.find((field) => field.id === id);
+}
+
+function getQuickFillValue(type) {
+  if (type === "date") return new Intl.DateTimeFormat("he-IL").format(new Date());
+  if (type === "check") return "✓";
+  if (type === "cross") return "✕";
+  return (state.profile[type] || "").trim();
+}
+
+function setFieldText(field, text) {
+  field.text = text;
+  const record = state.renderedPages.get(field.page);
+  if (!record) {
+    saveMeta();
+    return;
+  }
+  const box = record.objectLayer.querySelector(`[data-field-id="${CSS.escape(field.id)}"]`);
+  const content = box?.querySelector(".field-content");
+  if (!box || !content) {
+    saveMeta();
+    return;
+  }
+  content.textContent = text;
+  state.selectedFieldId = field.id;
+  markSelectedField(field.page);
+  autosizeTextField(box, content, field, record);
+  content.focus();
+}
+
+function getDefaultFieldPlacement() {
+  const visiblePages = [...document.querySelectorAll(".page-shell")];
+  const readerRect = ui.reader.getBoundingClientRect();
+  const page = visiblePages.find((shell) => {
+    const rect = shell.getBoundingClientRect();
+    return rect.bottom > readerRect.top + 80 && rect.top < readerRect.bottom - 80;
+  }) || visiblePages[0];
+  if (!page) return { pageNo: state.currentPage, x: 24, y: 24 };
+  const rect = page.getBoundingClientRect();
+  return {
+    pageNo: Number(page.dataset.page),
+    x: clamp(readerRect.left + ui.reader.clientWidth * 0.5 - rect.left, 16, Math.max(16, rect.width - 80)),
+    y: clamp(readerRect.top + ui.reader.clientHeight * 0.32 - rect.top, 16, Math.max(16, rect.height - 40))
+  };
+}
+
+function getDefaultSignaturePlacement() {
+  const placement = getDefaultFieldPlacement();
+  return {
+    pageNo: placement.pageNo,
+    x: placement.x,
+    y: placement.y + 22
+  };
+}
+
+function updateToolLayers() {
+  document.querySelectorAll(".annotation-layer").forEach((layer) => {
+    layer.classList.toggle("active", state.tool === "highlight" || state.tool === "text" || state.tool === "signature");
+  });
+  document.querySelectorAll(".screenshot-layer").forEach((layer) => {
+    layer.classList.toggle("active", state.screenshotSelection.active || state.tool === "select");
+  });
+  ui.reader.classList.toggle("can-pan", state.tool === "pan");
+  ui.reader.classList.toggle("screenshot-selecting", state.screenshotSelection.active || state.tool === "select");
+}
+
+function renderVisibleAnnotations() {
+  state.renderedPages.forEach((_, pageNo) => renderAnnotationsForPage(pageNo));
+}
+
+function wireFieldDrag(handle, field, item, record) {
+  handle.addEventListener("pointerdown", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    handle.setPointerCapture(event.pointerId);
+    const start = {
+      x: event.clientX,
+      y: event.clientY,
+      itemX: item.x,
+      itemY: item.y
+    };
+
+    const move = (moveEvent) => {
+      const dx = (moveEvent.clientX - start.x) / record.viewport.width;
+      const dy = (moveEvent.clientY - start.y) / record.viewport.height;
+      item.x = clamp(start.itemX + dx, 0, Math.max(0, 1 - item.w));
+      item.y = clamp(start.itemY + dy, 0, Math.max(0, 1 - item.h));
+      setNormRect(field, item, record.viewport.width, record.viewport.height);
+    };
+
+    const up = () => {
+      handle.removeEventListener("pointermove", move);
+      handle.removeEventListener("pointerup", up);
+      handle.removeEventListener("pointercancel", up);
+      saveMeta();
+    };
+
+    handle.addEventListener("pointermove", move);
+    handle.addEventListener("pointerup", up);
+    handle.addEventListener("pointercancel", up);
+  });
+}
+
+function createAnnotationControls({ label, compact = false, onCommit, onSave, onDelete }) {
+  const controls = document.createElement("div");
+  controls.className = "annotation-controls";
+  controls.setAttribute("aria-label", label);
+
+  const move = document.createElement("span");
+  move.className = "annotation-drag-hint";
+  move.textContent = "↕";
+  move.title = "גרור להזזה";
+
+  const commit = document.createElement("button");
+  commit.type = "button";
+  commit.className = "annotation-commit";
+  commit.textContent = "✓";
+  commit.title = "סיים חתימה";
+  commit.setAttribute("aria-label", `סיים ${label}`);
+  commit.hidden = !onCommit;
+  commit.addEventListener("pointerdown", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+  });
+  commit.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    onCommit?.();
+  });
+
+  const save = document.createElement("button");
+  save.type = "button";
+  save.className = "annotation-save";
+  save.textContent = "S";
+  save.title = "שמור למילוי מהיר";
+  save.setAttribute("aria-label", `שמור ${label} למילוי מהיר`);
+  save.hidden = !onSave;
+  save.addEventListener("pointerdown", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+  });
+  save.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    onSave?.();
+  });
+
+  const del = document.createElement("button");
+  del.type = "button";
+  del.className = "annotation-delete";
+  del.textContent = "×";
+  del.title = "מחק";
+  del.setAttribute("aria-label", `מחק ${label}`);
+  del.addEventListener("pointerdown", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+  });
+  del.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    onDelete();
+  });
+
+  if (compact) {
+    controls.append(move, del);
+  } else {
+    controls.append(move, commit, save, del);
+  }
+  return controls;
+}
+
+function wireRectAnnotationDrag(element, item, record) {
+  element.addEventListener("pointerdown", (event) => {
+    if (event.button !== 0 || event.target.closest("button")) return;
+    event.preventDefault();
+    event.stopPropagation();
+    element.setPointerCapture(event.pointerId);
+    const start = {
+      x: event.clientX,
+      y: event.clientY,
+      itemX: item.x,
+      itemY: item.y
+    };
+
+    const move = (moveEvent) => {
+      moveEvent.preventDefault();
+      const dx = (moveEvent.clientX - start.x) / record.viewport.width;
+      const dy = (moveEvent.clientY - start.y) / record.viewport.height;
+      item.x = clamp(start.itemX + dx, 0, Math.max(0, 1 - item.w));
+      item.y = clamp(start.itemY + dy, 0, Math.max(0, 1 - item.h));
+      setNormRect(element, item, record.viewport.width, record.viewport.height);
+    };
+
+    const up = () => {
+      element.removeEventListener("pointermove", move);
+      element.removeEventListener("pointerup", up);
+      element.removeEventListener("pointercancel", up);
+      saveMeta();
+    };
+
+    element.addEventListener("pointermove", move);
+    element.addEventListener("pointerup", up);
+    element.addEventListener("pointercancel", up);
+  });
+}
+
+function wireSignatureDrag(element, item, record, paths) {
+  element.addEventListener("pointerdown", (event) => {
+    if (event.button !== 0 || event.target.closest("button")) return;
+    event.preventDefault();
+    event.stopPropagation();
+    element.setPointerCapture(event.pointerId);
+    const bounds = getSignatureBounds(item);
+    const start = {
+      x: event.clientX,
+      y: event.clientY,
+      strokes: getSignatureStrokes(item).map((stroke) => stroke.map(([x, y]) => [x, y])),
+      minDx: -bounds.minX,
+      maxDx: 1 - bounds.maxX,
+      minDy: -bounds.minY,
+      maxDy: 1 - bounds.maxY
+    };
+
+    const move = (moveEvent) => {
+      moveEvent.preventDefault();
+      const dx = clamp((moveEvent.clientX - start.x) / record.viewport.width, start.minDx, start.maxDx);
+      const dy = clamp((moveEvent.clientY - start.y) / record.viewport.height, start.minDy, start.maxDy);
+      item.strokes = start.strokes.map((stroke) => stroke.map(([x, y]) => [x + dx, y + dy]));
+      delete item.points;
+      paths.forEach((path, index) => {
+        const stroke = item.strokes[index] || [];
+        path.setAttribute("d", pointsToSmoothPath(stroke.map(([x, y]) => [x * record.viewport.width, y * record.viewport.height])));
+      });
+      setSignatureMoveBox(element, item, record.viewport.width, record.viewport.height);
+    };
+
+    const up = () => {
+      element.removeEventListener("pointermove", move);
+      element.removeEventListener("pointerup", up);
+      element.removeEventListener("pointercancel", up);
+      saveMeta();
+    };
+
+    element.addEventListener("pointermove", move);
+    element.addEventListener("pointerup", up);
+    element.addEventListener("pointercancel", up);
+  });
+}
+
+function setSignatureMoveBox(element, item, width, height, isActiveSignature = false) {
+  const bounds = getSignatureBounds(item);
+  if (isActiveSignature && !getSignatureStrokes(item).flat().length && item.draftBox) {
+    setNormRect(element, item.draftBox, width, height);
+    return;
+  }
+  const padPxX = isActiveSignature ? 38 : 10;
+  const padPxY = isActiveSignature ? 28 : 10;
+  const minWidthPx = isActiveSignature ? 340 : 18;
+  const minHeightPx = isActiveSignature ? 130 : 18;
+  const padX = padPxX / width;
+  const padY = padPxY / height;
+  const contentW = bounds.maxX - bounds.minX;
+  const contentH = bounds.maxY - bounds.minY;
+  const targetW = Math.max(contentW + padX * 2, minWidthPx / width);
+  const targetH = Math.max(contentH + padY * 2, minHeightPx / height);
+  const centerX = (bounds.minX + bounds.maxX) / 2;
+  const centerY = (bounds.minY + bounds.maxY) / 2;
+  const box = {
+    x: clamp(centerX - targetW / 2, 0, 1),
+    y: clamp(centerY - targetH / 2, 0, 1),
+    w: clamp(targetW, 0.025, 1),
+    h: clamp(targetH, 0.025, 1)
+  };
+  if (box.x + box.w > 1) box.w = 1 - box.x;
+  if (box.y + box.h > 1) box.h = 1 - box.y;
+  setNormRect(element, box, width, height);
+}
+
+function getSignatureBounds(item) {
+  const points = getSignatureStrokes(item).flat();
+  if (!points.length) {
+    return { minX: 0, minY: 0, maxX: 0, maxY: 0 };
+  }
+  const xs = points.map(([x]) => x);
+  const ys = points.map(([, y]) => y);
+  return {
+    minX: Math.min(...xs),
+    minY: Math.min(...ys),
+    maxX: Math.max(...xs),
+    maxY: Math.max(...ys)
+  };
+}
+
+function autosizeTextField(field, content, item, record, persist = true) {
+  const text = content.textContent || "";
+  const measure = getTextMeasureElement();
+  const style = getComputedStyle(content);
+  measure.style.font = style.font;
+  measure.style.lineHeight = style.lineHeight;
+  measure.style.whiteSpace = "pre";
+  measure.textContent = text || "הקלד כאן";
+
+  const paddingX = 18;
+  const paddingY = 10;
+  const minWidth = 32;
+  const minHeight = 24;
+  const maxWidth = Math.max(80, record.viewport.width - item.x * record.viewport.width - 8);
+  const measuredWidth = Math.ceil(measure.getBoundingClientRect().width + paddingX);
+  const measuredHeight = Math.ceil(measure.getBoundingClientRect().height + paddingY);
+  const widthPx = clamp(measuredWidth, minWidth, maxWidth);
+  const heightPx = Math.max(minHeight, measuredHeight);
+
+  item.w = widthPx / record.viewport.width;
+  item.h = heightPx / record.viewport.height;
+  item.scale = record.viewport.scale || state.scale || item.scale || 1;
+  setNormRect(field, item, record.viewport.width, record.viewport.height);
+  if (persist) saveMeta();
+}
+
+function changeFieldFontSize(item, field, content, record, delta) {
+  item.fontSize = clamp(getFieldFontSize(item) + delta, 8, 32);
+  content.style.fontSize = `${item.fontSize}px`;
+  autosizeTextField(field, content, item, record);
+  content.focus();
+}
+
+function getFieldFontSize(item) {
+  return Number.isFinite(Number(item.fontSize)) ? Number(item.fontSize) : 15;
+}
+
+function getFieldPdfFontSize(item) {
+  const scale = Number(item.scale);
+  return getFieldFontSize(item) / (Number.isFinite(scale) && scale > 0 ? scale : (state.scale || 1));
+}
+
+function getSignatureStrokeWidth(item, pageWidth) {
+  const normalized = Number(item.strokeWidth);
+  if (Number.isFinite(normalized) && normalized > 0) {
+    return clamp(normalized * pageWidth, 1.1, 2.4);
+  }
+  return 1.8;
+}
+
+function getActiveSignature(pageNo) {
+  if (!state.signatureSessionId) state.signatureSessionId = crypto.randomUUID();
+  let signature = state.meta.signatures.find((item) => (
+    item.page === pageNo && item.sessionId === state.signatureSessionId
+  ));
+  if (!signature) {
+    signature = {
+      id: crypto.randomUUID(),
+      sessionId: state.signatureSessionId,
+      page: pageNo,
+      strokes: [],
+      strokeWidth: 0.0025
+    };
+    state.meta.signatures.push(signature);
+  }
+  return signature;
+}
+
+function getSignatureStrokes(item) {
+  if (Array.isArray(item.strokes)) return item.strokes;
+  if (Array.isArray(item.points)) {
+    item.strokes = [item.points];
+    delete item.points;
+    return item.strokes;
+  }
+  item.strokes = [];
+  return item.strokes;
+}
+
+function pointsToSmoothPath(points) {
+  if (!points.length) return "";
+  if (points.length === 1) return `M ${points[0][0]} ${points[0][1]}`;
+  if (points.length === 2) return `M ${points[0][0]} ${points[0][1]} L ${points[1][0]} ${points[1][1]}`;
+
+  let path = `M ${points[0][0]} ${points[0][1]}`;
+  for (let i = 1; i < points.length - 1; i += 1) {
+    const [x, y] = points[i];
+    const [nextX, nextY] = points[i + 1];
+    const midX = (x + nextX) / 2;
+    const midY = (y + nextY) / 2;
+    path += ` Q ${x} ${y} ${midX} ${midY}`;
+  }
+  const [lastX, lastY] = points[points.length - 1];
+  return `${path} L ${lastX} ${lastY}`;
+}
+
+function getTextMeasureElement() {
+  let measure = document.getElementById("textMeasure");
+  if (!measure) {
+    measure = document.createElement("span");
+    measure.id = "textMeasure";
+    measure.className = "text-measure";
+    document.body.append(measure);
+  }
+  return measure;
+}
+
+function setNormRect(element, item, width, height) {
+  element.style.left = `${item.x * width}px`;
+  element.style.top = `${item.y * height}px`;
+  element.style.width = `${item.w * width}px`;
+  element.style.height = `${item.h * height}px`;
+}
+
+function positionBox(element, x1, y1, x2, y2) {
+  element.style.left = `${Math.min(x1, x2)}px`;
+  element.style.top = `${Math.min(y1, y2)}px`;
+  element.style.width = `${Math.abs(x2 - x1)}px`;
+  element.style.height = `${Math.abs(y2 - y1)}px`;
+}
+
+function normalizedBox(x1, y1, x2, y2, width, height) {
+  return {
+    x: Math.min(x1, x2) / width,
+    y: Math.min(y1, y2) / height,
+    w: Math.abs(x2 - x1) / width,
+    h: Math.abs(y2 - y1) / height
+  };
+}
+
+async function search() {
+  if (!state.pdf) return;
+  const term = ui.searchInput.value.trim();
+  state.search = { term, hits: [], index: -1 };
+  if (!term) {
+    paintSearchHits();
+    updateSearchLabel();
+    return;
+  }
+  const options = { caseSensitive: ui.searchCase.checked, wholeWord: ui.searchWhole.checked };
+  for (let pageNo = 1; pageNo <= state.pageCount; pageNo += 1) {
+    const page = await state.pdf.getPage(pageNo);
+    const content = await page.getTextContent();
+    const viewport = page.getViewport({ scale: state.scale });
+    for (const item of content.items) {
+      const matches = findTextMatches(item.str, term, options);
+      if (!matches.length) continue;
+      const rect = textItemRect(item, viewport);
+      for (const match of matches) {
+        const matchRect = textMatchRect(item, rect, match, content.styles?.[item.fontName]);
+        state.search.hits.push({
+          page: pageNo,
+          x: matchRect.x / viewport.width,
+          y: matchRect.y / viewport.height,
+          w: Math.max(8, matchRect.width) / viewport.width,
+          h: Math.max(8, matchRect.height) / viewport.height
+        });
+      }
+    }
+  }
+  state.search.index = state.search.hits.length ? 0 : -1;
+  updateSearchLabel();
+  if (state.search.index >= 0) await goToSearchHit(state.search.index);
+  paintSearchHits();
+}
+
+function paintSearchHits() {
+  document.querySelectorAll(".search-layer").forEach((layer) => layer.innerHTML = "");
+  state.search.hits.forEach((hit, index) => {
+    const record = state.renderedPages.get(hit.page);
+    if (!record) return;
+    const marker = document.createElement("div");
+    marker.className = `search-hit${index === state.search.index ? " current" : ""}`;
+    marker.style.left = `${hit.x * record.viewport.width}px`;
+    marker.style.top = `${hit.y * record.viewport.height}px`;
+    marker.style.width = `${hit.w * record.viewport.width}px`;
+    marker.style.height = `${hit.h * record.viewport.height}px`;
+    marker.title = `תוצאת חיפוש בעמוד ${hit.page}`;
+    record.searchLayer.append(marker);
+  });
+}
+
+async function moveSearch(direction) {
+  if (!state.search.hits.length) return;
+  state.search.index = (state.search.index + direction + state.search.hits.length) % state.search.hits.length;
+  updateSearchLabel();
+  await goToSearchHit(state.search.index);
+  paintSearchHits();
+}
+
+function updateSearchLabel() {
+  const total = state.search.hits.length;
+  ui.searchCount.textContent = total ? `${state.search.index + 1}/${total}` : "0/0";
+}
+
+async function goToSearchHit(index) {
+  const hit = state.search.hits[index];
+  if (!hit) return;
+  await goToPage(hit.page, { save: false, scroll: false });
+  requestAnimationFrame(() => {
+    const record = state.renderedPages.get(hit.page);
+    if (!record) return;
+    const targetTop = record.shell.offsetTop + (hit.y * record.viewport.height) - (ui.reader.clientHeight * 0.35);
+    ui.reader.scrollTo({ top: Math.max(0, targetTop), behavior: "smooth" });
+  });
+}
+
+function findTextMatches(text, term, { caseSensitive, wholeWord }) {
+  if (!text || !term) return [];
+  const haystack = caseSensitive ? text : text.toLocaleLowerCase();
+  const needle = caseSensitive ? term : term.toLocaleLowerCase();
+  const matches = [];
+  let fromIndex = 0;
+  while (fromIndex <= haystack.length) {
+    const index = haystack.indexOf(needle, fromIndex);
+    if (index === -1) break;
+    const end = index + needle.length;
+    if (!wholeWord || (isWordBoundary(text[index - 1]) && isWordBoundary(text[end]))) {
+      matches.push({
+        start: index,
+        end
+      });
+    }
+    fromIndex = Math.max(end, index + 1);
+  }
+  return matches;
+}
+
+function isWordBoundary(char) {
+  return !char || !/[\p{L}\p{N}_]/u.test(char);
+}
+
+function textItemRect(item, viewport) {
+  const tx = pdfjsLib.Util.transform(viewport.transform, item.transform);
+  const height = Math.max(8, Math.hypot(tx[2], tx[3]));
+  const width = Math.max(8, (item.width || item.str.length * height * .52) * viewport.scale);
+  return { x: tx[4], y: tx[5] - height, width, height };
+}
+
+function textMatchRect(item, rect, match, style = {}) {
+  const text = item.str || "";
+  const fontFamily = style.fontFamily || "sans-serif";
+  const fullWidth = measureSearchText(text, rect.height, fontFamily);
+  if (!fullWidth) {
+    const fallbackWidth = rect.width * ((match.end - match.start) / Math.max(1, text.length));
+    const fallbackX = isRtlTextItem(item)
+      ? rect.x + rect.width - (rect.width * (match.start / Math.max(1, text.length))) - fallbackWidth
+      : rect.x + (rect.width * (match.start / Math.max(1, text.length)));
+    return { x: fallbackX, y: rect.y, width: fallbackWidth, height: rect.height };
+  }
+
+  const prefixWidth = measureSearchText(text.slice(0, match.start), rect.height, fontFamily) * (rect.width / fullWidth);
+  const matchWidth = measureSearchText(text.slice(match.start, match.end), rect.height, fontFamily) * (rect.width / fullWidth);
+  const x = isRtlTextItem(item)
+    ? rect.x + rect.width - prefixWidth - matchWidth
+    : rect.x + prefixWidth;
+
+  return { x, y: rect.y, width: matchWidth, height: rect.height };
+}
+
+function measureSearchText(text, fontSize, fontFamily) {
+  if (!text) return 0;
+  const measure = getTextMeasureElement();
+  measure.style.fontSize = `${fontSize}px`;
+  measure.style.fontFamily = fontFamily;
+  measure.style.whiteSpace = "pre";
+  measure.textContent = text;
+  return measure.getBoundingClientRect().width;
+}
+
+function isRtlTextItem(item) {
+  return item.dir === "rtl" || /[\u0590-\u08FF]/u.test(item.str || "");
+}
+
+function addBookmark() {
+  if (!state.pdf) return;
+  state.meta.bookmarks.push({
+    id: crypto.randomUUID(),
+    name: nextBookmarkName(state.currentPage),
+    page: state.currentPage
+  });
+  saveMeta();
+  renderBookmarks();
+}
+
+function renderBookmarks() {
+  ui.bookmarkList.innerHTML = "";
+  state.meta.bookmarks.forEach((bookmark) => {
+    const item = document.createElement("div");
+    item.className = "bookmark-item";
+
+    const label = document.createElement("button");
+    label.className = "bookmark-open";
+    label.type = "button";
+    label.textContent = `${bookmark.name} · ${bookmark.page}`;
+    label.title = "פתח סימניה";
+    label.addEventListener("click", () => goToPage(bookmark.page));
+
+    const edit = document.createElement("button");
+    edit.className = "icon-action";
+    edit.textContent = "✎";
+    edit.title = "ערוך שם";
+    edit.setAttribute("aria-label", "ערוך שם סימניה");
+    edit.addEventListener("click", () => startBookmarkEdit(item, bookmark));
+
+    const del = document.createElement("button");
+    del.className = "icon-action danger";
+    del.textContent = "×";
+    del.title = "מחק סימניה";
+    del.setAttribute("aria-label", "מחק סימניה");
+    del.addEventListener("click", () => {
+      state.meta.bookmarks = state.meta.bookmarks.filter((entry) => entry.id !== bookmark.id);
+      saveMeta();
+      renderBookmarks();
+    });
+    item.append(label, edit, del);
+    ui.bookmarkList.append(item);
+  });
+}
+
+function nextBookmarkName(page) {
+  const base = `עמוד ${page}`;
+  const existing = new Set(state.meta.bookmarks.map((bookmark) => bookmark.name));
+  if (!existing.has(base)) return base;
+  let index = 2;
+  while (existing.has(`${base} (${index})`)) index += 1;
+  return `${base} (${index})`;
+}
+
+function startBookmarkEdit(item, bookmark) {
+  item.innerHTML = "";
+  const input = document.createElement("input");
+  input.value = bookmark.name;
+  input.select();
+
+  const save = document.createElement("button");
+  save.className = "icon-action success";
+  save.textContent = "✓";
+  save.title = "שמור";
+  save.setAttribute("aria-label", "שמור שם סימניה");
+
+  const cancel = document.createElement("button");
+  cancel.className = "icon-action";
+  cancel.textContent = "↶";
+  cancel.title = "בטל";
+  cancel.setAttribute("aria-label", "בטל עריכת סימניה");
+
+  const finish = () => {
+    const name = input.value.trim();
+    if (name) bookmark.name = name;
+    saveMeta();
+    renderBookmarks();
+  };
+
+  save.addEventListener("click", finish);
+  cancel.addEventListener("click", renderBookmarks);
+  input.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") finish();
+    if (event.key === "Escape") renderBookmarks();
+  });
+
+  item.append(input, save, cancel);
+  input.focus();
+}
+
+async function buildOutline() {
+  if (!state.pdf) return;
+  const activeFingerprint = state.fingerprint;
+  try {
+    const pdfOutline = await state.pdf.getOutline();
+    if (activeFingerprint !== state.fingerprint) return;
+    const builtinItems = await flattenPdfOutline(pdfOutline || []);
+    if (builtinItems.length) {
+      state.outline = { items: builtinItems, type: "pdf", loading: false };
+      renderOutline();
+      return;
+    }
+
+    state.outline = { items: [], type: "auto-loading", loading: true };
+    renderOutline();
+    const taggedItems = await buildTaggedHeadingOutline(activeFingerprint);
+    if (activeFingerprint !== state.fingerprint) return;
+    const generatedItems = taggedItems.length ? taggedItems : await buildAutomaticOutline(activeFingerprint);
+    if (activeFingerprint !== state.fingerprint) return;
+    state.outline = {
+      items: generatedItems,
+      type: taggedItems.length ? "tagged" : generatedItems.length ? "auto" : "empty",
+      loading: false
+    };
+    renderOutline();
+  } catch (error) {
+    console.warn("Could not build outline:", error);
+    state.outline = { items: [], type: "empty", loading: false };
+    renderOutline();
+  }
+}
+
+async function flattenPdfOutline(items, level = 0, output = []) {
+  for (const item of items) {
+    const page = await pageNumberFromDestination(item.dest);
+    if (page) {
+      output.push({
+        id: `pdf-outline-${output.length}`,
+        title: cleanOutlineTitle(item.title),
+        page,
+        level: clamp(level, 0, 3)
+      });
+    }
+    if (Array.isArray(item.items) && item.items.length) {
+      await flattenPdfOutline(item.items, level + 1, output);
+    }
+  }
+  return output;
+}
+
+async function pageNumberFromDestination(dest) {
+  if (!dest) return null;
+  try {
+    const explicitDest = typeof dest === "string" ? await state.pdf.getDestination(dest) : dest;
+    const [ref] = explicitDest || [];
+    if (ref == null) return null;
+    if (typeof ref === "number") return clamp(ref + 1, 1, state.pageCount);
+    const index = await state.pdf.getPageIndex(ref);
+    return clamp(index + 1, 1, state.pageCount);
+  } catch {
+    return null;
+  }
+}
+
+async function buildTaggedHeadingOutline(activeFingerprint) {
+  const items = [];
+  const seen = new Set();
+  const pageLimit = Math.min(state.pageCount, 350);
+  for (let pageNo = 1; pageNo <= pageLimit; pageNo += 1) {
+    if (activeFingerprint !== state.fingerprint) return [];
+    const page = await state.pdf.getPage(pageNo);
+    if (typeof page.getStructTree !== "function") continue;
+    const [structTree, textContent] = await Promise.all([
+      page.getStructTree().catch(() => null),
+      page.getTextContent({ includeMarkedContent: true }).catch(() => ({ items: [] }))
+    ]);
+    const pageItems = taggedHeadingsFromStructTree(structTree, textContent?.items || [], pageNo);
+    for (const item of pageItems) {
+      const key = normalizeOutlineKey(item.title);
+      if (!key || seen.has(`${pageNo}:${key}`)) continue;
+      seen.add(`${pageNo}:${key}`);
+      items.push({
+        id: `tagged-outline-${items.length}`,
+        ...item
+      });
+    }
+  }
+  return removeAdjacentDuplicateHeadings(items).slice(0, 180);
+}
+
+function taggedHeadingsFromStructTree(structTree, textItems, pageNo) {
+  if (!structTree) return [];
+  const textById = textByMarkedContentId(textItems);
+  const headings = [];
+  const visit = (node) => {
+    if (!node || typeof node !== "object") return;
+    const level = taggedHeadingLevel(node.role);
+    if (level != null) {
+      const title = cleanOutlineTitle(structNodeText(node, textById));
+      if (isReasonableOutlineTitle(title)) {
+        headings.push({ title, page: pageNo, level });
+      }
+    }
+    for (const child of structChildren(node)) visit(child);
+  };
+  visit(structTree);
+  return headings;
+}
+
+function textByMarkedContentId(textItems) {
+  const byId = new Map();
+  const idStack = [];
+  for (const item of textItems || []) {
+    if (!item || typeof item !== "object") continue;
+    if (item.type === "beginMarkedContentProps" || item.type === "beginMarkedContent") {
+      idStack.push(item.id ?? item.markedContentId ?? item.mcid ?? null);
+      continue;
+    }
+    if (item.type === "endMarkedContent") {
+      idStack.pop();
+      continue;
+    }
+    const text = cleanOutlineTitle(item.str);
+    if (!text) continue;
+    const id = item.id ?? item.markedContentId ?? item.mcid ?? idStack[idStack.length - 1];
+    if (id == null) continue;
+    const key = String(id);
+    byId.set(key, cleanOutlineTitle(`${byId.get(key) || ""} ${text}`));
+  }
+  return byId;
+}
+
+function structNodeText(node, textById) {
+  const parts = [];
+  const visit = (value) => {
+    if (value == null) return;
+    if (typeof value === "string") {
+      parts.push(value);
+      return;
+    }
+    if (Array.isArray(value)) {
+      value.forEach(visit);
+      return;
+    }
+    if (typeof value !== "object") return;
+    const directText = value.str || value.text || value.actualText || value.alt || value.title;
+    if (directText) parts.push(directText);
+    const id = value.id ?? value.markedContentId ?? value.mcid;
+    if (id != null && textById.has(String(id))) parts.push(textById.get(String(id)));
+    structChildren(value).forEach(visit);
+  };
+  visit(node);
+  return cleanOutlineTitle(parts.join(" "));
+}
+
+function structChildren(node) {
+  if (!node || typeof node !== "object") return [];
+  if (Array.isArray(node.children)) return node.children;
+  if (Array.isArray(node.kids)) return node.kids;
+  if (Array.isArray(node.items)) return node.items;
+  return [];
+}
+
+function taggedHeadingLevel(role) {
+  const match = String(role || "").match(/(?:^|[.:#])H([1-3])$/i) || String(role || "").match(/^H([1-3])$/i);
+  return match ? Number(match[1]) - 1 : null;
+}
+
+async function buildAutomaticOutline(activeFingerprint) {
+  const allLines = [];
+  const pageLimit = Math.min(state.pageCount, 350);
+  for (let pageNo = 1; pageNo <= pageLimit; pageNo += 1) {
+    if (activeFingerprint !== state.fingerprint) return [];
+    const page = await state.pdf.getPage(pageNo);
+    const content = await page.getTextContent();
+    const viewport = page.getViewport({ scale: 1 });
+    allLines.push(...extractOutlineTextLines(content.items || [], pageNo, viewport));
+  }
+
+  const bodySize = detectBodyFontSize(allLines);
+  const repeatedText = repeatedOutlineTextKeys(allLines, pageLimit);
+  const headingStyles = detectHeadingStyles(allLines, { bodySize, repeatedText, pageLimit });
+  if (!headingStyles.keys.size) return [];
+
+  return collectStyledHeadings(allLines, { bodySize, repeatedText, headingStyles })
+    .slice(0, 180)
+    .map((item, index) => ({
+      id: `auto-outline-${index}`,
+      title: item.text,
+      page: item.page,
+      level: item.level
+    }));
+}
+
+function extractOutlineTextLines(items, pageNo, viewport) {
+  const glyphs = items.map((item, index) => {
+    const text = cleanOutlineTitle(item.str);
+    if (!text) return null;
+    const transform = item.transform || [];
+    const fontSize = Math.max(1, Math.hypot(transform[2] || 0, transform[3] || 0) || Math.abs(transform[3] || 0));
+    const x = Number(transform[4]) || 0;
+    const y = Number(transform[5]) || 0;
+    const width = Math.max(1, Math.abs(Number(item.width) || text.length * fontSize * 0.45));
+    return {
+      text,
+      index,
+      x,
+      y,
+      width,
+      fontSize,
+      fontName: String(item.fontName || "")
+    };
+  }).filter(Boolean);
+  if (!glyphs.length) return [];
+
+  const medianSize = median(glyphs.map((item) => item.fontSize)) || 10;
+  const lineTolerance = Math.max(2.5, medianSize * 0.45);
+  const buckets = [];
+  for (const glyph of glyphs.sort((a, b) => b.y - a.y || a.x - b.x)) {
+    let line = buckets.find((entry) => Math.abs(entry.y - glyph.y) <= lineTolerance);
+    if (!line) {
+      line = { y: glyph.y, glyphs: [] };
+      buckets.push(line);
+    }
+    line.glyphs.push(glyph);
+    line.y = (line.y * (line.glyphs.length - 1) + glyph.y) / line.glyphs.length;
+  }
+
+  const pageWidth = Math.max(1, viewport?.width || 612);
+  const pageHeight = Math.max(1, viewport?.height || 792);
+  const lines = buckets.map((bucket) => outlineLineFromGlyphs(bucket.glyphs, bucket.y, pageNo, pageWidth, pageHeight))
+    .filter((line) => line && isReasonableOutlineLine(line))
+    .sort((a, b) => a.page - b.page || a.topRatio - b.topRatio);
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const previous = lines[index - 1];
+    const next = lines[index + 1];
+    lines[index].gapBefore = previous && previous.page === lines[index].page ? Math.max(0, lines[index].topRatio - previous.topRatio) : 0.08;
+    lines[index].gapAfter = next && next.page === lines[index].page ? Math.max(0, next.topRatio - lines[index].topRatio) : 0.08;
+  }
+  return mergeWrappedHeadingLines(lines);
+}
+
+function outlineLineFromGlyphs(glyphs, y, page, pageWidth, pageHeight) {
+  const ordered = glyphs.sort((a, b) => a.index - b.index);
+  const text = cleanOutlineTitle(ordered.map((item) => item.text).join(" "));
+  if (!text) return null;
+  const left = Math.min(...ordered.map((item) => item.x));
+  const right = Math.max(...ordered.map((item) => item.x + item.width));
+  const sizes = ordered.map((item) => item.fontSize);
+  const fontSize = Math.max(...sizes);
+  const fontName = dominantValue(ordered.map((item) => normalizeFontName(item.fontName)));
+  const isBold = ordered.some((item) => /bold|black|heavy|demi|medium|semibold/i.test(item.fontName));
+  const isItalic = ordered.some((item) => /italic|oblique/i.test(item.fontName));
+  return {
+    text,
+    page,
+    y,
+    fontSize,
+    roundedSize: roundFontSize(fontSize),
+    fontName,
+    isBold,
+    isItalic,
+    styleKey: outlineStyleKey(fontSize, fontName, isBold, isItalic),
+    topRatio: clamp(1 - (y / pageHeight), 0, 1),
+    leftRatio: clamp(left / pageWidth, 0, 1),
+    widthRatio: clamp((right - left) / pageWidth, 0, 1),
+    centered: Math.abs(((left + right) / 2) - (pageWidth / 2)) < pageWidth * 0.12,
+    charCount: text.length
+  };
+}
+
+function mergeWrappedHeadingLines(lines) {
+  const merged = [];
+  for (const line of lines) {
+    const previous = merged[merged.length - 1];
+    const canMerge = previous
+      && previous.page === line.page
+      && previous.styleKey === line.styleKey
+      && !endsLikeCompleteHeading(previous.text)
+      && line.topRatio - previous.topRatio < 0.045
+      && Math.abs(line.leftRatio - previous.leftRatio) < 0.08
+      && previous.text.length + line.text.length < 150;
+    if (canMerge) {
+      previous.text = cleanOutlineTitle(`${previous.text} ${line.text}`);
+      previous.widthRatio = Math.max(previous.widthRatio, line.widthRatio);
+      previous.gapAfter = line.gapAfter;
+      continue;
+    }
+    merged.push({ ...line });
+  }
+  return merged;
+}
+
+function detectBodyFontSize(lines) {
+  const bySize = new Map();
+  for (const line of lines) {
+    if (!line.text || line.charCount < 8) continue;
+    const size = roundFontSize(line.fontSize);
+    bySize.set(size, (bySize.get(size) || 0) + line.charCount);
+  }
+  return [...bySize.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || median(lines.map((line) => line.fontSize)) || 10;
+}
+
+function detectHeadingStyles(lines, { bodySize, repeatedText, pageLimit }) {
+  const groups = new Map();
+  for (const line of lines) {
+    if (!isReasonableOutlineLine(line)) continue;
+    if (repeatedText.has(normalizeOutlineKey(line.text)) && isPageEdgeLine(line)) continue;
+    if (!groups.has(line.styleKey)) {
+      groups.set(line.styleKey, {
+        key: line.styleKey,
+        lines: [],
+        pages: new Set(),
+        chars: 0,
+        bold: 0,
+        centered: 0,
+        numbered: 0,
+        semantic: 0
+      });
+    }
+    const group = groups.get(line.styleKey);
+    group.lines.push(line);
+    group.pages.add(line.page);
+    group.chars += line.charCount;
+    if (line.isBold) group.bold += 1;
+    if (line.centered) group.centered += 1;
+    if (hasHeadingNumbering(line.text)) group.numbered += 1;
+    if (hasHeadingKeyword(line.text)) group.semantic += 1;
+  }
+
+  const bodyKey = [...groups.values()].sort((a, b) => b.chars - a.chars)[0]?.key;
+  const selected = [...groups.values()].map((group) => {
+    const count = Math.max(1, group.lines.length);
+    const avgSize = median(group.lines.map((line) => line.fontSize)) || bodySize;
+    const avgLength = group.chars / count;
+    const sizeRatio = avgSize / Math.max(1, bodySize);
+    const boldRatio = group.bold / count;
+    const centeredRatio = group.centered / count;
+    const numberedRatio = group.numbered / count;
+    const semanticRatio = group.semantic / count;
+    const pageCoverage = group.pages.size / Math.max(1, pageLimit);
+    const edgeRatio = group.lines.filter(isPageEdgeLine).length / count;
+    let score = 0;
+    if (sizeRatio >= 1.6) score += 6;
+    else if (sizeRatio >= 1.4) score += 5;
+    else if (sizeRatio >= 1.25) score += 4;
+    else if (sizeRatio >= 1.12) score += 2;
+    score += boldRatio * 2.5;
+    score += centeredRatio * 1.5;
+    score += numberedRatio * 4;
+    score += semanticRatio * 3;
+    if (avgLength <= 75) score += 1.2;
+    if (avgLength > 115) score -= 4;
+    if (group.key === bodyKey) score -= 7;
+    if (count < 2 && sizeRatio < 1.35 && numberedRatio < 1 && semanticRatio < 1) score -= 4;
+    if (sizeRatio < 1.12 && boldRatio < 0.9 && numberedRatio < 0.5 && semanticRatio < 0.5) score -= 5;
+    if (pageLimit >= 4 && pageCoverage > 0.55 && numberedRatio < 0.15) score -= 4;
+    if (pageLimit >= 4 && edgeRatio > 0.55 && pageCoverage > 0.12) score -= 5;
+    return { ...group, avgSize, score };
+  })
+    .filter((group) => group.score >= 5.5 && group.lines.length <= Math.max(120, pageLimit * 2))
+    .sort((a, b) => b.avgSize - a.avgSize || b.score - a.score)
+    .slice(0, 6);
+
+  const levels = new Map();
+  const sizes = [...new Set(selected.map((group) => group.avgSize.toFixed(1)))]
+    .map(Number)
+    .sort((a, b) => b - a);
+  for (const group of selected) {
+    const level = sizes.findIndex((size) => Math.abs(size - group.avgSize) < 0.2);
+    levels.set(group.key, clamp(level, 0, 3));
+  }
+  return { keys: new Set(selected.map((group) => group.key)), levels };
+}
+
+function collectStyledHeadings(lines, { bodySize, repeatedText, headingStyles }) {
+  const result = [];
+  const seen = new Set();
+  for (const line of lines.sort((a, b) => a.page - b.page || a.topRatio - b.topRatio)) {
+    const key = normalizeOutlineKey(line.text);
+    if (!key || seen.has(`${line.page}:${key}`)) continue;
+    if (!isReasonableOutlineLine(line)) continue;
+    if (repeatedText.has(key) && isPageEdgeLine(line)) continue;
+    const styleHit = headingStyles.keys.has(line.styleKey);
+    if (!styleHit) continue;
+    if (line.widthRatio > 0.92 && line.charCount > 90) continue;
+    if (/[.!?]$/.test(line.text) && !hasHeadingNumbering(line.text)) continue;
+    seen.add(`${line.page}:${key}`);
+    result.push({
+      ...line,
+      level: styleHit ? headingStyles.levels.get(line.styleKey) || 0 : automaticHeadingLevel(line, line.fontSize / Math.max(1, bodySize))
+    });
+  }
+  return normalizeOpeningHeadingLevels(removeAdjacentDuplicateHeadings(result));
+}
+
+function normalizeOpeningHeadingLevels(items) {
+  if (items.length < 2) return items;
+  const first = items[0];
+  if (first.page !== 1 || !first.isBold || first.charCount > 120) return items;
+  const firstStyle = first.styleKey;
+  first.level = 0;
+  for (let index = 1; index < items.length; index += 1) {
+    if (items[index].styleKey !== firstStyle && items[index].level === 0) {
+      items[index].level = 1;
+    }
+  }
+  return items;
+}
+
+function removeAdjacentDuplicateHeadings(items) {
+  const result = [];
+  const lastByKey = new Map();
+  for (const item of items) {
+    const key = normalizeOutlineKey(item.text || item.title);
+    const previous = lastByKey.get(key);
+    if (previous && Math.abs(previous.page - item.page) <= 1) continue;
+    lastByKey.set(key, item);
+    result.push(item);
+  }
+  return result;
+}
+
+function isReasonableOutlineLine(line) {
+  return isReasonableOutlineTitle(line?.text);
+}
+
+function isReasonableOutlineTitle(title) {
+  const text = cleanOutlineTitle(title);
+  if (!text || text.length < 3 || text.length > 150) return false;
+  if (/^[-\s.,;:()[\]{}]+$/.test(text)) return false;
+  if (/^\d{1,4}$/.test(text)) return false;
+  if (/https?:\/\/|www\.|@/.test(text)) return false;
+  if (digitRatio(text) > 0.5 && !hasHeadingNumbering(text)) return false;
+  return true;
+}
+
+function isPageEdgeLine(line) {
+  return line.topRatio < 0.12 || line.topRatio > 0.9;
+}
+
+function endsLikeCompleteHeading(text) {
+  return /[.!?:]$/.test(String(text || "").trim());
+}
+
+function automaticHeadingLevel(line, fontRatio) {
+  const depth = headingNumberDepth(line.text);
+  if (depth > 1) return clamp(depth - 1, 1, 3);
+  if (fontRatio >= 1.45 || line.centered) return 0;
+  if (fontRatio >= 1.22 || line.isBold) return 1;
+  return 2;
+}
+
+function repeatedOutlineTextKeys(lines, pageCount) {
+  const pagesByText = new Map();
+  for (const line of lines) {
+    const key = normalizeOutlineKey(line.text);
+    if (!key || line.text.length > 100) continue;
+    if (!pagesByText.has(key)) pagesByText.set(key, new Set());
+    pagesByText.get(key).add(line.page);
+  }
+  const threshold = Math.max(3, Math.ceil(pageCount * 0.12));
+  return new Set([...pagesByText.entries()].filter(([, pages]) => pages.size >= threshold).map(([key]) => key));
+}
+
+function hasHeadingNumbering(text) {
+  return /^(\d+(\.\d+)*|[A-Z]|[IVXLCDM]+)[.)]?\s+/.test(text)
+    || /^(chapter|section|part|appendix)\s+\S+/i.test(text)
+    || /^(\u05E4\u05E8\u05E7|\u05D7\u05DC\u05E7|\u05E9\u05E2\u05E8|\u05E1\u05E2\u05D9\u05E3|\u05E0\u05E1\u05E4\u05D7)\s+\S+/.test(text);
+}
+
+function headingNumberDepth(text) {
+  const match = String(text || "").match(/^(\d+(?:\.\d+)*)/);
+  return match ? match[1].split(".").length : 1;
+}
+
+function hasHeadingKeyword(text) {
+  return /^(chapter|section|part|appendix|introduction|summary|abstract|conclusion|references)\b/i.test(text)
+    || /^(\u05E4\u05E8\u05E7|\u05D7\u05DC\u05E7|\u05E9\u05E2\u05E8|\u05E1\u05E2\u05D9\u05E3|\u05E0\u05E1\u05E4\u05D7|\u05DE\u05D1\u05D5\u05D0|\u05E1\u05D9\u05DB\u05D5\u05DD|\u05EA\u05E7\u05E6\u05D9\u05E8|\u05DE\u05E7\u05D5\u05E8\u05D5\u05EA)\b/.test(text);
+}
+
+function normalizeOutlineKey(text) {
+  return cleanOutlineTitle(text)
+    .toLowerCase()
+    .replace(/^\d+(\.\d+)*[.)]?\s+/, "")
+    .replace(/\s+\d+$/, "")
+    .replace(/[^\p{L}\p{N}\s]/gu, "")
+    .trim();
+}
+
+function digitRatio(text) {
+  const compact = String(text || "").replace(/\s/g, "");
+  if (!compact) return 0;
+  return (compact.match(/\d/g) || []).length / compact.length;
+}
+
+function dominantValue(values) {
+  const counts = new Map();
+  for (const value of values.filter(Boolean)) {
+    counts.set(value, (counts.get(value) || 0) + 1);
+  }
+  return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || "font";
+}
+
+function normalizeFontName(fontName) {
+  return String(fontName || "font")
+    .replace(/[A-Z]{6}\+/g, "")
+    .replace(/[-_ ]?(bold|black|heavy|demi|medium|semibold|regular|italic|oblique)$/i, "")
+    .toLowerCase();
+}
+
+function outlineStyleKey(fontSize, fontName, isBold, isItalic) {
+  return `${roundFontSize(fontSize)}|${fontName}|${isBold ? "b" : "r"}|${isItalic ? "i" : "n"}`;
+}
+
+function roundFontSize(size) {
+  return Math.round(Number(size || 0) * 2) / 2;
+}
+
+function cleanOutlineTitle(title) {
+  return String(title || "").replace(/\s+/g, " ").trim();
+}
+
+function outlineSourceLabel(type) {
+  if (type === "pdf") return "\u05DE\u05EA\u05D5\u05DA \u05EA\u05D5\u05DB\u05DF \u05E2\u05E0\u05D9\u05D9\u05E0\u05D9\u05DD \u05DE\u05D5\u05D1\u05E0\u05D4";
+  if (type === "tagged") return "\u05DE\u05EA\u05D5\u05DA \u05EA\u05D2\u05D9\u05D5\u05EA H1-H3 \u05D1\u05DE\u05E1\u05DE\u05DA";
+  return "\u05D6\u05D5\u05D4\u05D4 \u05DC\u05E4\u05D9 \u05E1\u05D2\u05E0\u05D5\u05E0\u05D5\u05EA \u05DB\u05D5\u05EA\u05E8\u05EA";
+}
+
+function renderOutline() {
+  if (!ui.outlineList) return;
+  ui.outlineList.innerHTML = "";
+  if (state.outline.loading) {
+    const loading = document.createElement("div");
+    loading.className = "outline-empty";
+    loading.textContent = state.outline.type === "auto-loading" ? "\u05DE\u05D6\u05D4\u05D4 \u05DB\u05D5\u05EA\u05E8\u05D5\u05EA \u05DE\u05D5\u05D1\u05E0\u05D5\u05EA \u05D1\u05DE\u05E1\u05DE\u05DA..." : "\u05D8\u05D5\u05E2\u05DF \u05EA\u05D5\u05DB\u05DF \u05E2\u05E0\u05D9\u05D9\u05E0\u05D9\u05DD...";
+    ui.outlineList.append(loading);
+    return;
+  }
+  if (!state.outline.items.length) {
+    const empty = document.createElement("div");
+    empty.className = "outline-empty";
+    empty.textContent = state.pdf ? "לא נמצא תוכן עניינים למסמך הזה." : "פתח PDF כדי להציג תוכן עניינים.";
+    ui.outlineList.append(empty);
+    return;
+  }
+  const source = document.createElement("div");
+  source.className = "outline-source";
+  source.textContent = outlineSourceLabel(state.outline.type);
+  ui.outlineList.append(source);
+  for (const item of state.outline.items) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "outline-item";
+    button.style.setProperty("--outline-level", item.level || 0);
+    button.title = `${item.title} · עמוד ${item.page}`;
+    button.innerHTML = `<span>${escapeHtml(item.title)}</span><small>${item.page}</small>`;
+    button.addEventListener("click", () => goToPage(item.page));
+    ui.outlineList.append(button);
+  }
+}
+
+function savePosition() {
+  const position = getVisibleReadingPosition();
+  state.currentPage = position.page;
+  state.meta.readingPosition = position.page;
+  state.meta.readingOffset = position.offset;
+  state.meta.savedReadingPosition = position.page;
+  state.meta.savedReadingOffset = position.offset;
+  saveMeta();
+  updateStatus();
+  announce(`המיקום נשמר בעמוד ${position.page}.`);
+}
+
+function restorePosition() {
+  const page = state.meta.savedReadingPosition || state.meta.readingPosition || 1;
+  const offset = state.meta.savedReadingPosition ? state.meta.savedReadingOffset : state.meta.readingOffset;
+  goToPage(page, { offset: offset || 0, save: false });
+}
+
+async function goToPage(pageNo, options = {}) {
+  if (!state.pdf) return;
+  const { offset = 0, save = true, scroll = true } = options;
+  state.currentPage = clamp(Math.round(pageNo), 1, state.pageCount);
+  if (save) {
+    state.meta.readingPosition = state.currentPage;
+    state.meta.readingOffset = clamp(offset, 0, 1);
+    saveMeta(false);
+  }
+  let target = document.querySelector(`[data-page="${state.currentPage}"]`);
+  if (!target) {
+    await render();
+    target = document.querySelector(`[data-page="${state.currentPage}"]`);
+  }
+  cancelActivePageRender(state.currentPage);
+  queueNearbyContent(state.currentPage, state.renderId);
+  if (target && scroll) {
+    const scrollLockId = lockScrollTracking();
+    scrollToPageOffset(target, offset);
+    releaseScrollTrackingAfterLayout(scrollLockId);
+  }
+  updateStatus();
+}
+
+function onScroll() {
+  if (state.isRendering || state.isAdjustingScroll) return;
+  const position = getVisibleReadingPosition();
+  if (!position.page) return;
+  if (position.page !== state.currentPage) {
+    state.currentPage = position.page;
+    cancelActivePageRender(position.page);
+    queueNearbyContent(position.page, state.renderId);
+    updateStatus();
+  }
+  state.meta.readingPosition = position.page;
+  state.meta.readingOffset = position.offset;
+  saveScrollMeta();
+}
+
+function onReaderWheel(event) {
+  if (state.mode !== "single" || !state.pdf || event.ctrlKey || event.metaKey) return;
+  if (isTypingTarget(event.target)) return;
+
+  const primaryDelta = Math.abs(event.deltaY) >= Math.abs(event.deltaX) ? event.deltaY : event.deltaX;
+  if (!primaryDelta) return;
+
+  event.preventDefault();
+  state.pageWheelDelta += primaryDelta;
+
+  const now = performance.now();
+  if (now < state.pageWheelLockedUntil) return;
+
+  const threshold = event.deltaMode === WheelEvent.DOM_DELTA_PIXEL ? 18 : 0.8;
+  if (Math.abs(state.pageWheelDelta) < threshold) return;
+
+  const direction = state.pageWheelDelta > 0 ? 1 : -1;
+  state.pageWheelDelta = 0;
+  state.pageWheelLockedUntil = now + 180;
+  goToPage(state.currentPage + direction, { offset: 0 });
+}
+
+function syncSinglePageWheel() {
+  const shouldUsePageWheel = state.mode === "single";
+  if (shouldUsePageWheel === state.isSinglePageWheelActive) return;
+  state.pageWheelDelta = 0;
+  state.pageWheelLockedUntil = 0;
+  state.isSinglePageWheelActive = shouldUsePageWheel;
+  if (shouldUsePageWheel) {
+    ui.reader.addEventListener("wheel", onReaderWheel, { passive: false });
+  } else {
+    ui.reader.removeEventListener("wheel", onReaderWheel);
+  }
+}
+
+function handleSinglePageKey(event) {
+  if (state.mode !== "single" || !state.pdf || isTypingTarget(event.target) || event.ctrlKey || event.metaKey || event.altKey) {
+    return false;
+  }
+  const nextKeys = new Set(["ArrowDown", "ArrowRight", "PageDown", " "]);
+  const previousKeys = new Set(["ArrowUp", "ArrowLeft", "PageUp"]);
+  if (!nextKeys.has(event.key) && !previousKeys.has(event.key)) return false;
+  event.preventDefault();
+  const direction = previousKeys.has(event.key) ? -1 : 1;
+  goToPage(state.currentPage + direction, { offset: 0 });
+  return true;
+}
+
+function getVisibleReadingPosition() {
+  const shells = state.pageShells;
+  if (!shells.length) return { page: state.currentPage || 1, offset: 0 };
+  const readerTop = ui.reader.scrollTop;
+  const viewportMiddle = readerTop + (ui.reader.clientHeight / 2);
+  let low = 0;
+  let high = shells.length - 1;
+  let nearestIndex = 0;
+
+  while (low <= high) {
+    const middleIndex = Math.floor((low + high) / 2);
+    const shell = shells[middleIndex];
+    if (!shell) break;
+    const shellMiddle = shell.offsetTop + (shell.offsetHeight / 2);
+    nearestIndex = middleIndex;
+    if (shellMiddle < viewportMiddle) low = middleIndex + 1;
+    else high = middleIndex - 1;
+  }
+
+  let nearest = shells[nearestIndex] || shells[0];
+  let nearestDistance = Math.abs((nearest.offsetTop + (nearest.offsetHeight / 2)) - viewportMiddle);
+  for (let index = Math.max(0, nearestIndex - 2); index <= Math.min(shells.length - 1, nearestIndex + 2); index += 1) {
+    const shell = shells[index];
+    if (!shell) continue;
+    const distance = Math.abs((shell.offsetTop + (shell.offsetHeight / 2)) - viewportMiddle);
+    if (distance < nearestDistance) {
+      nearest = shell;
+      nearestDistance = distance;
+    }
+  }
+  const offset = clamp((readerTop - nearest.offsetTop) / Math.max(1, nearest.offsetHeight), 0, 1);
+  return { page: Number(nearest.dataset.page), offset };
+}
+
+function updateStatus() {
+  ui.reader.classList.toggle("empty-file-target", !state.pdf);
+  ui.pageInput.value = state.currentPage || 1;
+  ui.pageTotal.textContent = `/ ${state.pageCount || 0}`;
+  ui.zoomLabel.textContent = `${Math.round(state.scale * 100)}%`;
+  const savePositionButton = $("savePosition");
+  const hasSavedPosition = Number(state.meta.savedReadingPosition) > 0;
+  savePositionButton?.classList.toggle("has-saved-position", hasSavedPosition);
+  savePositionButton?.setAttribute(
+    "aria-label",
+    hasSavedPosition
+      ? `שמור מיקום. קיים מיקום שמור בעמוד ${state.meta.savedReadingPosition}`
+      : "שמור מיקום"
+  );
+  const progress = state.pageCount ? (state.currentPage / state.pageCount) * 100 : 0;
+  if (ui.pageSlider) {
+    ui.pageSlider.min = "1";
+    ui.pageSlider.max = String(Math.max(1, state.pageCount || 1));
+    ui.pageSlider.value = String(clamp(state.currentPage || 1, 1, state.pageCount || 1));
+    ui.pageSlider.disabled = !state.pdf || state.pageCount <= 1;
+    ui.pageSlider.style.setProperty("--slider-progress", `${progress}%`);
+  }
+  const atStart = !state.pdf || state.currentPage <= 1;
+  const atEnd = !state.pdf || state.currentPage >= state.pageCount;
+  ["firstPage"].forEach((id) => {
+    const button = $(id);
+    if (button) button.disabled = atStart;
+  });
+  ["lastPage"].forEach((id) => {
+    const button = $(id);
+    if (button) button.disabled = atEnd;
+  });
+}
+
+async function fitTo(kind) {
+  state.fit = kind;
+  if (!state.pdf) return;
+  const page = await state.pdf.getPage(state.currentPage);
+  const viewport = page.getViewport({ scale: 1 });
+  const isBookMode = state.mode.startsWith("book");
+  
+  if (isBookMode) {
+    // Get the actual reader padding from CSS computed style
+    const readerStyle = getComputedStyle(ui.reader);
+    const paddingTop = parseFloat(readerStyle.paddingTop);
+    const paddingRight = parseFloat(readerStyle.paddingRight);
+    const readerPadding = paddingTop * 2 + paddingRight * 2;
+    
+    // Get the spread gap from CSS computed style
+    const tempSpread = document.createElement("div");
+    tempSpread.className = "spread";
+    document.body.appendChild(tempSpread);
+    const spreadStyle = getComputedStyle(tempSpread);
+    const spreadGap = parseFloat(spreadStyle.gap) || 14;
+    document.body.removeChild(tempSpread);
+    
+    const availableWidth = Math.max(320, ui.reader.clientWidth - readerPadding);
+    const availableHeight = Math.max(320, ui.reader.clientHeight - readerPadding);
+    
+    // For book mode, fit two pages side-by-side
+    // Equation: availableWidth >= scale * (2 * viewport.width) + spreadGap
+    // Solving for scale: scale = (availableWidth - spreadGap) / (2 * viewport.width)
+    
+    let scaleW = (availableWidth - spreadGap) / (2 * viewport.width);
+    
+    // Verify the scale doesn't cause overflow
+    const pageWidth = viewport.width * scaleW;
+    const totalNeededWidth = pageWidth * 2 + spreadGap;
+    if (totalNeededWidth > availableWidth) {
+      scaleW = (availableWidth - spreadGap) / (2 * viewport.width) * 0.98; // 98% to ensure no overflow
+    }
+    
+    const scaleH = availableHeight / viewport.height;
+    state.scale = clamp(kind === "page" ? Math.min(scaleW, scaleH) : scaleW, 0.35, 3.5);
+  } else {
+    const readerStyle = getComputedStyle(ui.reader);
+    const paddingTop = parseFloat(readerStyle.paddingTop);
+    const paddingRight = parseFloat(readerStyle.paddingRight);
+    const readerPadding = paddingTop * 2 + paddingRight * 2;
+    
+    const availableWidth = Math.max(320, ui.reader.clientWidth - readerPadding);
+    const availableHeight = Math.max(320, ui.reader.clientHeight - readerPadding);
+    const scaleW = availableWidth / viewport.width;
+    const scaleH = availableHeight / viewport.height;
+    state.scale = clamp(kind === "page" ? Math.min(scaleW, scaleH) : scaleW, 0.35, 3.5);
+  }
+  
+  await render();
+}
+
+async function setScale(scale) {
+  state.scale = clamp(scale, 0.35, 3.5);
+  state.fit = "custom";
+  await render();
+}
+
+function normalizeBookStart() {
+  state.currentPage = clamp(state.currentPage, 1, state.pageCount || 1);
+}
+
+function getBookSpreads() {
+  const spreads = [];
+  if (state.pageCount >= 1) spreads.push([1]);
+  for (let pageNo = 2; pageNo <= state.pageCount; pageNo += 2) {
+    const pages = pageNo + 1 <= state.pageCount ? [pageNo, pageNo + 1] : [pageNo];
+    spreads.push(state.mode === "book-rtl" ? [...pages].reverse() : pages);
+  }
+  return spreads;
+}
+
+function lockScrollTracking() {
+  state.isAdjustingScroll = true;
+  return ++state.scrollLockId;
+}
+
+function releaseScrollTrackingAfterLayout(scrollLockId) {
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      if (scrollLockId !== state.scrollLockId) return;
+      state.isRendering = false;
+      state.isAdjustingScroll = false;
+    });
+  });
+}
+
+function scrollCurrentIntoView(scrollLockId = lockScrollTracking()) {
+  requestAnimationFrame(() => {
+    const target = document.querySelector(`[data-page="${state.currentPage}"]`);
+    if (target) scrollToPageOffset(target, state.meta.readingOffset || 0);
+    releaseScrollTrackingAfterLayout(scrollLockId);
+  });
+}
+
+function scrollToPageOffset(target, offset = 0) {
+  const top = target.offsetTop + (target.offsetHeight * clamp(offset, 0, 1));
+  const centeredLeft = target.offsetLeft - ((ui.reader.clientWidth - target.offsetWidth) / 2);
+  const left = clamp(Math.round(centeredLeft), 0, Math.max(0, ui.reader.scrollWidth - ui.reader.clientWidth));
+  const previousBehavior = ui.reader.style.scrollBehavior;
+  ui.reader.style.scrollBehavior = "auto";
+  ui.reader.scrollTo({ left, top: Math.max(0, top), behavior: "auto" });
+  ui.reader.style.scrollBehavior = previousBehavior;
+}
+
+function toggleScreenshotMenu(event) {
+  event.stopPropagation();
+  const isOpen = !ui.screenshotMenu.hidden;
+  ui.screenshotMenu.hidden = isOpen;
+  ui.screenshotBtn.setAttribute("aria-expanded", String(!isOpen));
+}
+
+function closeScreenshotMenu() {
+  if (!ui.screenshotMenu) return;
+  ui.screenshotMenu.hidden = true;
+  ui.screenshotBtn?.setAttribute("aria-expanded", "false");
+}
+
+function togglePrintMenu(event) {
+  event.stopPropagation();
+  const isOpen = !ui.printMenu.hidden;
+  ui.printMenu.hidden = isOpen;
+  ui.printBtn.setAttribute("aria-expanded", String(!isOpen));
+}
+
+function closePrintMenu() {
+  if (!ui.printMenu) return;
+  ui.printMenu.hidden = true;
+  ui.printBtn?.setAttribute("aria-expanded", "false");
+}
+
+function openPrintDialog(mode = "document", source = null) {
+  if (!state.pdf) {
+    announce("יש לפתוח קובץ PDF לפני ההדפסה.");
+    return;
+  }
+  hideSelectionActionMenu();
+  $("printCurrentPage").textContent = String(state.currentPage);
+  $("printRange").placeholder = `למשל 1-${Math.min(4, state.pageCount)}, ${state.pageCount}`;
+  const hasSelection = Boolean(state.screenshotSelection.rect && state.screenshotSelection.pageNo);
+  $("printSelectionScope").classList.toggle("unavailable", !hasSelection);
+  $("printSelectionScope").querySelector("input").disabled = !hasSelection;
+  $("stickerSelectionOption").classList.toggle("unavailable", !hasSelection);
+  $("stickerSelectionOption").querySelector("input").disabled = !hasSelection;
+  setPrintMode(mode);
+  if (source === "selection" && hasSelection) {
+    document.querySelector('[name="printScope"][value="selection"]').checked = true;
+    document.querySelector('[name="stickerSource"][value="selection"]').checked = true;
+  } else if (source) {
+    const sourceName = state.printMode === "stickers" ? "stickerSource" : "printScope";
+    const sourceInput = document.querySelector(`[name="${sourceName}"][value="${source}"]`);
+    if (sourceInput && !sourceInput.disabled) sourceInput.checked = true;
+  }
+  updatePrintSummary();
+  if (!ui.printDialog.open) ui.printDialog.showModal();
+}
+
+function closePrintDialog() {
+  if (ui.printDialog.open) ui.printDialog.close();
+}
+
+function setPrintMode(mode) {
+  state.printMode = mode === "stickers" ? "stickers" : "document";
+  document.querySelectorAll("[data-print-mode]").forEach((button) => {
+    button.classList.toggle("active", button.dataset.printMode === state.printMode);
+  });
+  document.querySelectorAll("[data-print-panel]").forEach((panel) => {
+    panel.hidden = panel.dataset.printPanel !== state.printMode;
+  });
+  updatePrintSummary();
+}
+
+function getPrintOptions() {
+  const mode = state.printMode;
+  return {
+    mode,
+    scope: document.querySelector('[name="printScope"]:checked')?.value || "current",
+    range: $("printRange").value.trim(),
+    perSheet: Number($("pagesPerSheet").value),
+    stickerSource: document.querySelector('[name="stickerSource"]:checked')?.value || "page",
+    copies: Number($("stickerCopies").value),
+    orientation: $("printOrientation").value,
+    includeAnnotations: $("printAnnotations").checked,
+    cutGuides: $("printCutGuides").checked
+  };
+}
+
+function updatePrintSummary() {
+  if (!state.pdf || !$("printSummary")) return;
+  const options = getPrintOptions();
+  if (options.mode === "stickers") {
+    $("printSummary").textContent = `${options.copies} עותקים · גיליון אחד`;
+    return;
+  }
+  let pageCount = options.scope === "all" ? state.pageCount : 1;
+  if (options.scope === "range" && options.range) {
+    try { pageCount = parsePageRange(options.range).length; } catch { pageCount = 0; }
+  }
+  const sheets = Math.max(1, Math.ceil(pageCount / options.perSheet));
+  $("printSummary").textContent = `${pageCount || "—"} עמודים · ${sheets} ${sheets === 1 ? "גיליון" : "גיליונות"}`;
+}
+
+function parsePageRange(value) {
+  if (!value.trim()) throw new Error("יש להזין טווח עמודים.");
+  const pages = [];
+  for (const part of value.split(",")) {
+    const token = part.trim();
+    const match = token.match(/^(\d+)\s*(?:[-–]\s*(\d+))?$/);
+    if (!match) throw new Error("טווח העמודים אינו תקין.");
+    const start = Number(match[1]);
+    const end = Number(match[2] || match[1]);
+    if (start < 1 || end < start || end > state.pageCount) {
+      throw new Error(`מספרי העמודים חייבים להיות בין 1 ל-${state.pageCount}.`);
+    }
+    for (let page = start; page <= end; page += 1) {
+      if (!pages.includes(page)) pages.push(page);
+    }
+  }
+  return pages;
+}
+
+async function submitPrintOptions(event) {
+  event.preventDefault();
+  await runPrint(getPrintOptions());
+}
+
+async function runPrint(options) {
+  if (!state.pdf) return;
+  const printButton = $("startPrint");
+  try {
+    ui.printDialog.classList.add("is-busy");
+    if (printButton) printButton.textContent = "מכין להדפסה…";
+    announce("מכין את הדפים להדפסה…");
+
+    let images;
+    let itemsPerSheet;
+    if (options.mode === "stickers") {
+      const sourceCanvas = await getStickerSourceCanvas(options.stickerSource, options.includeAnnotations);
+      const source = sourceCanvas.toDataURL("image/png");
+      images = Array.from({ length: options.copies }, () => source);
+      itemsPerSheet = options.copies;
+    } else {
+      if (options.scope === "selection") {
+        images = [(await renderSelectionCanvas(options.includeAnnotations)).toDataURL("image/png")];
+      } else {
+        const pages = options.scope === "all"
+          ? Array.from({ length: state.pageCount }, (_, index) => index + 1)
+          : options.scope === "range" ? parsePageRange(options.range) : [state.currentPage];
+        images = [];
+        for (let index = 0; index < pages.length; index += 1) {
+          announce(`מכין עמוד ${index + 1} מתוך ${pages.length}…`);
+          images.push((await renderPrintablePage(pages[index], options.includeAnnotations)).toDataURL("image/jpeg", .94));
+        }
+      }
+      itemsPerSheet = options.perSheet;
+    }
+
+    await printImageSheets(images, itemsPerSheet, options);
+    closePrintDialog();
+  } catch (error) {
+    console.warn("Could not prepare print job:", error);
+    announce(error.message || "לא ניתן להכין את ההדפסה.");
+  } finally {
+    ui.printDialog.classList.remove("is-busy");
+    if (printButton) printButton.textContent = "הדפס עכשיו";
+  }
+}
+
+async function ensurePrintablePage(pageNo) {
+  const record = state.renderedPages.get(pageNo);
+  if (!record) throw new Error(`עמוד ${pageNo} אינו זמין.`);
+  if (!record.contentRendered && !record.contentRendering) queuePageContent(pageNo, state.renderId, true);
+  await waitForPageContent(record);
+  if (!record.contentRendered) {
+    await renderPageContent(pageNo, state.renderId);
+    await waitForPageContent(record);
+  }
+  return record;
+}
+
+async function renderPrintablePage(pageNo, includeAnnotations = false) {
+  const page = await state.pdf.getPage(pageNo);
+  const viewport = page.getViewport({ scale: 2 });
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.ceil(viewport.width);
+  canvas.height = Math.ceil(viewport.height);
+  const context = canvas.getContext("2d");
+  context.fillStyle = "#ffffff";
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  await page.render({ canvasContext: context, viewport }).promise;
+  if (includeAnnotations) drawAnnotationsOnCanvas(context, pageNo, viewport);
+  return canvas;
+}
+
+function drawAnnotationsOnCanvas(context, pageNo, viewport) {
+  const width = viewport.width;
+  const height = viewport.height;
+
+  state.meta.highlights.filter((item) => item.page === pageNo).forEach((item) => {
+    context.save();
+    context.globalAlpha = 0.34;
+    context.fillStyle = "#ffd60a";
+    context.fillRect(item.x * width, item.y * height, item.w * width, item.h * height);
+    context.restore();
+  });
+
+  state.meta.fields.filter((item) => item.page === pageNo && (item.text || item.type === "note")).forEach((item) => {
+    const x = item.x * width;
+    const y = item.y * height;
+    const w = item.w * width;
+    const h = item.h * height;
+    if (item.type === "note") {
+      context.save();
+      context.globalAlpha = 0.96;
+      context.fillStyle = "#fffbeb";
+      context.strokeStyle = "#d6a906";
+      context.lineWidth = Math.max(1, viewport.scale * 0.4);
+      context.fillRect(x, y, w, h);
+      context.strokeRect(x, y, w, h);
+      context.restore();
+    }
+    drawFieldTextOnCanvas(context, item, x, y, w, h, viewport);
+  });
+
+  state.meta.signatures.filter((item) => item.page === pageNo).forEach((item) => {
+    context.save();
+    context.strokeStyle = "#111827";
+    context.lineCap = "round";
+    context.lineJoin = "round";
+    context.lineWidth = getSignatureStrokeWidth(item, width);
+    getSignatureStrokes(item).forEach((stroke) => {
+      if (stroke.length < 2) return;
+      context.beginPath();
+      context.moveTo(stroke[0][0] * width, stroke[0][1] * height);
+      for (let index = 1; index < stroke.length; index += 1) {
+        context.lineTo(stroke[index][0] * width, stroke[index][1] * height);
+      }
+      context.stroke();
+    });
+    context.restore();
+  });
+}
+
+function drawFieldTextOnCanvas(context, item, x, y, width, height, viewport) {
+  const text = item.text || "";
+  if (!text) return;
+  const fontSize = getFieldPdfFontSize(item) * viewport.scale;
+  const paddingX = 4 * viewport.scale;
+  const paddingY = 2 * viewport.scale;
+  context.save();
+  context.beginPath();
+  context.rect(x, y, width, height);
+  context.clip();
+  context.fillStyle = "#111827";
+  context.font = `${fontSize}px Arial, sans-serif`;
+  context.textBaseline = "top";
+  context.direction = detectTextDirection(text);
+  context.textAlign = context.direction === "rtl" ? "right" : "left";
+  const textX = context.direction === "rtl" ? x + width - paddingX : x + paddingX;
+  const textY = y + paddingY;
+  String(text).split(/\r?\n/).forEach((line, index) => {
+    context.fillText(line, textX, textY + index * fontSize * 1.25, Math.max(1, width - paddingX * 2));
+  });
+  context.restore();
+}
+
+function detectTextDirection(text) {
+  return /[\u0590-\u08ff]/.test(String(text)) ? "rtl" : "ltr";
+}
+
+async function getStickerSourceCanvas(source, includeAnnotations = false) {
+  if (source === "selection") return renderSelectionCanvas(includeAnnotations);
+  if (source === "window") return renderVisibleWindowCanvas(includeAnnotations);
+  return renderPrintablePage(state.currentPage, includeAnnotations);
+}
+
+async function renderVisibleWindowCanvas(includeAnnotations = false) {
+  const readerRect = ui.reader.getBoundingClientRect();
+  const scale = 1.25;
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(readerRect.width * scale));
+  canvas.height = Math.max(1, Math.round(readerRect.height * scale));
+  const context = canvas.getContext("2d");
+  context.fillStyle = "#ffffff";
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  let drewContent = false;
+
+  for (let pageNo = 1; pageNo <= state.pageCount; pageNo += 1) {
+    const shell = state.renderedPages.get(pageNo)?.shell;
+    if (!shell) continue;
+    const rect = shell.getBoundingClientRect();
+    const left = Math.max(rect.left, readerRect.left);
+    const top = Math.max(rect.top, readerRect.top);
+    const right = Math.min(rect.right, readerRect.right);
+    const bottom = Math.min(rect.bottom, readerRect.bottom);
+    if (right <= left || bottom <= top) continue;
+    const pageCanvas = await renderPrintablePage(pageNo, includeAnnotations);
+    const sx = (left - rect.left) * pageCanvas.width / rect.width;
+    const sy = (top - rect.top) * pageCanvas.height / rect.height;
+    const sw = (right - left) * pageCanvas.width / rect.width;
+    const sh = (bottom - top) * pageCanvas.height / rect.height;
+    context.drawImage(pageCanvas, sx, sy, sw, sh, (left - readerRect.left) * scale, (top - readerRect.top) * scale, (right - left) * scale, (bottom - top) * scale);
+    drewContent = true;
+  }
+  if (!drewContent) throw new Error("אין תוכן נראה להדפסה בחלון.");
+  return canvas;
+}
+
+function printImageSheets(images, perSheet, options) {
+  return new Promise((resolve, reject) => {
+    const iframe = document.createElement("iframe");
+    iframe.title = "תצוגת הדפסה";
+    Object.assign(iframe.style, { position: "fixed", width: "1px", height: "1px", left: "-10000px", top: "0", border: "0" });
+    document.body.append(iframe);
+    const pageShape = options.orientation === "landscape" ? 1.414 : .707;
+    const columns = Math.max(1, Math.ceil(Math.sqrt(perSheet * pageShape)));
+    const rows = Math.ceil(perSheet / columns);
+    const sheets = [];
+    for (let index = 0; index < images.length; index += perSheet) {
+      const sheetImages = images.slice(index, index + perSheet)
+        .map((source) => `<div class="cell"><img src="${source}" alt=""></div>`).join("");
+      sheets.push(`<section class="sheet" style="--cols:${columns};--rows:${rows}">${sheetImages}</section>`);
+    }
+    const doc = iframe.contentDocument;
+    doc.open();
+    doc.write(`<!doctype html><html dir="rtl"><head><meta charset="utf-8"><title>הדפסה - ${escapeHtml(baseName())}</title><style>
+      @page { size: A4 ${options.orientation}; margin: 7mm; }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; padding: 0; background: #fff; }
+      .sheet { width: 100%; height: calc(100vh - 1px); display: grid; grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); grid-template-rows: repeat(var(--rows), minmax(0, 1fr)); gap: 3mm; break-after: page; page-break-after: always; }
+      .sheet:last-child { break-after: auto; page-break-after: auto; }
+      .cell { display: flex; align-items: center; justify-content: center; min-width: 0; min-height: 0; overflow: hidden; ${options.cutGuides ? "border: .25mm dashed #999; padding: 2mm;" : ""} }
+      img { display: block; max-width: 100%; max-height: 100%; object-fit: contain; }
+    </style></head><body>${sheets.join("")}</body></html>`);
+    doc.close();
+
+    const cleanup = () => { setTimeout(() => iframe.remove(), 1000); resolve(); };
+    iframe.contentWindow.addEventListener("afterprint", cleanup, { once: true });
+    Promise.all(Array.from(doc.images).map((image) => image.complete ? Promise.resolve() : new Promise((done, fail) => {
+      image.onload = done;
+      image.onerror = fail;
+    }))).then(() => {
+      setTimeout(() => {
+        iframe.contentWindow.focus();
+        iframe.contentWindow.print();
+        setTimeout(cleanup, 60000);
+      }, 100);
+    }).catch((error) => { iframe.remove(); reject(error); });
+  });
+}
+
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
+}
+
+function startScreenshotSelection(mode = "area") {
+  if (!state.pdf) {
+    announce("פתח קובץ PDF לפני בחירת קטע.");
+    return;
+  }
+  state.screenshotSelection.active = true;
+  state.screenshotSelection.mode = normalizeSelectionMode(mode);
+  state.screenshotSelection.dragging = false;
+  clearScreenshotSelectionBox();
+  clearTextSelectionHighlights();
+  hideSelectionActionMenu();
+  updateToolLayers();
+  announce(state.screenshotSelection.mode === "text"
+    ? "גרור מסגרת סביב הטקסט שברצונך לבחור."
+    : "גרור מסגרת סביב האיזור שברצונך לבחור.");
+}
+
+function normalizeSelectionMode(mode) {
+  if (mode === "text" || mode === "smart") return mode;
+  return "area";
+}
+
+function stopScreenshotSelection() {
+  if (!state.screenshotSelection.active && !state.screenshotSelection.box && !state.screenshotSelection.textHighlights?.length) return;
+  state.screenshotSelection.active = false;
+  state.screenshotSelection.mode = "area";
+  state.screenshotSelection.dragging = false;
+  state.screenshotSelection.pointerId = null;
+  clearScreenshotSelectionBox();
+  clearTextSelectionHighlights();
+  hideSelectionActionMenu();
+  updateToolLayers();
+}
+
+function wireScreenshotLayer(layer, pageNo) {
+  layer.addEventListener("pointerdown", (event) => {
+    const toolbarSelection = state.tool === "select";
+    if ((!state.screenshotSelection.active && !toolbarSelection) || event.button !== 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    layer.setPointerCapture(event.pointerId);
+    clearScreenshotSelectionBox();
+    clearTextSelectionHighlights();
+    hideSelectionActionMenu();
+
+    const mode = state.screenshotSelection.active
+      ? normalizeSelectionMode(state.screenshotSelection.mode)
+      : "smart";
+
+    const layerRect = layer.getBoundingClientRect();
+    const startX = clamp(event.clientX - layerRect.left, 0, layerRect.width);
+    const startY = clamp(event.clientY - layerRect.top, 0, layerRect.height);
+    const box = document.createElement("div");
+    box.className = "screenshot-selection-box";
+    box.classList.toggle("text-selection-box", mode !== "area");
+    layer.append(box);
+
+    Object.assign(state.screenshotSelection, {
+      active: state.screenshotSelection.active,
+      mode,
+      dragging: true,
+      pointerId: event.pointerId,
+      pageNo,
+      box,
+      rect: { x: startX, y: startY, w: 0, h: 0 },
+      startX,
+      startY
+    });
+    drawScreenshotSelection(event, layer);
+  });
+
+  layer.addEventListener("pointermove", (event) => {
+    if (!state.screenshotSelection.dragging || state.screenshotSelection.pointerId !== event.pointerId) return;
+    event.preventDefault();
+    drawScreenshotSelection(event, layer);
+  });
+
+  const finish = (event) => {
+    if (!state.screenshotSelection.dragging || state.screenshotSelection.pointerId !== event.pointerId) return;
+    event.preventDefault();
+    event.stopPropagation();
+    drawScreenshotSelection(event, layer);
+    state.screenshotSelection.dragging = false;
+    state.screenshotSelection.pointerId = null;
+    const rect = state.screenshotSelection.rect;
+    if (!rect || rect.w < 6 || rect.h < 6) {
+      clearScreenshotSelectionBox();
+      clearTextSelectionHighlights();
+      hideSelectionActionMenu();
+      return;
+    }
+    const mode = state.screenshotSelection.mode;
+    if (mode === "text" || mode === "smart") {
+      finalizeTextSelection(layer, { fallbackToArea: mode === "smart" }).then((finalMode) => {
+        if (finalMode) showSelectionActionMenu(layer, rect);
+      });
+    } else {
+      showSelectionActionMenu(layer, rect);
+    }
+  };
+
+  layer.addEventListener("pointerup", finish);
+  layer.addEventListener("pointercancel", finish);
+}
+
+function drawScreenshotSelection(event, layer) {
+  const selection = state.screenshotSelection;
+  const layerRect = layer.getBoundingClientRect();
+  const endX = clamp(event.clientX - layerRect.left, 0, layerRect.width);
+  const endY = clamp(event.clientY - layerRect.top, 0, layerRect.height);
+  const x = Math.min(selection.startX, endX);
+  const y = Math.min(selection.startY, endY);
+  const w = Math.abs(endX - selection.startX);
+  const h = Math.abs(endY - selection.startY);
+  selection.rect = { x, y, w, h };
+  if (selection.box) {
+    selection.box.style.left = `${x}px`;
+    selection.box.style.top = `${y}px`;
+    selection.box.style.width = `${w}px`;
+    selection.box.style.height = `${h}px`;
+  }
+  if (selection.mode === "text" || selection.mode === "smart") {
+    paintTextSelectionHighlights(layer);
+  }
+}
+
+function clearScreenshotSelectionBox() {
+  state.screenshotSelection.box?.remove();
+  state.screenshotSelection.box = null;
+  state.screenshotSelection.rect = null;
+  state.screenshotSelection.pageNo = null;
+}
+
+function removeSelectionBoxElement() {
+  state.screenshotSelection.box?.remove();
+  state.screenshotSelection.box = null;
+}
+
+function clearTextSelectionHighlights() {
+  state.screenshotSelection.textHighlights?.forEach((highlight) => highlight.remove());
+  state.screenshotSelection.textHighlights = [];
+}
+
+async function finalizeTextSelection(layer, options = {}) {
+  const { fallbackToArea = false } = options;
+  try {
+    await ensureSelectedPageTextReady();
+    const hasText = paintTextSelectionHighlights(layer);
+    if (!hasText) {
+      clearTextSelectionHighlights();
+      if (fallbackToArea) {
+        state.screenshotSelection.box?.classList.remove("text-selection-box");
+        state.screenshotSelection.mode = "area";
+        return "area";
+      }
+      clearScreenshotSelectionBox();
+      announce("לא נמצא טקסט ברור באיזור שנבחר.");
+      return "";
+    }
+    removeSelectionBoxElement();
+    state.screenshotSelection.mode = "text";
+    return "text";
+  } catch (error) {
+    console.warn("Could not finalize text selection:", error);
+    if (fallbackToArea) {
+      clearTextSelectionHighlights();
+      state.screenshotSelection.mode = "area";
+      return "area";
+    }
+    announce("לא ניתן לסמן את הטקסט באיזור שנבחר.");
+    return "";
+  }
+}
+
+async function ensureSelectedPageTextReady() {
+  const selection = state.screenshotSelection;
+  const record = state.renderedPages.get(selection.pageNo);
+  if (!record) throw new Error("Selected page is not rendered");
+  if (record.contentRendering) await waitForPageContent(record);
+  if (!record.contentRendered) await renderPageContent(selection.pageNo, state.renderId);
+  if (record.contentRendering) await waitForPageContent(record);
+}
+
+function paintTextSelectionHighlights(layer) {
+  clearTextSelectionHighlights();
+  const items = getSelectedTextItems();
+  if (!items.length) return false;
+  const fragments = mergeTextSelectionFragments(items);
+  state.screenshotSelection.textHighlights = fragments.map((fragment) => {
+    const highlight = document.createElement("div");
+    highlight.className = "text-selection-highlight";
+    highlight.style.left = `${fragment.x}px`;
+    highlight.style.top = `${fragment.y}px`;
+    highlight.style.width = `${fragment.w}px`;
+    highlight.style.height = `${fragment.h}px`;
+    layer.append(highlight);
+    return highlight;
+  });
+  return true;
+}
+
+function mergeTextSelectionFragments(items) {
+  const lineThreshold = Math.max(4, median(items.map((item) => item.h)) * 0.65);
+  const lines = [];
+  for (const item of items) {
+    const cy = item.y + item.h / 2;
+    let line = lines.find((entry) => Math.abs(entry.cy - cy) <= lineThreshold);
+    if (!line) {
+      line = { cy, items: [] };
+      lines.push(line);
+    }
+    line.items.push(item);
+    line.cy = (line.cy * (line.items.length - 1) + cy) / line.items.length;
+  }
+  return lines.map((line) => {
+    const left = Math.min(...line.items.map((item) => item.x));
+    const right = Math.max(...line.items.map((item) => item.x + item.w));
+    const top = Math.min(...line.items.map((item) => item.y));
+    const bottom = Math.max(...line.items.map((item) => item.y + item.h));
+    const padX = 2;
+    const padY = 1;
+    return {
+      x: Math.max(0, left - padX),
+      y: Math.max(0, top - padY),
+      w: right - left + padX * 2,
+      h: bottom - top + padY * 2
+    };
+  });
+}
+
+function showSelectionActionMenu(layer, rect) {
+  const layerRect = layer.getBoundingClientRect();
+  const menu = ui.selectionActionMenu;
+  const isTextSelection = state.screenshotSelection.mode === "text";
+  $("copySelectionShot").textContent = isTextSelection ? "העתק טקסט" : "העתק כתמונה";
+  $("highlightSelection").textContent = isTextSelection ? "הדגש טקסט" : "הדגש איזור";
+  $("saveSelectionShot").textContent = "שמור כתמונה";
+  $("printSelectionStickers").textContent = "העבר להדפסה";
+  menu.hidden = false;
+  const menuWidth = menu.offsetWidth || 190;
+  const menuHeight = menu.offsetHeight || 88;
+  const left = clamp(layerRect.left + rect.x + rect.w + 8, 8, window.innerWidth - menuWidth - 8);
+  const top = clamp(layerRect.top + rect.y, 8, window.innerHeight - menuHeight - 8);
+  menu.style.left = `${left}px`;
+  menu.style.top = `${top}px`;
+}
+
+function hideSelectionActionMenu() {
+  if (!ui.selectionActionMenu) return;
+  ui.selectionActionMenu.hidden = true;
+}
+
+function showInsertActionMenu(event) {
+  if (!state.pdf || !ui.insertActionMenu) return;
+  const placement = getPagePlacementFromPoint(event.clientX, event.clientY, event.target);
+  if (!placement) return;
+  event.preventDefault();
+  hideSelectionActionMenu();
+  closeFieldMenus();
+  state.insertMenuPlacement = placement;
+  const menu = ui.insertActionMenu;
+  menu.hidden = false;
+  const menuWidth = menu.offsetWidth || 176;
+  const menuHeight = menu.offsetHeight || 168;
+  const left = clamp(event.clientX, 8, window.innerWidth - menuWidth - 8);
+  const top = clamp(event.clientY, 8, window.innerHeight - menuHeight - 8);
+  menu.style.left = `${left}px`;
+  menu.style.top = `${top}px`;
+}
+
+function hideInsertActionMenu() {
+  if (!ui.insertActionMenu) return;
+  ui.insertActionMenu.hidden = true;
+}
+
+function getPagePlacementFromPoint(clientX, clientY, target) {
+  const shell = target?.closest?.(".page-shell") || [...document.querySelectorAll(".page-shell")].find((pageShell) => {
+    const rect = pageShell.getBoundingClientRect();
+    return clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom;
+  });
+  if (!shell) return null;
+  const pageNo = Number(shell.dataset.page);
+  const record = state.renderedPages.get(pageNo);
+  if (!record) return null;
+  const rect = shell.getBoundingClientRect();
+  return {
+    pageNo,
+    x: clamp(clientX - rect.left, 0, record.viewport.width),
+    y: clamp(clientY - rect.top, 0, record.viewport.height)
+  };
+}
+
+function runInsertAction(action) {
+  const placement = state.insertMenuPlacement;
+  hideInsertActionMenu();
+  if (!placement || !state.renderedPages.has(placement.pageNo)) return;
+  if (action === "select-area") {
+    startScreenshotSelection("area");
+  } else if (action === "select-text") {
+    startScreenshotSelection("text");
+  } else if (action === "text") {
+    setTransientInsertTool("pan");
+    addTextField(placement.pageNo, placement.x, placement.y);
+  } else if (action === "note") {
+    setTransientInsertTool("pan");
+    addTextFieldWithValue(placement.pageNo, placement.x, placement.y, "", {
+      type: "note",
+      w: 0.22,
+      h: 0.085,
+      fontSize: 14
+    });
+  } else if (action === "highlight") {
+    startHighlightToolAtPlacement(placement);
+  } else if (action === "signature") {
+    startSignatureAtPlacement(placement);
+  }
+  state.insertMenuPlacement = null;
+}
+
+function startHighlightToolAtPlacement({ pageNo }) {
+  const record = state.renderedPages.get(pageNo);
+  if (!record) return;
+  stopScreenshotSelection();
+  state.tool = "highlight";
+  state.signatureSessionId = null;
+  document.querySelectorAll("[data-tool]").forEach((btn) => btn.classList.remove("active"));
+  updateToolLayers();
+  announce("כלי הדגשה פעיל. גרור מלבן על האזור שברצונך להדגיש.");
+}
+
+function startSignatureAtPlacement({ pageNo, x, y }) {
+  const record = state.renderedPages.get(pageNo);
+  if (!record) return;
+  state.tool = "signature";
+  state.signatureSessionId = crypto.randomUUID();
+  document.querySelectorAll("[data-tool]").forEach((btn) => btn.classList.remove("active"));
+  const widthPx = clamp(record.viewport.width * 0.42, 260, 380);
+  const heightPx = clamp(record.viewport.height * 0.16, 110, 150);
+  const left = clamp(x - widthPx / 2, 0, Math.max(0, record.viewport.width - widthPx));
+  const top = clamp(y - heightPx / 2, 0, Math.max(0, record.viewport.height - heightPx));
+  state.meta.signatures.push({
+    id: crypto.randomUUID(),
+    sessionId: state.signatureSessionId,
+    page: pageNo,
+    strokes: [],
+    strokeWidth: 0.0025,
+    draftBox: {
+      x: left / record.viewport.width,
+      y: top / record.viewport.height,
+      w: widthPx / record.viewport.width,
+      h: heightPx / record.viewport.height
+    }
+  });
+  saveMeta();
+  updateToolLayers();
+  renderAnnotationsForPage(pageNo);
+  announce("מצב חתימה פעיל. צייר את החתימה בתוך המסמך ולחץ ✓ לסיום.");
+}
+
+function setTransientInsertTool(tool) {
+  const previousSignatureSessionId = state.signatureSessionId;
+  if (state.tool === "signature" && tool !== "signature") {
+    removeEmptySignatureDraft(previousSignatureSessionId);
+  }
+  state.tool = tool;
+  state.signatureSessionId = null;
+  document.querySelectorAll("[data-tool]").forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.tool === tool);
+  });
+  updateToolLayers();
+  renderVisibleAnnotations();
+}
+
+async function saveSelectionScreenshot() {
+  try {
+    const pageNo = state.screenshotSelection.pageNo;
+    const canvas = await renderSelectionCanvas();
+    downloadBlob(await canvasToBlob(canvas), `${baseName()}-selection-page-${pageNo}.png`);
+  } catch (error) {
+    console.warn("Could not save selected screenshot:", error);
+    announce("לא ניתן לשמור את האזור שנבחר.");
+  }
+}
+
+async function highlightCurrentSelection() {
+  try {
+    const selection = state.screenshotSelection;
+    const pageNo = selection.pageNo;
+    const mode = selection.mode;
+    const record = state.renderedPages.get(pageNo);
+    if (!selection.rect || !record) {
+      announce("אין איזור בחירה להדגשה.");
+      return;
+    }
+
+    let boxes = [];
+    if (mode === "text") {
+      await ensureSelectedPageTextReady();
+      boxes = mergeTextSelectionFragments(getSelectedTextItems());
+      if (!boxes.length) {
+        announce("לא נמצא טקסט ברור להדגשה.");
+        return;
+      }
+    } else {
+      boxes = [selection.rect];
+    }
+
+    const highlights = boxes
+      .map((box) => normalizedRectFromPixels(box, record.viewport.width, record.viewport.height))
+      .filter((box) => box.w > 0.002 && box.h > 0.002);
+    if (!highlights.length) {
+      announce("האיזור שנבחר קטן מדי להדגשה.");
+      return;
+    }
+
+    for (const box of highlights) {
+      state.meta.highlights.push({ id: crypto.randomUUID(), page: pageNo, ...box });
+    }
+    saveMeta();
+    stopScreenshotSelection();
+    renderAnnotationsForPage(pageNo);
+    announce(mode === "text" ? "הטקסט הנבחר הודגש." : "האזור הנבחר הודגש.");
+  } catch (error) {
+    console.warn("Could not highlight selection:", error);
+    announce("לא ניתן להדגיש את הבחירה.");
+  }
+}
+
+function normalizedRectFromPixels(rect, width, height) {
+  return {
+    x: clamp(rect.x / width, 0, 1),
+    y: clamp(rect.y / height, 0, 1),
+    w: clamp(rect.w / width, 0, 1),
+    h: clamp(rect.h / height, 0, 1)
+  };
+}
+
+async function copySelectionScreenshot() {
+  if (state.screenshotSelection.mode === "text") {
+    await copySelectionText();
+    return;
+  }
+  try {
+    const canvas = await renderSelectionCanvas();
+    await copyCanvasToClipboard(canvas, "הצילום הועתק ללוח.");
+  } catch (error) {
+    console.warn("Could not copy selected screenshot:", error);
+    announce("לא ניתן להעתיק את הצילום ללוח בדפדפן הזה.");
+  }
+}
+
+async function copySelectionText() {
+  try {
+    const text = await extractSelectedText();
+    if (!text) {
+      announce("לא נמצא טקסט ברור באיזור שנבחר.");
+      return;
+    }
+    await navigator.clipboard.writeText(text);
+    announce("הטקסט הועתק ללוח.");
+  } catch (error) {
+    console.warn("Could not copy selected text:", error);
+    announce("לא ניתן להעתיק את הטקסט ללוח בדפדפן הזה.");
+  }
+}
+
+async function extractSelectedText() {
+  await ensureSelectedPageTextReady();
+  const items = getSelectedTextItems().map((item) => ({
+    ...item,
+    cy: item.y + item.h / 2
+  }));
+  if (!items.length) return "";
+
+  const lineThreshold = Math.max(4, median(items.map((item) => item.h)) * 0.65);
+  const lines = [];
+  for (const item of items.sort((a, b) => a.cy - b.cy || a.x - b.x)) {
+    let line = lines.find((entry) => Math.abs(entry.cy - item.cy) <= lineThreshold);
+    if (!line) {
+      line = { cy: item.cy, items: [] };
+      lines.push(line);
+    }
+    line.items.push(item);
+    line.cy = (line.cy * (line.items.length - 1) + item.cy) / line.items.length;
+  }
+
+  return lines
+    .sort((a, b) => a.cy - b.cy)
+    .map((line) => joinTextLine(line.items))
+    .filter(Boolean)
+    .join("\n");
+}
+
+function getSelectedTextItems() {
+  const selection = state.screenshotSelection;
+  if (!selection.rect || !selection.pageNo) return [];
+  const record = state.renderedPages.get(selection.pageNo);
+  if (!record?.textItems?.length) return [];
+  return record.textItems
+    .filter((item) => rectsOverlap(selection.rect, item))
+    .sort((a, b) => a.y - b.y || a.x - b.x);
+}
+
+function joinTextLine(items) {
+  const sorted = [...items].sort((a, b) => a.x - b.x);
+  const rtlCount = sorted.filter((item) => item.dir === "rtl" || /[\u0590-\u05ff]/.test(item.text)).length;
+  const ordered = rtlCount > sorted.length / 2 ? sorted.reverse() : sorted;
+  const averageHeight = median(ordered.map((item) => item.h)) || 10;
+  let result = "";
+  let previous = null;
+  for (const item of ordered) {
+    if (previous) {
+      const gap = item.x - (previous.x + previous.w);
+      const rtlGap = previous.x - (item.x + item.w);
+      const visualGap = Math.max(gap, rtlGap);
+      if (visualGap > averageHeight * 0.18 && !/[\s־-]$/.test(result)) result += " ";
+    }
+    result += item.text;
+    previous = item;
+  }
+  return result.replace(/\s+/g, " ").trim();
+}
+
+function rectsOverlap(a, b) {
+  const left = Math.max(a.x, b.x);
+  const top = Math.max(a.y, b.y);
+  const right = Math.min(a.x + a.w, b.x + b.w);
+  const bottom = Math.min(a.y + a.h, b.y + b.h);
+  if (right <= left || bottom <= top) return false;
+  const overlapArea = (right - left) * (bottom - top);
+  const itemArea = Math.max(1, b.w * b.h);
+  return overlapArea / itemArea > 0.25;
+}
+
+function median(values) {
+  const sorted = values.filter((value) => Number.isFinite(value)).sort((a, b) => a - b);
+  if (!sorted.length) return 0;
+  return sorted[Math.floor(sorted.length / 2)];
+}
+
+async function renderSelectionCanvas(includeAnnotations = true) {
+  const selection = state.screenshotSelection;
+  if (!state.pdf || !window.html2canvas || !selection.rect || !selection.pageNo) {
+    throw new Error("No selected screenshot area");
+  }
+  const record = state.renderedPages.get(selection.pageNo);
+  if (!record) throw new Error("Selected page is not rendered");
+  if (record.contentRendering) await waitForPageContent(record);
+  if (!record.contentRendered) await renderPageContent(selection.pageNo, state.renderId);
+  if (record.contentRendering) await waitForPageContent(record);
+
+  const pageCanvas = await window.html2canvas(record.shell, {
+    backgroundColor: "#ffffff",
+    scale: 1,
+    ignoreElements: (element) => Boolean(
+      element.closest?.(".screenshot-layer")
+      || element.closest?.(".selection-action-menu")
+      || element.closest?.(".insert-action-menu")
+      || (!includeAnnotations && (element.closest?.(".annotation-layer") || element.closest?.(".object-layer")))
+    )
+  });
+
+  const shellRect = record.shell.getBoundingClientRect();
+  const scaleX = pageCanvas.width / Math.max(1, shellRect.width);
+  const scaleY = pageCanvas.height / Math.max(1, shellRect.height);
+  const sourceX = Math.round(selection.rect.x * scaleX);
+  const sourceY = Math.round(selection.rect.y * scaleY);
+  const sourceW = Math.max(1, Math.round(selection.rect.w * scaleX));
+  const sourceH = Math.max(1, Math.round(selection.rect.h * scaleY));
+  const cropped = document.createElement("canvas");
+  cropped.width = sourceW;
+  cropped.height = sourceH;
+  cropped.getContext("2d").drawImage(pageCanvas, sourceX, sourceY, sourceW, sourceH, 0, 0, sourceW, sourceH);
+  return cropped;
+}
+
+function waitForPageContent(record) {
+  return new Promise((resolve) => {
+    const check = () => {
+      if (!record.contentRendering) {
+        resolve();
+      } else {
+        setTimeout(check, 50);
+      }
+    };
+    check();
+  });
+}
+
+async function takeScreenshot() {
+  if (!state.pdf || !window.html2canvas) return;
+  const canvas = await renderCurrentPageScreenshotCanvas();
+  downloadBlob(await canvasToBlob(canvas), `${baseName()}-page-${state.currentPage}.png`);
+}
+
+async function saveReaderWindowScreenshot() {
+  if (!state.pdf || !window.html2canvas) return;
+  try {
+    const canvas = await renderReaderWindowScreenshotCanvas();
+    downloadBlob(await canvasToBlob(canvas), `${baseName()}-window-page-${state.currentPage}.png`);
+  } catch (error) {
+    console.warn("Could not save reader window screenshot:", error);
+    announce("לא ניתן לשמור את חלון התצוגה כתמונה.");
+  }
+}
+
+async function copyCurrentPageScreenshot() {
+  if (!state.pdf || !window.html2canvas) return;
+  try {
+    const canvas = await renderCurrentPageScreenshotCanvas();
+    await copyCanvasToClipboard(canvas, "העמוד הועתק ללוח כתמונה.");
+  } catch (error) {
+    console.warn("Could not copy page screenshot:", error);
+    announce("לא ניתן להעתיק את העמוד ללוח בדפדפן הזה.");
+  }
+}
+
+async function copyReaderWindowScreenshot() {
+  if (!state.pdf || !window.html2canvas) return;
+  try {
+    const canvas = await renderReaderWindowScreenshotCanvas();
+    await copyCanvasToClipboard(canvas, "חלון התצוגה הועתק ללוח כתמונה.");
+  } catch (error) {
+    console.warn("Could not copy reader window screenshot:", error);
+    announce("לא ניתן להעתיק את חלון התצוגה ללוח בדפדפן הזה.");
+  }
+}
+
+function renderCurrentPageScreenshotCanvas() {
+  const target = document.querySelector(`[data-page="${state.currentPage}"]`) || ui.pages;
+  return window.html2canvas(target, { backgroundColor: "#ffffff", scale: 1 });
+}
+
+function renderReaderWindowScreenshotCanvas() {
+  const rect = ui.reader.getBoundingClientRect();
+  return window.html2canvas(document.body, {
+    backgroundColor: "#ffffff",
+    scale: 1,
+    x: rect.left + window.scrollX,
+    y: rect.top + window.scrollY,
+    width: rect.width,
+    height: rect.height,
+    ignoreElements: (element) => Boolean(
+      element.closest?.(".dropdown-menu")
+      || element.closest?.(".selection-action-menu")
+      || element.closest?.(".insert-action-menu")
+    )
+  });
+}
+
+async function copyCanvasToClipboard(canvas, successMessage) {
+  if (!navigator.clipboard || !window.ClipboardItem) {
+    announce("הדפדפן לא מאפשר העתקת תמונה ללוח.");
+    return;
+  }
+  const blob = await canvasToBlob(canvas);
+  await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
+  announce(successMessage);
+}
+
+async function exportPdf() {
+  if (!state.pdf || !window.PDFLib) return;
+  const { PDFDocument, rgb } = window.PDFLib;
+  const pdfDoc = await PDFDocument.load(state.fileBytes.slice(0));
+  const pages = pdfDoc.getPages();
+
+  for (const item of state.meta.highlights) {
+    const page = pages[item.page - 1];
+    if (!page) continue;
+    const rect = await pdfRectFromNormalized(item.page, item);
+    page.drawRectangle({
+      x: rect.x,
+      y: rect.y,
+      width: rect.width,
+      height: rect.height,
+      color: rgb(1, .86, .04),
+      opacity: .34
+    });
+  }
+
+  for (const item of state.meta.fields) {
+    const page = pages[item.page - 1];
+    if (!page) continue;
+    const rect = await pdfRectFromNormalized(item.page, item);
+    if (item.type === "note") {
+      page.drawRectangle({
+        x: rect.x,
+        y: rect.y,
+        width: rect.width,
+        height: rect.height,
+        color: rgb(1, .98, .92),
+        borderColor: rgb(.92, .7, .03),
+        borderWidth: .8,
+        opacity: .96
+      });
+    }
+    const imageBytes = await textToPng(
+      item.text || "",
+      Math.max(80, rect.width * 2),
+      Math.max(36, rect.height * 2),
+      getFieldPdfFontSize(item) * 2
+    );
+    const image = await pdfDoc.embedPng(imageBytes);
+    page.drawImage(image, {
+      x: rect.x,
+      y: rect.y,
+      width: rect.width,
+      height: rect.height
+    });
+  }
+
+  for (const item of state.meta.signatures) {
+    const page = pages[item.page - 1];
+    if (!page) continue;
+    const viewport = await getPdfViewport(item.page);
+    getSignatureStrokes(item).forEach((stroke) => {
+      for (let i = 1; i < stroke.length; i += 1) {
+        const [x1, y1] = stroke[i - 1];
+        const [x2, y2] = stroke[i];
+        const start = viewport.convertToPdfPoint(x1 * viewport.width, y1 * viewport.height);
+        const end = viewport.convertToPdfPoint(x2 * viewport.width, y2 * viewport.height);
+        page.drawLine({
+          start: { x: start[0], y: start[1] },
+          end: { x: end[0], y: end[1] },
+          thickness: clamp((Number(item.strokeWidth) || 0.0025) * viewport.width, 0.9, 1.8),
+          color: rgb(.06, .09, .16)
+        });
+      }
+    });
+  }
+
+  const bytes = await pdfDoc.save();
+  downloadBlob(new Blob([bytes], { type: "application/pdf" }), `${baseName()}-signed.pdf`);
+}
+
+async function getPdfViewport(pageNo) {
+  const page = await state.pdf.getPage(pageNo);
+  return page.getViewport({ scale: 1 });
+}
+
+async function pdfRectFromNormalized(pageNo, item) {
+  const viewport = await getPdfViewport(pageNo);
+  const points = [
+    viewport.convertToPdfPoint(item.x * viewport.width, item.y * viewport.height),
+    viewport.convertToPdfPoint((item.x + item.w) * viewport.width, item.y * viewport.height),
+    viewport.convertToPdfPoint((item.x + item.w) * viewport.width, (item.y + item.h) * viewport.height),
+    viewport.convertToPdfPoint(item.x * viewport.width, (item.y + item.h) * viewport.height)
+  ];
+  const xs = points.map(([x]) => x);
+  const ys = points.map(([, y]) => y);
+  const x = Math.min(...xs);
+  const y = Math.min(...ys);
+  return {
+    x,
+    y,
+    width: Math.max(1, Math.max(...xs) - x),
+    height: Math.max(1, Math.max(...ys) - y)
+  };
+}
+
+function loadMeta() {
+  try {
+    return normalizeMeta({ ...emptyMeta(), ...JSON.parse(localStorage.getItem(storageKey()) || "{}") });
+  } catch {
+    return emptyMeta();
+  }
+}
+
+function normalizeMeta(meta) {
+  return {
+    ...emptyMeta(),
+    ...meta,
+    bookmarks: Array.isArray(meta.bookmarks) ? meta.bookmarks : [],
+    highlights: Array.isArray(meta.highlights) ? meta.highlights : [],
+    fields: Array.isArray(meta.fields) ? meta.fields : [],
+    signatures: Array.isArray(meta.signatures) ? meta.signatures : [],
+    readingPosition: Number.isFinite(Number(meta.readingPosition)) ? Number(meta.readingPosition) : 1,
+    readingOffset: Number.isFinite(Number(meta.readingOffset)) ? clamp(Number(meta.readingOffset), 0, 1) : 0,
+    savedReadingPosition: Number.isFinite(Number(meta.savedReadingPosition)) ? Number(meta.savedReadingPosition) : null,
+    savedReadingOffset: Number.isFinite(Number(meta.savedReadingOffset)) ? clamp(Number(meta.savedReadingOffset), 0, 1) : 0
+  };
+}
+
+function saveMeta(renderTime = true) {
+  if (!state.fingerprint) return;
+  state.meta.updatedAt = renderTime ? Date.now() : state.meta.updatedAt;
+  localStorage.setItem(storageKey(), JSON.stringify(state.meta));
+}
+
+function storageKey() {
+  return `daily-pdf-reader:${state.fingerprint}`;
+}
+
+function rememberActiveSessionFile(fingerprint) {
+  try {
+    sessionStorage.setItem(SESSION_FILE_KEY, fingerprint);
+  } catch (error) {
+    console.warn("Could not save active file session:", error);
+  }
+}
+
+async function restoreActiveSessionFile() {
+  let fingerprint = "";
+  try {
+    fingerprint = sessionStorage.getItem(SESSION_FILE_KEY) || "";
+  } catch (error) {
+    console.warn("Could not read active file session:", error);
+  }
+  if (!fingerprint || state.file) return;
+
+  try {
+    const record = await readStoredFile(fingerprint);
+    if (!record || state.file) return;
+    const file = new File([record.bytes], record.name, {
+      type: record.type || "application/pdf",
+      lastModified: record.lastModified || Date.now()
+    });
+    if (fingerprintForFile(file) !== fingerprint || !isPdfFile(file)) {
+      forgetActiveSessionFile();
+      return;
+    }
+    await openFile(file, { remember: false });
+    announce("הקובץ האחרון שוחזר אחרי ריענון.");
+  } catch (error) {
+    console.warn("Could not restore active file:", error);
+    forgetActiveSessionFile();
+  }
+}
+
+function forgetActiveSessionFile() {
+  try {
+    sessionStorage.removeItem(SESSION_FILE_KEY);
+  } catch (error) {
+    console.warn("Could not clear active file session:", error);
+  }
+}
+
+async function rememberOpenFile(file, bytes, fingerprint) {
+  try {
+    await writeStoredFile({
+      fingerprint,
+      name: file.name,
+      type: file.type || "application/pdf",
+      size: file.size,
+      lastModified: file.lastModified,
+      bytes: bytes.slice(0),
+      updatedAt: Date.now()
+    });
+  } catch (error) {
+    console.warn("Could not store open file for refresh restore:", error);
+  }
+}
+
+function openFileDatabase() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(FILE_DB_NAME, 1);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(FILE_STORE_NAME)) {
+        db.createObjectStore(FILE_STORE_NAME, { keyPath: "fingerprint" });
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+async function writeStoredFile(record) {
+  const db = await openFileDatabase();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(FILE_STORE_NAME, "readwrite");
+    const request = transaction.objectStore(FILE_STORE_NAME).put(record);
+    request.onerror = () => reject(request.error);
+    transaction.oncomplete = () => {
+      db.close();
+      resolve();
+    };
+    transaction.onerror = () => {
+      db.close();
+      reject(transaction.error);
+    };
+    transaction.onabort = () => {
+      db.close();
+      reject(transaction.error);
+    };
+  });
+}
+
+async function readStoredFile(fingerprint) {
+  const db = await openFileDatabase();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(FILE_STORE_NAME, "readonly");
+    const request = transaction.objectStore(FILE_STORE_NAME).get(fingerprint);
+    request.onsuccess = () => resolve(request.result || null);
+    request.onerror = () => reject(request.error);
+    transaction.oncomplete = () => db.close();
+    transaction.onerror = () => {
+      db.close();
+      reject(transaction.error);
+    };
+    transaction.onabort = () => {
+      db.close();
+      reject(transaction.error);
+    };
+  });
+}
+
+function loadProfile() {
+  try {
+    return normalizeProfile(JSON.parse(localStorage.getItem(profileKey()) || "{}"));
+  } catch {
+    return normalizeProfile({});
+  }
+}
+
+function normalizeProfile(profile) {
+  return {
+    name: "",
+    address: "",
+    email: "",
+    phone: "",
+    ...profile,
+    signatures: Array.isArray(profile.signatures) ? profile.signatures : []
+  };
+}
+
+function saveProfile() {
+  localStorage.setItem(profileKey(), JSON.stringify(state.profile));
+}
+
+function profileKey() {
+  return "daily-pdf-reader:profile";
+}
+
+function downloadBlob(blob, name) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = name;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function announce(message) {
+  if (!ui.statusMessage) return;
+  ui.statusMessage.textContent = message;
+  ui.statusMessage.classList.add("visible");
+  setTimeout(() => {
+    ui.statusMessage.classList.remove("visible");
+  }, 4200);
+}
+
+function canvasToBlob(canvas) {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (blob) {
+        resolve(blob);
+      } else {
+        reject(new Error("Could not create image from canvas"));
+      }
+    }, "image/png", .95);
+  });
+}
+
+function startReaderPan(event) {
+  if (!state.pdf || isTypingTarget(event.target)) return;
+  const spaceDrag = state.spacePressed && event.button === 0;
+  const panToolDrag = state.tool === "pan" && event.button === 0;
+  if (!spaceDrag && !panToolDrag) return;
+  event.preventDefault();
+  ui.reader.setPointerCapture(event.pointerId);
+  state.panning = {
+    pointerId: event.pointerId,
+    x: event.clientX,
+    y: event.clientY,
+    left: ui.reader.scrollLeft,
+    top: ui.reader.scrollTop
+  };
+  ui.reader.classList.add("panning");
+}
+
+function moveReaderPan(event) {
+  if (!state.panning || state.panning.pointerId !== event.pointerId) return;
+  event.preventDefault();
+  ui.reader.scrollLeft = state.panning.left - (event.clientX - state.panning.x);
+  ui.reader.scrollTop = state.panning.top - (event.clientY - state.panning.y);
+}
+
+function stopReaderPan(event) {
+  if (!state.panning || state.panning.pointerId !== event.pointerId) return;
+  state.panning = null;
+  ui.reader.classList.remove("panning");
+}
+
+async function textToPng(text, width, height, fontSize = 30) {
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.ceil(width);
+  canvas.height = Math.ceil(height);
+  const ctx = canvas.getContext("2d");
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = "#111827";
+  ctx.font = `${Math.max(10, fontSize)}px Segoe UI, Arial, sans-serif`;
+  ctx.direction = detectTextDirection(text);
+  ctx.textAlign = ctx.direction === "rtl" ? "right" : "left";
+  ctx.textBaseline = "top";
+  const padding = 8;
+  const x = ctx.direction === "rtl" ? canvas.width - padding : padding;
+  wrapCanvasText(ctx, text, x, padding / 2, canvas.width - padding * 2, Math.max(14, fontSize * 1.25), "top");
+  const blob = canvas.convertToBlob
+    ? await canvas.convertToBlob({ type: "image/png" })
+    : await canvasToBlob(canvas);
+  return new Uint8Array(await blob.arrayBuffer());
+}
+
+function wrapCanvasText(ctx, text, x, y, maxWidth, lineHeight, verticalAlign = "middle") {
+  const words = String(text).split(/\s+/);
+  const lines = [];
+  let line = "";
+  for (const word of words) {
+    const testLine = line ? `${line} ${word}` : word;
+    if (ctx.measureText(testLine).width > maxWidth && line) {
+      lines.push(line);
+      line = word;
+    } else {
+      line = testLine;
+    }
+  }
+  if (line) lines.push(line);
+  const startY = verticalAlign === "top" ? y : y - ((lines.length - 1) * lineHeight) / 2;
+  lines.forEach((entry, index) => ctx.fillText(entry, x, startY + index * lineHeight));
+}
+
+function baseName() {
+  return (state.file?.name || "document").replace(/\.pdf$/i, "");
+}
+
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function debounce(fn, wait) {
+  let timer;
+  return (...args) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn(...args), wait);
+  };
+}
+
+function isTypingTarget(target) {
+  return Boolean(target?.closest?.("input, textarea, [contenteditable='true'], button"));
+}

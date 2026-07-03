@@ -1,0 +1,47 @@
+{
+  "name": "קורא PDF יומי",
+  "short_name": "PDF יומי",
+  "id": "./",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+  "background_color": "#f5f7fb",
+  "theme_color": "#111827",
+  "dir": "rtl",
+  "lang": "he",
+  "description": "קורא PDF יומי בעברית עם סימניות, מילוי טפסים, חתימה, גלילה רציפה ומצב ספר.",
+  "orientation": "any",
+  "categories": ["productivity", "utilities"],
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  },
+  "icons": [
+    {
+      "src": "icons/icon-128.png",
+      "sizes": "128x128",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/maskable.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ],
+  "file_handlers": [
+    {
+      "action": "./index.html",
+      "accept": {
+        "application/pdf": [".pdf"]
+      }
+    }
+  ]
+}
