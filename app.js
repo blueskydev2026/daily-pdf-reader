@@ -3133,7 +3133,7 @@ function getBookSpreads() {
   if (state.pageCount >= 1) spreads.push([1]);
   for (let pageNo = 2; pageNo <= state.pageCount; pageNo += 2) {
     const pages = pageNo + 1 <= state.pageCount ? [pageNo, pageNo + 1] : [pageNo];
-    spreads.push(state.mode === "book-rtl" ? [...pages].reverse() : pages);
+    spreads.push(pages);
   }
   return spreads;
 }
