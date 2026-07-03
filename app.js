@@ -12,6 +12,7 @@ const PDF_LOAD_OPTIONS = {
 const SESSION_FILE_KEY = "daily-pdf-reader:active-file";
 const FILE_DB_NAME = "daily-pdf-reader-files";
 const FILE_STORE_NAME = "files";
+const WEB_APP_URL = normalizeWebAppUrl(globalThis.DAILY_PDF_READER_WEB_APP_URL);
 
 const state = {
   pdf: null,
@@ -88,6 +89,7 @@ const ui = {
   pages: $("pages"),
   reader: $("reader"),
   emptyState: $("emptyState"),
+  installButtons: [...document.querySelectorAll("[data-install-app]"), $("installHelp")].filter(Boolean),
   pageInput: $("pageInput"),
   pageTotal: $("pageTotal"),
   pageSlider: $("pageSlider"),
@@ -100,6 +102,7 @@ const ui = {
   zoomLabel: $("zoomLabel"),
   sidebar: $("sidebar"),
   helpDialog: $("helpDialog"),
+  installSupportStatus: $("installSupportStatus"),
   tourOverlay: $("tourOverlay"),
   tourSpotlight: $("tourSpotlight"),
   tourCard: $("tourCard"),
@@ -259,7 +262,10 @@ function wireEvents() {
   $("addBookmark").addEventListener("click", addBookmark);
   $("savePosition").addEventListener("click", savePosition);
   $("restorePosition").addEventListener("click", restorePosition);
-  $("installHelp").addEventListener("click", installOrShowHelp);
+  ui.installButtons.forEach((button) => button.addEventListener("click", installOrShowHelp));
+  document.querySelectorAll("[data-install-help]").forEach((button) => {
+    button.addEventListener("click", showInstallHelp);
+  });
   $("closeHelp").addEventListener("click", () => ui.helpDialog.close());
   $("tourGuide").addEventListener("click", openTourGuide);
   $("closeTour").addEventListener("click", closeTourGuide);
@@ -450,6 +456,7 @@ function openMobileSidebarPanel(selector) {
 
 function registerPwa() {
   const canUsePwaFeatures = ["http:", "https:"].includes(window.location.protocol);
+  updateInstallUi();
 
   if (canUsePwaFeatures && "serviceWorker" in navigator) {
     window.addEventListener("load", () => {
@@ -463,27 +470,30 @@ function registerPwa() {
   window.addEventListener("beforeinstallprompt", (event) => {
     event.preventDefault();
     state.installPrompt = event;
-    const installButton = $("installHelp");
-    installButton?.classList.add("install-ready");
-    const label = installButton?.querySelector("span:last-child");
-    if (label) label.textContent = "התקן כאפליקציה";
+    updateInstallUi();
     announce("האפליקציה מוכנה להתקנה. לחץ על התקן כאפליקציה.");
   });
 
   window.addEventListener("appinstalled", () => {
     state.installPrompt = null;
-    const installButton = $("installHelp");
-    installButton?.classList.remove("install-ready");
-    const label = installButton?.querySelector("span:last-child");
-    if (label) label.textContent = "האפליקציה מותקנת";
-    announce("האפליקציה הותקנה בהצלחה. ניתן לפתוח קבצי PDF ישירות ממערכת הקבצים.");
+    updateInstallUi();
+    showInstallHelp();
+    announce("האפליקציה הותקנה בהצלחה. עכשיו אפשר לבחור אותה ידנית כקורא PDF ברירת מחדל.");
   });
+
+  window.matchMedia("(display-mode: standalone)").addEventListener?.("change", updateInstallUi);
 }
 
 async function installOrShowHelp() {
+  if (!state.installPrompt && isExtensionPage() && WEB_APP_URL) {
+    window.open(WEB_APP_URL, "_blank", "noopener");
+    announce("נפתחה גרסת ה-Web להתקנה כאפליקציה. שם הדפדפן יוכל להציע התקנה.");
+    return;
+  }
+
   if (!state.installPrompt) {
-    ui.helpDialog.showModal();
-    announce("אין כרגע אפשרות התקנה אוטומטית. ראה הסבר נוסף.");
+    showInstallHelp();
+    announce("אם הדפדפן לא מציג חלון התקנה, השתמש בהסבר להתקנה ידנית ולבחירת ברירת מחדל.");
     return;
   }
 
@@ -496,6 +506,71 @@ async function installOrShowHelp() {
   } else {
     announce("המשתמש ביטל את ההתקנה. ניתן לנסות שוב דרך הכפתור.");
   }
+  updateInstallUi();
+}
+
+function showInstallHelp() {
+  updateInstallSupportStatus();
+  if (!ui.helpDialog.open) ui.helpDialog.showModal();
+}
+
+function isStandaloneApp() {
+  return window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+}
+
+function isExtensionPage() {
+  return window.location.protocol === "chrome-extension:";
+}
+
+function normalizeWebAppUrl(url) {
+  if (!url || typeof url !== "string") return "";
+  try {
+    const parsed = new URL(url);
+    return ["https:", "http:"].includes(parsed.protocol) ? parsed.href : "";
+  } catch {
+    return "";
+  }
+}
+
+function updateInstallSupportStatus() {
+  if (!ui.installSupportStatus) return;
+  if (isStandaloneApp()) {
+    ui.installSupportStatus.textContent = "האפליקציה כבר פועלת כחלון מותקן. השלב הבא הוא לבחור אותה ידנית כקורא PDF ברירת מחדל ב-Windows.";
+  } else if (state.installPrompt) {
+    ui.installSupportStatus.textContent = "הדפדפן מאפשר התקנה עכשיו. סגור חלון זה ולחץ על כפתור התקן כאפליקציה.";
+  } else if (isExtensionPage() && WEB_APP_URL) {
+    ui.installSupportStatus.textContent = "כעת הקורא פתוח מתוך התוסף. לחץ על התקן כאפליקציה כדי לפתוח את גרסת ה-Web, ושם הדפדפן יציע התקנה כאפליקציה.";
+  } else if (isExtensionPage()) {
+    ui.installSupportStatus.textContent = "כעת הקורא פתוח מתוך התוסף. כדי לקבל התקנה ישירה והצעת התקנה מהדפדפן, צריך להגדיר כתובת Web בקובץ web-app-config.js ולפרסם את הקורא כ-PWA.";
+  } else {
+    ui.installSupportStatus.textContent = "אם כפתור ההתקנה לא מופיע, השתמש בתפריט Chrome/Edge ובחר התקן אפליקציה. בחלק מהדפדפנים האפשרות מופיעה רק אחרי טעינת האתר דרך http או https.";
+  }
+}
+
+function updateInstallUi() {
+  const installed = isStandaloneApp();
+  ui.installButtons.forEach((button) => {
+    button.classList.toggle("install-ready", Boolean(state.installPrompt) && !installed);
+    button.classList.toggle("is-installed", installed);
+    const label = button.querySelector("span:last-child") || button;
+    if (installed) {
+      label.textContent = button.id === "installHelp" ? "האפליקציה מותקנת" : "האפליקציה מותקנת";
+      button.title = "הצג הסבר לבחירת קורא PDF ברירת מחדל";
+      button.setAttribute("aria-label", "האפליקציה מותקנת. הצג הסבר לבחירת ברירת מחדל");
+    } else if (state.installPrompt) {
+      label.textContent = "התקן כאפליקציה";
+      button.title = "התקן את קורא PDF יומי כאפליקציה";
+      button.setAttribute("aria-label", "התקן כאפליקציה");
+    } else if (isExtensionPage() && WEB_APP_URL) {
+      label.textContent = "פתח התקנה";
+      button.title = "פתח את גרסת ה-Web כדי להתקין כאפליקציה";
+      button.setAttribute("aria-label", "פתח את גרסת ה-Web להתקנה כאפליקציה");
+    } else {
+      label.textContent = button.id === "installHelp" ? "ברירת מחדל והתקנה" : "התקן כאפליקציה";
+      button.title = "הצג הסבר להתקנה כאפליקציה ולבחירת ברירת מחדל";
+      button.setAttribute("aria-label", "הצג הסבר להתקנה כאפליקציה");
+    }
+  });
 }
 
 function openTourGuide() {

@@ -203,6 +203,27 @@ input {
   color: #0f766e;
 }
 
+.install-app-button {
+  border-color: rgba(13, 148, 136, .32);
+  background: #ecfeff;
+  color: #0f766e;
+  font-weight: 800;
+}
+
+.install-app-button:hover,
+.install-app-button.install-ready {
+  border-color: var(--accent);
+  background: #d8fbf7;
+  color: #0f766e;
+}
+
+.install-app-button.is-installed,
+.side-action.is-installed {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+  color: var(--muted);
+}
+
 .brand {
   display: flex;
   gap: 12px;
@@ -1452,6 +1473,60 @@ summary.panel-title::-webkit-details-marker {
 .empty-state strong {
   color: var(--ink);
   font-size: clamp(24px, 4vw, 44px);
+}
+
+.empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.empty-actions button {
+  min-width: 160px;
+}
+
+.empty-actions .primary {
+  color: #fff;
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+.install-guide {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.install-support-status {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border: 1px solid #a7d9d1;
+  border-radius: 8px;
+  background: var(--accent-soft);
+  color: #0f766e;
+  font-weight: 700;
+}
+
+.install-guide h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.install-guide ol {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding-inline-start: 22px;
+}
+
+.install-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: .95rem;
 }
 
 dialog {

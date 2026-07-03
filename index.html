@@ -11,6 +11,7 @@
   <script src="vendor/pdf.min.mjs" type="module"></script>
   <script src="vendor/pdf-lib.min.js"></script>
   <script src="vendor/html2canvas.min.js"></script>
+  <script src="web-app-config.js"></script>
   <script src="app.js" type="module"></script>
 </head>
 <body>
@@ -234,6 +235,7 @@
       <header class="toolbar">
         <div class="tool-group">
           <button id="toggleSidebar" title="הצג או הסתר את סרגל הצד" aria-label="הצג או הסתר סרגל צד">☰</button>
+          <button id="installAppTop" class="install-app-button" type="button" data-install-app title="התקן את קורא PDF יומי כאפליקציה" aria-label="התקן כאפליקציה">התקן כאפליקציה</button>
           <button id="fitWidth" title="התאם את העמוד לרוחב החלון" aria-label="התאם לרוחב">רוחב</button>
           <button id="fitPage" title="הצג את כל העמוד במסך" aria-label="התאם לדף מלא">דף מלא</button>
           <button id="zoomOut" title="הקטן תצוגה" aria-label="הקטן תצוגה">−</button>
@@ -282,6 +284,10 @@
         <div class="empty-state" id="emptyState">
           <strong>קורא PDF עברי, מהיר ונוח לשימוש יומיומי</strong>
           <span>פתח קובץ כדי להתחיל. אפשר לבחור טקסט ולהעתיק, לקרוא ברצף או כספר, לסמן, למלא שדות ולחתום.</span>
+          <div class="empty-actions">
+            <button id="installAppEmpty" class="install-app-button primary" type="button" data-install-app>התקן כאפליקציה</button>
+            <button id="installHelpEmpty" type="button" data-install-help>איך להפוך לקורא PDF קבוע</button>
+          </div>
         </div>
         <div class="pages" id="pages"></div>
       </div>
@@ -378,10 +384,20 @@
   <dialog id="helpDialog" role="dialog" aria-modal="true" aria-labelledby="helpDialogTitle">
     <button class="dialog-close" id="closeHelp" aria-label="סגור חלון עזרה">×</button>
     <h2 id="helpDialogTitle">התקנה כאפליקציית ווב</h2>
+    <p id="installSupportStatus" class="install-support-status"></p>
     <p>ב-Chrome או Edge אפשר להתקין את קורא ה-PDF כאפליקציה דרך כפתור ההתקנה, או דרך תפריט הדפדפן: התקן אפליקציה.</p>
-    <p>לאחר ההתקנה היא תיפתח בחלון עצמאי עם אייקון. פתיחת קבצי PDF כברירת מחדל תלויה בתמיכת הדפדפן והמערכת ב-File Handling, ולכן בדרך כלל עדיין פותחים קובץ דרך גרירה או כפתור פתיחה.</p>
-    <p>אם הדפדפן תומך ב-File Handling, ניתן לפתוח קובץ PDF ישירות מהמערכת אחרי התקנת האפליקציה.</p>
+    <p>לאחר ההתקנה היא תיפתח בחלון עצמאי עם אייקון. פתיחת קבצי PDF כברירת מחדל תלויה בתמיכת הדפדפן והמערכת ב-File Handling, ותמיד מתבצעת בבחירה ואישור של המשתמש.</p>
+    <p>אם הדפדפן תומך ב-File Handling, ניתן לבחור את האפליקציה לפתיחת קבצי PDF ישירות מהמערכת ואף להגדיר אותה כבחירת ברירת מחדל.</p>
     <p>לאחר פתיחה ראשונה, קבצי האפליקציה נשמרים במטמון מקומי. ספריות חיצוניות נשמרות לאחר שהדפדפן טוען אותן פעם אחת.</p>
+    <section class="install-guide" aria-label="שלבי התקנה וברירת מחדל">
+      <h3>הדרך המומלצת</h3>
+      <ol>
+        <li>לוחצים על <strong>התקן כאפליקציה</strong>. אם לא מופיע חלון התקנה, פותחים את תפריט Chrome/Edge ובוחרים <strong>התקן אפליקציה</strong>.</li>
+        <li>אחרי ההתקנה פותחים קובץ PDF פעם אחת דרך האפליקציה, או בוחרים אותה דרך <strong>פתח באמצעות</strong>.</li>
+        <li>ב-Windows בוחרים קובץ PDF, קליק ימני, <strong>פתח באמצעות</strong>, <strong>בחר אפליקציה אחרת</strong>, מסמנים <strong>השתמש תמיד</strong>, ובוחרים את האפליקציה המותקנת.</li>
+      </ol>
+      <p class="install-note">האפשרות להפוך לברירת מחדל תלויה בתמיכת Chrome/Edge ו-Windows ב-File Handling. האפליקציה כבר כוללת רישום PDF דרך manifest, והבחירה הסופית נשארת בידי המשתמש.</p>
+    </section>
   </dialog>
 
   <div id="tourOverlay" class="visual-tour" role="dialog" aria-modal="true" aria-labelledby="tourTitle" hidden>

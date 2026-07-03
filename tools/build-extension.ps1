@@ -1,5 +1,6 @@
 param(
-  [string]$OutputRoot = "dist"
+  [string]$OutputRoot = "dist",
+  [string]$WebAppUrl = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -24,6 +25,7 @@ $items = @(
   "index.html",
   "styles.css",
   "app.js",
+  "web-app-config.js",
   "service-worker.js",
   "manifest.webmanifest",
   "icons",
@@ -39,6 +41,16 @@ foreach ($item in $items) {
   } else {
     Copy-Item -LiteralPath $source -Destination $target
   }
+}
+
+if ($WebAppUrl) {
+  $escapedUrl = $WebAppUrl.Replace("\", "\\").Replace('"', '\"')
+  $config = @"
+(() => {
+  globalThis.DAILY_PDF_READER_WEB_APP_URL = "$escapedUrl";
+})();
+"@
+  Set-Content -LiteralPath (Join-Path $packageRoot "web-app-config.js") -Value $config -Encoding UTF8
 }
 
 Compress-Archive -Path (Join-Path $packageRoot "*") -DestinationPath $zipPath -Force
