@@ -7,6 +7,7 @@ const $ = (id) => document.getElementById(id);
 const PAGE_RENDER_NEIGHBORS = 2;
 const PAGE_OBSERVER_MARGIN = "900px 0px";
 const RECENT_PAGE_LIMIT = 6;
+const SCROLL_DRAG_THRESHOLD = 12;
 const PDF_LOAD_OPTIONS = {
   disableFontFace: true,
   useSystemFonts: false
@@ -67,6 +68,8 @@ const state = {
   spacePressed: false,
   suppressContextMenu: false,
   insertMenuPlacement: null,
+  toolbarDrag: null,
+  mobileRailDrag: null,
   mobileSidebarPrepared: false
 };
 
@@ -111,6 +114,8 @@ const ui = {
   zoomSlider: $("zoomSlider"),
   zoomInput: $("zoomInput"),
   zoomLabel: $("zoomLabel"),
+  toolbar: document.querySelector(".toolbar"),
+  mobileSideRail: document.querySelector(".mobile-side-rail"),
   sidebar: $("sidebar"),
   helpDialog: $("helpDialog"),
   installSupportStatus: $("installSupportStatus"),
@@ -187,6 +192,9 @@ restoreActiveSessionFile();
 updateStatus();
 
 function wireEvents() {
+  initToolbarDrag();
+  initMobileRailDrag();
+
   ui.fileInput.addEventListener("change", (event) => {
     const [file] = event.target.files;
     if (file && isPdfFile(file)) openFile(file);
@@ -445,6 +453,95 @@ function wireEvents() {
     fitTo(state.fit);
     if (!ui.tourOverlay.hidden) positionTourStep();
   }, 150));
+}
+
+function initToolbarDrag() {
+  initHorizontalScroller(ui.toolbar, "toolbarDrag", {
+    enabled: isCompactToolbarMode,
+    ignore: "input, select, textarea, .dropdown-menu",
+    capturePointer: true
+  });
+}
+
+function isCompactToolbarMode() {
+  return window.matchMedia("(max-width: 720px)").matches;
+}
+
+function initMobileRailDrag() {
+  initHorizontalScroller(ui.mobileSideRail, "mobileRailDrag", {
+    enabled: () => isMobileSidebarMode() && ui.sidebar.classList.contains("collapsed"),
+    capturePointer: false
+  });
+}
+
+function initHorizontalScroller(element, stateKey, options = {}) {
+  if (!element) return;
+  const enabled = options.enabled || (() => true);
+  const capturePointer = options.capturePointer !== false;
+
+  element.addEventListener("pointerdown", (event) => {
+    if (!enabled() || event.button !== 0) return;
+    if (options.ignore && event.target.closest(options.ignore)) return;
+
+    state[stateKey] = {
+      pointerId: event.pointerId,
+      x: event.clientX,
+      scrollLeft: element.scrollLeft,
+      moved: false
+    };
+
+    if (capturePointer) element.setPointerCapture?.(event.pointerId);
+  });
+
+  element.addEventListener("pointermove", (event) => {
+    const drag = state[stateKey];
+    if (!drag || drag.pointerId !== event.pointerId) return;
+
+    const deltaX = event.clientX - drag.x;
+    if (Math.abs(deltaX) > SCROLL_DRAG_THRESHOLD) {
+      drag.moved = true;
+      element.classList.add("is-dragging");
+    }
+    if (!drag.moved) return;
+
+    event.preventDefault();
+    element.scrollLeft = drag.scrollLeft - deltaX;
+  });
+
+  const stopDrag = (event) => {
+    const drag = state[stateKey];
+    if (!drag || drag.pointerId !== event.pointerId) return;
+
+    if (capturePointer) element.releasePointerCapture?.(event.pointerId);
+    element.classList.remove("is-dragging");
+    if (!drag.moved) {
+      state[stateKey] = null;
+      return;
+    }
+
+    window.setTimeout(() => {
+      if (state[stateKey] === drag) state[stateKey] = null;
+    }, 0);
+  };
+
+  window.addEventListener("pointerup", stopDrag);
+  window.addEventListener("pointercancel", stopDrag);
+  element.addEventListener("click", (event) => {
+    if (!state[stateKey]?.moved) return;
+    event.preventDefault();
+    event.stopPropagation();
+    state[stateKey] = null;
+  }, true);
+
+  element.addEventListener("wheel", (event) => {
+    if (!enabled()) return;
+    const horizontalDelta = Math.abs(event.deltaX) >= Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
+    if (!horizontalDelta) return;
+
+    const previousLeft = element.scrollLeft;
+    element.scrollLeft += horizontalDelta;
+    if (element.scrollLeft !== previousLeft) event.preventDefault();
+  }, { passive: false });
 }
 
 function prepareMobileSidebar() {
