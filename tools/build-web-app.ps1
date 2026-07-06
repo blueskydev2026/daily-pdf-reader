@@ -27,6 +27,7 @@ $items = @(
   "service-worker.js",
   "manifest.webmanifest",
   "icons",
+  "legal",
   "vendor"
 )
 
