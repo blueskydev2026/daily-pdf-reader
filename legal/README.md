@@ -1,28 +1,21 @@
 # PDF יומי – דפי אתר ל־GitHub Pages
 
-החבילה הזו לא כוללת `index.html`, כדי לא לדרוס את האתר/התוכנה הראשית.
+חבילה זו כוללת דפים מוכנים לפרסום עבור תוסף Chrome בשם PDF יומי.
 
 ## קבצים
-- `landing.html` – דף נחיתה שיווקי
+- `landing.html` – דף נחיתה
 - `privacy.html` – מדיניות פרטיות
 - `terms.html` – תנאי שימוש
 - `support.html` – תמיכה
+- `faq.html` – שאלות נפוצות
 - `contact.html` – יצירת קשר
 - `about.html` – אודות
 - `assets/style.css` – עיצוב האתר
 
+## עודכן
+- תאריך עדכון: 06/07/2026
+- אימייל יצירת קשר: patientb3240@gmail.com
+
 ## לפני העלאה
-החלף בכל הקבצים:
-- `your@email.com` באימייל שלך
-- `#` בקישור האמיתי להתקנה/רכישה
-- `________` בתאריך העדכון
-
-## קישורים לדוגמה
-אם האתר שלך הוא:
-`https://yakov2413.github.io/REPO/`
-
-אז הדפים יהיו:
-- `https://yakov2413.github.io/REPO/landing.html`
-- `https://yakov2413.github.io/REPO/privacy.html`
-- `https://yakov2413.github.io/REPO/terms.html`
-- `https://yakov2413.github.io/REPO/support.html`
+- החלף את `#` בקישור האמיתי להתקנה/רכישה לאחר שהתוסף יפורסם.
+- ודא שהצהרות הפרטיות באתר תואמות בפועל להתנהגות התוסף ולהצהרות ב־Chrome Web Store.
