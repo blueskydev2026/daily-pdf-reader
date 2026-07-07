@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "קורא PDF יומי",
   "short_name": "PDF יומי",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "קורא PDF עברי עם סימניות, חיפוש, הדגשות, מילוי טפסים, חתימה ושמירת עותק PDF.",
   "minimum_chrome_version": "109",
   "icons": {
