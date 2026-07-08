@@ -50,12 +50,15 @@ const state = {
   signatureSessionId: null,
   screenshotSelection: {
     active: false,
+    transientArea: false,
     mode: "area",
     dragging: false,
     pointerId: null,
     pageNo: null,
     box: null,
     textHighlights: [],
+    textFragments: [],
+    nativeText: "",
     rect: null,
     startX: 0,
     startY: 0
@@ -424,7 +427,7 @@ function wireEvents() {
       closeTourGuide();
       return;
     }
-    if (event.key === "Escape" && state.screenshotSelection.active) {
+    if (event.key === "Escape" && (state.screenshotSelection.active || state.screenshotSelection.rect)) {
       stopScreenshotSelection();
       announce("בחירת הקטע בוטלה.");
       return;
@@ -448,6 +451,7 @@ function wireEvents() {
     if (!event.target.closest("#insertActionMenu")) hideInsertActionMenu();
     if (!event.target.closest(".field-box")) closeFieldMenus();
   });
+  document.addEventListener("selectionchange", debounce(syncNativeTextSelection, 80));
   window.addEventListener("resize", debounce(() => {
     prepareMobileSidebar();
     fitTo(state.fit);
@@ -904,6 +908,7 @@ function createPage(pageNo) {
   const textLayer = document.createElement("div");
   textLayer.className = "text-layer";
   shell.append(textLayer);
+  wireTextLayerSelection(textLayer, pageNo);
 
   const searchLayer = document.createElement("div");
   searchLayer.className = "search-layer";
@@ -1751,10 +1756,12 @@ function updateToolLayers() {
     layer.classList.toggle("active", state.tool === "highlight" || state.tool === "text" || state.tool === "signature");
   });
   document.querySelectorAll(".screenshot-layer").forEach((layer) => {
-    layer.classList.toggle("active", state.screenshotSelection.active || state.tool === "select");
+    layer.classList.toggle("active", state.screenshotSelection.active);
   });
+  if (state.tool !== "select" || state.screenshotSelection.active) clearDynamicSelectionCursors();
   ui.reader.classList.toggle("can-pan", state.tool === "pan");
-  ui.reader.classList.toggle("screenshot-selecting", state.screenshotSelection.active || state.tool === "select");
+  ui.reader.classList.toggle("text-selecting", state.tool === "select" && !state.screenshotSelection.active);
+  ui.reader.classList.toggle("screenshot-selecting", state.screenshotSelection.active);
 }
 
 function renderVisibleAnnotations() {
@@ -3638,6 +3645,7 @@ function startScreenshotSelection(mode = "area") {
     return;
   }
   state.screenshotSelection.active = true;
+  state.screenshotSelection.transientArea = false;
   state.screenshotSelection.mode = normalizeSelectionMode(mode);
   state.screenshotSelection.dragging = false;
   clearScreenshotSelectionBox();
@@ -3655,52 +3663,32 @@ function normalizeSelectionMode(mode) {
 }
 
 function stopScreenshotSelection() {
-  if (!state.screenshotSelection.active && !state.screenshotSelection.box && !state.screenshotSelection.textHighlights?.length) return;
+  if (
+    !state.screenshotSelection.active
+    && !state.screenshotSelection.box
+    && !state.screenshotSelection.textHighlights?.length
+    && !state.screenshotSelection.textFragments?.length
+    && !state.screenshotSelection.nativeText
+    && !state.screenshotSelection.rect
+  ) return;
   state.screenshotSelection.active = false;
+  state.screenshotSelection.transientArea = false;
   state.screenshotSelection.mode = "area";
   state.screenshotSelection.dragging = false;
   state.screenshotSelection.pointerId = null;
   clearScreenshotSelectionBox();
   clearTextSelectionHighlights();
+  window.getSelection?.()?.removeAllRanges();
   hideSelectionActionMenu();
   updateToolLayers();
 }
 
 function wireScreenshotLayer(layer, pageNo) {
   layer.addEventListener("pointerdown", (event) => {
-    const toolbarSelection = state.tool === "select";
-    if ((!state.screenshotSelection.active && !toolbarSelection) || event.button !== 0) return;
-    event.preventDefault();
-    event.stopPropagation();
-    layer.setPointerCapture(event.pointerId);
-    clearScreenshotSelectionBox();
-    clearTextSelectionHighlights();
-    hideSelectionActionMenu();
-
     const mode = state.screenshotSelection.active
       ? normalizeSelectionMode(state.screenshotSelection.mode)
-      : "smart";
-
-    const layerRect = layer.getBoundingClientRect();
-    const startX = clamp(event.clientX - layerRect.left, 0, layerRect.width);
-    const startY = clamp(event.clientY - layerRect.top, 0, layerRect.height);
-    const box = document.createElement("div");
-    box.className = "screenshot-selection-box";
-    box.classList.toggle("text-selection-box", mode !== "area");
-    layer.append(box);
-
-    Object.assign(state.screenshotSelection, {
-      active: state.screenshotSelection.active,
-      mode,
-      dragging: true,
-      pointerId: event.pointerId,
-      pageNo,
-      box,
-      rect: { x: startX, y: startY, w: 0, h: 0 },
-      startX,
-      startY
-    });
-    drawScreenshotSelection(event, layer);
+      : "area";
+    beginScreenshotSelectionDrag(event, layer, pageNo, mode, state.screenshotSelection.active);
   });
 
   layer.addEventListener("pointermove", (event) => {
@@ -3721,20 +3709,129 @@ function wireScreenshotLayer(layer, pageNo) {
       clearScreenshotSelectionBox();
       clearTextSelectionHighlights();
       hideSelectionActionMenu();
+      state.screenshotSelection.active = false;
+      state.screenshotSelection.transientArea = false;
+      updateToolLayers();
       return;
     }
     const mode = state.screenshotSelection.mode;
     if (mode === "text" || mode === "smart") {
       finalizeTextSelection(layer, { fallbackToArea: mode === "smart" }).then((finalMode) => {
         if (finalMode) showSelectionActionMenu(layer, rect);
+        finishTransientAreaSelection();
       });
     } else {
       showSelectionActionMenu(layer, rect);
+      finishTransientAreaSelection();
     }
   };
 
   layer.addEventListener("pointerup", finish);
   layer.addEventListener("pointercancel", finish);
+}
+
+function wireTextLayerSelection(layer, pageNo) {
+  layer.addEventListener("pointerenter", (event) => updateDynamicSelectionCursor(pageNo, event));
+  layer.addEventListener("pointermove", (event) => updateDynamicSelectionCursor(pageNo, event));
+  layer.addEventListener("pointerleave", () => clearDynamicSelectionCursor(pageNo));
+
+  layer.addEventListener("pointerdown", (event) => {
+    if (state.tool !== "select" || state.screenshotSelection.active || event.button !== 0) return;
+    updateDynamicSelectionCursor(pageNo, event);
+    hideSelectionActionMenu();
+    clearScreenshotSelectionBox();
+    clearTextSelectionHighlights();
+    state.screenshotSelection.textFragments = [];
+    state.screenshotSelection.nativeText = "";
+    const textTarget = event.target.closest?.(".text-layer span");
+    if (textTarget && String(textTarget.textContent || "").trim()) return;
+    const record = state.renderedPages.get(pageNo);
+    const hasRenderedText = Boolean(record?.textItems?.length);
+    if (hasRenderedText && textItemAtPoint(pageNo, event.clientX, event.clientY)) return;
+    window.getSelection()?.removeAllRanges();
+    beginScreenshotSelectionDrag(event, record?.screenshotLayer, pageNo, "area", true, true);
+  });
+
+  layer.addEventListener("pointerup", () => {
+    if (state.tool !== "select" || state.screenshotSelection.active) return;
+    setTimeout(syncNativeTextSelection, 0);
+  });
+}
+
+function updateDynamicSelectionCursor(pageNo, event) {
+  const record = state.renderedPages.get(pageNo);
+  if (!record?.shell) return;
+  if (state.tool !== "select" || state.screenshotSelection.active) {
+    clearDynamicSelectionCursor(pageNo);
+    return;
+  }
+  const textTarget = event.target.closest?.(".text-layer span");
+  const isTextReady = Boolean(
+    (textTarget && String(textTarget.textContent || "").trim())
+    || textItemAtPoint(pageNo, event.clientX, event.clientY)
+  );
+  record.shell.classList.toggle("select-text-ready", isTextReady);
+  record.shell.classList.toggle("select-area-ready", !isTextReady);
+}
+
+function clearDynamicSelectionCursor(pageNo) {
+  const record = state.renderedPages.get(pageNo);
+  record?.shell?.classList.remove("select-text-ready", "select-area-ready");
+}
+
+function clearDynamicSelectionCursors() {
+  document.querySelectorAll(".page-shell.select-text-ready, .page-shell.select-area-ready").forEach((shell) => {
+    shell.classList.remove("select-text-ready", "select-area-ready");
+  });
+}
+
+function beginScreenshotSelectionDrag(event, layer, pageNo, mode = "area", active = true, transientArea = false) {
+  if (!layer || event.button !== 0) return false;
+  if (!state.screenshotSelection.active && state.tool !== "select" && !active) return false;
+  event.preventDefault();
+  event.stopPropagation();
+  try {
+    layer.setPointerCapture?.(event.pointerId);
+  } catch (error) {
+    console.warn("Could not capture selection pointer:", error);
+  }
+  clearScreenshotSelectionBox();
+  clearTextSelectionHighlights();
+  window.getSelection()?.removeAllRanges();
+  hideSelectionActionMenu();
+
+  const layerRect = layer.getBoundingClientRect();
+  const startX = clamp(event.clientX - layerRect.left, 0, layerRect.width);
+  const startY = clamp(event.clientY - layerRect.top, 0, layerRect.height);
+  const box = document.createElement("div");
+  box.className = "screenshot-selection-box";
+  box.classList.toggle("text-selection-box", mode !== "area");
+  layer.append(box);
+
+  Object.assign(state.screenshotSelection, {
+    active,
+    transientArea,
+    mode,
+    dragging: true,
+    pointerId: event.pointerId,
+    pageNo,
+    box,
+    textFragments: [],
+    nativeText: "",
+    rect: { x: startX, y: startY, w: 0, h: 0 },
+    startX,
+    startY
+  });
+  updateToolLayers();
+  drawScreenshotSelection(event, layer);
+  return true;
+}
+
+function finishTransientAreaSelection() {
+  if (!state.screenshotSelection.transientArea) return;
+  state.screenshotSelection.active = false;
+  state.screenshotSelection.transientArea = false;
+  updateToolLayers();
 }
 
 function drawScreenshotSelection(event, layer) {
@@ -3763,6 +3860,9 @@ function clearScreenshotSelectionBox() {
   state.screenshotSelection.box = null;
   state.screenshotSelection.rect = null;
   state.screenshotSelection.pageNo = null;
+  state.screenshotSelection.transientArea = false;
+  state.screenshotSelection.textFragments = [];
+  state.screenshotSelection.nativeText = "";
 }
 
 function removeSelectionBoxElement() {
@@ -3773,6 +3873,90 @@ function removeSelectionBoxElement() {
 function clearTextSelectionHighlights() {
   state.screenshotSelection.textHighlights?.forEach((highlight) => highlight.remove());
   state.screenshotSelection.textHighlights = [];
+}
+
+function syncNativeTextSelection() {
+  if (state.tool !== "select" || state.screenshotSelection.dragging || state.screenshotSelection.active) return;
+  const selection = window.getSelection?.();
+  const text = String(selection?.toString() || "").trim();
+  if (!selection || selection.rangeCount === 0 || selection.isCollapsed || !text) return;
+
+  const range = selection.getRangeAt(0);
+  const shell = pageShellFromSelection(selection, range);
+  if (!shell) return;
+  const pageNo = Number(shell.dataset.page);
+  const record = state.renderedPages.get(pageNo);
+  if (!record?.screenshotLayer) return;
+
+  const shellRect = shell.getBoundingClientRect();
+  const fragments = [...range.getClientRects()]
+    .filter((rect) => rect.left < shellRect.right && rect.right > shellRect.left && rect.top < shellRect.bottom && rect.bottom > shellRect.top)
+    .map((rect) => rectToPageFragment(rect, shellRect, record.viewport))
+    .filter((fragment) => fragment.w > 1 && fragment.h > 1);
+  if (!fragments.length) return;
+
+  const bounds = boundsFromFragments(fragments);
+  clearScreenshotSelectionBox();
+  clearTextSelectionHighlights();
+  hideInsertActionMenu();
+  Object.assign(state.screenshotSelection, {
+    active: false,
+    mode: "text",
+    dragging: false,
+    pointerId: null,
+    pageNo,
+    rect: bounds,
+    textFragments: fragments,
+    nativeText: text,
+    startX: bounds.x,
+    startY: bounds.y
+  });
+  showSelectionActionMenu(record.screenshotLayer, bounds);
+}
+
+function pageShellFromSelection(selection, range) {
+  const nodeShell = closestPageShell(selection.anchorNode) || closestPageShell(selection.focusNode) || closestPageShell(range.commonAncestorContainer);
+  if (nodeShell) return nodeShell;
+  const rect = range.getBoundingClientRect();
+  return [...document.querySelectorAll(".page-shell")].find((shell) => {
+    const shellRect = shell.getBoundingClientRect();
+    return rect.left < shellRect.right && rect.right > shellRect.left && rect.top < shellRect.bottom && rect.bottom > shellRect.top;
+  }) || null;
+}
+
+function closestPageShell(node) {
+  const element = node?.nodeType === Node.ELEMENT_NODE ? node : node?.parentElement;
+  return element?.closest?.(".page-shell") || null;
+}
+
+function rectToPageFragment(rect, shellRect, viewport) {
+  const x = clamp(rect.left - shellRect.left, 0, viewport.width);
+  const y = clamp(rect.top - shellRect.top, 0, viewport.height);
+  const right = clamp(rect.right - shellRect.left, 0, viewport.width);
+  const bottom = clamp(rect.bottom - shellRect.top, 0, viewport.height);
+  return { x, y, w: Math.max(0, right - x), h: Math.max(0, bottom - y) };
+}
+
+function boundsFromFragments(fragments) {
+  const left = Math.min(...fragments.map((fragment) => fragment.x));
+  const top = Math.min(...fragments.map((fragment) => fragment.y));
+  const right = Math.max(...fragments.map((fragment) => fragment.x + fragment.w));
+  const bottom = Math.max(...fragments.map((fragment) => fragment.y + fragment.h));
+  return { x: left, y: top, w: right - left, h: bottom - top };
+}
+
+function textItemAtPoint(pageNo, clientX, clientY) {
+  const record = state.renderedPages.get(pageNo);
+  if (!record?.textItems?.length) return null;
+  const shellRect = record.shell.getBoundingClientRect();
+  const x = clientX - shellRect.left;
+  const y = clientY - shellRect.top;
+  return record.textItems.find((item) => (
+    x >= item.x - 2
+    && x <= item.x + item.w + 2
+    && y >= item.y - 2
+    && y <= item.y + item.h + 2
+  )) || null;
 }
 
 async function finalizeTextSelection(layer, options = {}) {
@@ -4030,7 +4214,9 @@ async function highlightCurrentSelection() {
     let boxes = [];
     if (mode === "text") {
       await ensureSelectedPageTextReady();
-      boxes = mergeTextSelectionFragments(getSelectedTextItems());
+      boxes = selection.textFragments?.length
+        ? selection.textFragments
+        : mergeTextSelectionFragments(getSelectedTextItems());
       if (!boxes.length) {
         announce("לא נמצא טקסט ברור להדגשה.");
         return;
@@ -4099,6 +4285,7 @@ async function copySelectionText() {
 }
 
 async function extractSelectedText() {
+  if (state.screenshotSelection.nativeText) return state.screenshotSelection.nativeText;
   await ensureSelectedPageTextReady();
   const items = getSelectedTextItems().map((item) => ({
     ...item,
@@ -4130,8 +4317,11 @@ function getSelectedTextItems() {
   if (!selection.rect || !selection.pageNo) return [];
   const record = state.renderedPages.get(selection.pageNo);
   if (!record?.textItems?.length) return [];
+  const fragments = selection.mode === "text" && selection.textFragments?.length
+    ? selection.textFragments
+    : [selection.rect];
   return record.textItems
-    .filter((item) => rectsOverlap(selection.rect, item))
+    .filter((item) => fragments.some((fragment) => rectsOverlap(fragment, item)))
     .sort((a, b) => a.y - b.y || a.x - b.x);
 }
 

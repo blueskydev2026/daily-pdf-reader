@@ -1289,6 +1289,20 @@ summary.panel-title::-webkit-details-marker {
   color: transparent;
 }
 
+.reader.text-selecting .text-layer {
+  cursor: text;
+  user-select: text;
+}
+
+.reader.text-selecting .page-shell.select-area-ready .text-layer {
+  cursor: crosshair;
+}
+
+.reader.text-selecting .page-shell.select-text-ready .text-layer,
+.reader.text-selecting .text-layer span {
+  cursor: text;
+}
+
 .text-layer br,
 .text-layer .endOfContent {
   display: none;
