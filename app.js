@@ -1248,8 +1248,9 @@ function renderAnnotationsForPage(pageNo) {
 
   state.meta.highlights.filter((item) => item.page === pageNo).forEach((item) => {
     const box = document.createElement("div");
-    box.className = "highlight-box movable-annotation";
+    box.className = `highlight-box movable-annotation${hasHighlightFragments(item) ? " text-highlight-group" : ""}`;
     setNormRect(box, item, w, h);
+    renderHighlightFragments(box, item);
     box.title = "גרור להזזה";
     wireRectAnnotationDrag(box, item, record);
     box.append(createAnnotationControls({
@@ -2103,6 +2104,42 @@ function setNormRect(element, item, width, height) {
   element.style.top = `${item.y * height}px`;
   element.style.width = `${item.w * width}px`;
   element.style.height = `${item.h * height}px`;
+}
+
+function hasHighlightFragments(item) {
+  return Array.isArray(item.fragments) && item.fragments.length > 0;
+}
+
+function renderHighlightFragments(element, item) {
+  if (!hasHighlightFragments(item)) return;
+  item.fragments.forEach((fragment) => {
+    const line = document.createElement("span");
+    line.className = "highlight-line";
+    line.style.left = `${fragment.x * 100}%`;
+    line.style.top = `${fragment.y * 100}%`;
+    line.style.width = `${fragment.w * 100}%`;
+    line.style.height = `${fragment.h * 100}%`;
+    element.append(line);
+  });
+}
+
+function getHighlightRects(item) {
+  if (!hasHighlightFragments(item)) return [item];
+  return item.fragments.map((fragment) => ({
+    x: item.x + fragment.x * item.w,
+    y: item.y + fragment.y * item.h,
+    w: fragment.w * item.w,
+    h: fragment.h * item.h
+  }));
+}
+
+function relativeHighlightFragment(box, bounds) {
+  return {
+    x: bounds.w ? clamp((box.x - bounds.x) / bounds.w, 0, 1) : 0,
+    y: bounds.h ? clamp((box.y - bounds.y) / bounds.h, 0, 1) : 0,
+    w: bounds.w ? clamp(box.w / bounds.w, 0, 1) : 0,
+    h: bounds.h ? clamp(box.h / bounds.h, 0, 1) : 0
+  };
 }
 
 function positionBox(element, x1, y1, x2, y2) {
@@ -3486,7 +3523,9 @@ function drawAnnotationsOnCanvas(context, pageNo, viewport) {
     context.save();
     context.globalAlpha = 0.34;
     context.fillStyle = "#ffd60a";
-    context.fillRect(item.x * width, item.y * height, item.w * width, item.h * height);
+    getHighlightRects(item).forEach((rect) => {
+      context.fillRect(rect.x * width, rect.y * height, rect.w * width, rect.h * height);
+    });
     context.restore();
   });
 
@@ -4004,6 +4043,7 @@ function paintTextSelectionHighlights(layer) {
   const items = getSelectedTextItems();
   if (!items.length) return false;
   const fragments = mergeTextSelectionFragments(items);
+  state.screenshotSelection.textFragments = fragments;
   state.screenshotSelection.textHighlights = fragments.map((fragment) => {
     const highlight = document.createElement("div");
     highlight.className = "text-selection-highlight";
@@ -4214,9 +4254,9 @@ async function highlightCurrentSelection() {
     let boxes = [];
     if (mode === "text") {
       await ensureSelectedPageTextReady();
-      boxes = selection.textFragments?.length
-        ? selection.textFragments
-        : mergeTextSelectionFragments(getSelectedTextItems());
+      boxes = mergeTextSelectionFragments(
+        selection.textFragments?.length ? selection.textFragments : getSelectedTextItems()
+      );
       if (!boxes.length) {
         announce("לא נמצא טקסט ברור להדגשה.");
         return;
@@ -4225,16 +4265,27 @@ async function highlightCurrentSelection() {
       boxes = [selection.rect];
     }
 
-    const highlights = boxes
+    const normalizedBoxes = boxes
       .map((box) => normalizedRectFromPixels(box, record.viewport.width, record.viewport.height))
       .filter((box) => box.w > 0.002 && box.h > 0.002);
-    if (!highlights.length) {
+    if (!normalizedBoxes.length) {
       announce("האיזור שנבחר קטן מדי להדגשה.");
       return;
     }
 
-    for (const box of highlights) {
-      state.meta.highlights.push({ id: crypto.randomUUID(), page: pageNo, ...box });
+    if (mode === "text") {
+      const bounds = boundsFromFragments(normalizedBoxes);
+      state.meta.highlights.push({
+        id: crypto.randomUUID(),
+        page: pageNo,
+        type: "text",
+        ...bounds,
+        fragments: normalizedBoxes.map((box) => relativeHighlightFragment(box, bounds))
+      });
+    } else {
+      for (const box of normalizedBoxes) {
+        state.meta.highlights.push({ id: crypto.randomUUID(), page: pageNo, ...box });
+      }
     }
     saveMeta();
     stopScreenshotSelection();
@@ -4491,15 +4542,17 @@ async function exportPdf() {
   for (const item of state.meta.highlights) {
     const page = pages[item.page - 1];
     if (!page) continue;
-    const rect = await pdfRectFromNormalized(item.page, item);
-    page.drawRectangle({
-      x: rect.x,
-      y: rect.y,
-      width: rect.width,
-      height: rect.height,
-      color: rgb(1, .86, .04),
-      opacity: .34
-    });
+    for (const highlightRect of getHighlightRects(item)) {
+      const rect = await pdfRectFromNormalized(item.page, highlightRect);
+      page.drawRectangle({
+        x: rect.x,
+        y: rect.y,
+        width: rect.width,
+        height: rect.height,
+        color: rgb(1, .86, .04),
+        opacity: .34
+      });
+    }
   }
 
   for (const item of state.meta.fields) {
