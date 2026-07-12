@@ -108,6 +108,7 @@ const ui = {
   pageInput: $("pageInput"),
   pageTotal: $("pageTotal"),
   pageSlider: $("pageSlider"),
+  outlinePanel: document.querySelector(".outline-panel"),
   outlineList: $("outlineList"),
   bookmarkList: $("bookmarkList"),
   searchInput: $("searchInput"),
@@ -2964,6 +2965,7 @@ function outlineSourceLabel(type) {
 
 function renderOutline() {
   if (!ui.outlineList) return;
+  syncOutlinePanelOpenState();
   ui.outlineList.innerHTML = "";
   if (state.outline.loading) {
     const loading = document.createElement("div");
@@ -2992,6 +2994,17 @@ function renderOutline() {
     button.innerHTML = `<span>${escapeHtml(item.title)}</span><small>${item.page}</small>`;
     button.addEventListener("click", () => goToPage(item.page));
     ui.outlineList.append(button);
+  }
+}
+
+function syncOutlinePanelOpenState() {
+  if (!ui.outlinePanel) return;
+  if (state.outline.type === "pdf") {
+    ui.outlinePanel.open = true;
+    return;
+  }
+  if (state.outline.type === "tagged" || state.outline.type === "auto") {
+    ui.outlinePanel.open = false;
   }
 }
 
