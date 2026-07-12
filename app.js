@@ -1136,7 +1136,10 @@ function wireAnnotationLayer(layer, pageNo) {
     if (event.button !== 0) return;
     if (event.target.closest(".field-box")) return;
     if (state.tool === "text") {
-      addTextField(pageNo, event.offsetX, event.offsetY);
+      const point = getLayerPointFromClient(pageNo, event.clientX, event.clientY);
+      addTextField(pageNo, point?.x ?? event.offsetX, point?.y ?? event.offsetY, {
+        alignTextToPoint: true
+      });
       return;
     }
     if (state.tool !== "highlight" && state.tool !== "signature") return;
@@ -1219,21 +1222,28 @@ function finishDrawing(event) {
   renderSavedSignatures();
 }
 
-function addTextField(pageNo, x, y) {
-  addTextFieldWithValue(pageNo, x, y, "");
+function addTextField(pageNo, x, y, options = {}) {
+  addTextFieldWithValue(pageNo, x, y, "", options);
 }
 
 function addTextFieldWithValue(pageNo, x, y, text, options = {}) {
   const record = state.renderedPages.get(pageNo);
+  const fontSize = options.fontSize || 15;
+  const anchor = getFieldInsertionAnchor(record, {
+    fontSize,
+    w: options.w,
+    h: options.h,
+    alignTextToPoint: options.alignTextToPoint
+  });
   const id = crypto.randomUUID();
   const field = {
     id,
     page: pageNo,
-    x: x / record.viewport.width,
-    y: y / record.viewport.height,
+    x: clamp(x - anchor.x, 0, Math.max(0, record.viewport.width - anchor.width)) / record.viewport.width,
+    y: clamp(y - anchor.y, 0, Math.max(0, record.viewport.height - anchor.height)) / record.viewport.height,
     w: options.w || 0.09,
     h: options.h || 0.032,
-    fontSize: options.fontSize || 15,
+    fontSize,
     scale: record.viewport.scale || state.scale || 1,
     type: options.type || "text",
     text
@@ -1249,6 +1259,19 @@ function addTextFieldWithValue(pageNo, x, y, text, options = {}) {
     if (box && content) autosizeTextField(box, content, field, record);
   });
   return field;
+}
+
+function getFieldInsertionAnchor(record, options = {}) {
+  const width = (options.w || 0.09) * record.viewport.width;
+  const height = (options.h || 0.032) * record.viewport.height;
+  if (!options.alignTextToPoint) return { x: 0, y: 0, width, height };
+  const fontSize = options.fontSize || 15;
+  return {
+    x: 0,
+    y: Math.min(height - 1, Math.max(0, fontSize * 0.75)),
+    width,
+    height
+  };
 }
 
 function renderAnnotationsForPage(pageNo) {
@@ -4156,11 +4179,20 @@ function getPagePlacementFromPoint(clientX, clientY, target) {
   const pageNo = Number(shell.dataset.page);
   const record = state.renderedPages.get(pageNo);
   if (!record) return null;
-  const rect = shell.getBoundingClientRect();
+  const point = getLayerPointFromClient(pageNo, clientX, clientY);
+  if (!point) return null;
+  return { pageNo, ...point };
+}
+
+function getLayerPointFromClient(pageNo, clientX, clientY) {
+  const record = state.renderedPages.get(Number(pageNo));
+  if (!record?.annotationLayer) return null;
+  const rect = record.annotationLayer.getBoundingClientRect();
+  const scaleX = record.viewport.width / Math.max(1, rect.width);
+  const scaleY = record.viewport.height / Math.max(1, rect.height);
   return {
-    pageNo,
-    x: clamp(clientX - rect.left, 0, record.viewport.width),
-    y: clamp(clientY - rect.top, 0, record.viewport.height)
+    x: clamp((clientX - rect.left) * scaleX, 0, record.viewport.width),
+    y: clamp((clientY - rect.top) * scaleY, 0, record.viewport.height)
   };
 }
 
@@ -4174,7 +4206,9 @@ function runInsertAction(action) {
     startScreenshotSelection("text");
   } else if (action === "text") {
     setTransientInsertTool("pan");
-    addTextField(placement.pageNo, placement.x, placement.y);
+    addTextField(placement.pageNo, placement.x, placement.y, {
+      alignTextToPoint: true
+    });
   } else if (action === "note") {
     setTransientInsertTool("pan");
     addTextFieldWithValue(placement.pageNo, placement.x, placement.y, "", {
