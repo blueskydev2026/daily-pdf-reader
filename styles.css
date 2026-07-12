@@ -238,6 +238,8 @@ input {
   border-color: #cbd5e1;
   background: #f8fafc;
   color: var(--muted);
+  opacity: .68;
+  box-shadow: none;
 }
 
 .brand {
@@ -1727,11 +1729,33 @@ summary.panel-title::-webkit-details-marker {
   margin-top: 8px;
 }
 
+.empty-action,
 .empty-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-width: 160px;
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink);
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background .16s ease, border-color .16s ease, color .16s ease, box-shadow .16s ease, transform .16s ease;
 }
 
-.empty-actions .primary {
+.empty-action:hover,
+.empty-actions button:hover {
+  border-color: var(--line-strong);
+  background: var(--surface-soft);
+  transform: translateY(-1px);
+}
+
+.empty-actions .primary,
+.empty-action.primary {
   color: #fff;
   border-color: var(--accent);
   background: var(--accent);

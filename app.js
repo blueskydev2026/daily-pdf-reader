@@ -310,6 +310,7 @@ function wireEvents() {
   });
   $("closeHelp").addEventListener("click", () => ui.helpDialog.close());
   $("tourGuide").addEventListener("click", openTourGuide);
+  $("emptyTourGuide")?.addEventListener("click", openTourGuide);
   $("closeTour").addEventListener("click", closeTourGuide);
   ui.tourPrev.addEventListener("click", () => moveTour(-1));
   ui.tourNext.addEventListener("click", () => moveTour(1));
@@ -593,10 +594,12 @@ function registerPwa() {
 
   if (canUsePwaFeatures && "serviceWorker" in navigator) {
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./service-worker.js").catch((error) => {
-        console.warn("Service worker registration failed:", error);
-        announce("התקנת השירות האופי לא הצליחה. האפליקציה עדיין תעבוד, אך ללא מטמון מלא.");
-      });
+      navigator.serviceWorker.register("./service-worker.js")
+        .then(watchServiceWorkerUpdates)
+        .catch((error) => {
+          console.warn("Service worker registration failed:", error);
+          announce("רישום מצב אופליין לא הצליח. האפליקציה עדיין תעבוד, אך ללא מטמון מלא.");
+        });
     });
   }
 
@@ -615,6 +618,19 @@ function registerPwa() {
   });
 
   window.matchMedia("(display-mode: standalone)").addEventListener?.("change", updateInstallUi);
+}
+
+function watchServiceWorkerUpdates(registration) {
+  if (!registration) return;
+  registration.addEventListener("updatefound", () => {
+    const worker = registration.installing;
+    if (!worker) return;
+    worker.addEventListener("statechange", () => {
+      if (worker.state === "activated" && navigator.serviceWorker.controller) {
+        announce("עדכון חדש נטען. רענון הדף יפעיל את הגרסה המעודכנת.");
+      }
+    });
+  });
 }
 
 async function installOrShowHelp() {
