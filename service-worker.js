@@ -1,4 +1,4 @@
-const CACHE_NAME = "daily-pdf-reader-v24";
+const CACHE_NAME = "daily-pdf-reader-v25";
 
 const APP_SHELL = [
   "./",
@@ -13,6 +13,8 @@ const APP_SHELL = [
   "./icons/icon-32.png",
   "./icons/icon-48.png",
   "./icons/icon-128.png",
+  "./icons/icon-192.png",
+  "./icons/icon-512.png",
   // Keep PDF.js on .js paths; .mjs may be served as text/plain by static hosts.
   "./vendor/pdf.min.js",
   "./vendor/pdf.worker.min.js",
