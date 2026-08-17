@@ -1,9 +1,9 @@
 {
   "name": "קורא PDF יומי",
   "short_name": "PDF יומי",
-  "id": "./",
-  "start_url": "./index.html",
-  "scope": "./",
+  "id": "/daily-pdf-reader/",
+  "start_url": "/daily-pdf-reader/",
+  "scope": "/daily-pdf-reader/",
   "display": "standalone",
   "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
   "background_color": "#f5f7fb",
@@ -50,7 +50,7 @@
   ],
   "file_handlers": [
     {
-      "action": "./index.html",
+      "action": "/daily-pdf-reader/",
       "accept": {
         "application/pdf": [".pdf"]
       }
